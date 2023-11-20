@@ -1,16 +1,16 @@
-package com.st.lap;
+package com.st.lap.dynamicDataSource.Config;
 
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
-//@PropertySource(value = {"file:${STLAP_LMS}/lms_application.properties"})
-public class DataSourceConfig {
-	
+public class MySqlDataSourceConfig {
 	@Value("${spring.datasource.driver-class-name}")
 	private String driverName;
 	
@@ -23,10 +23,9 @@ public class DataSourceConfig {
 	@Value("${spring.datasource.password}")
 	private String password;
 	
-	
-	 @Bean
+	@Primary
+	 @Bean(name = "msSqlDataSource")
 	public DataSource getDataSource() throws Exception {
-		
 		final DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName(driverName);
 		dataSource.setUrl(url);
@@ -36,8 +35,5 @@ public class DataSourceConfig {
 		
 	}
 	
-
-	
-
-	
+	 
 }
