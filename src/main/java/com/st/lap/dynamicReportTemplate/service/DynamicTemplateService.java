@@ -7,8 +7,11 @@ import java.math.BigDecimal;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -33,19 +36,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.sql.DataSource;
 import javax.sql.rowset.serial.SerialBlob;
-
-import com.itextpdf.html2pdf.ConverterProperties;
-import com.itextpdf.html2pdf.HtmlConverter;
-import com.itextpdf.kernel.events.PdfDocumentEvent;
-import com.itextpdf.kernel.geom.PageSize;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfPage;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.property.TextAlignment;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,13 +47,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import com.ironsoftware.ironpdf.*;
-import com.ironsoftware.ironpdf.render.WaitFor;
+import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
-import com.ironsoftware.ironpdf.render.ChromePdfRenderOptions;
+import com.itextpdf.kernel.events.PdfDocumentEvent;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.layout.Document;
+import com.st.lap.dynamicDataSource.service.DynamicDataSourceService;
 import com.st.lap.dynamicReportTemplate.model.DynamicReportContainer;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplate;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplateModel;
@@ -103,6 +99,10 @@ public class DynamicTemplateService {
 
 	@Autowired
 	private WebClient webClient;
+	
+	@Autowired
+    private  DynamicDataSourceService dynamicDataSourceService;
+
 
 	@Value("${stlap.server.url}")
 	private String stlapServerUrl;
@@ -936,6 +936,35 @@ if(returnResponse.size()==0) {
 		}
 		return null;
 	}
+
+	public void performDatabaseSwitch() {
+        // Your condition to switch to Oracle database
+        if (shouldSwitchToOracle()) {
+            dynamicDataSourceService.switchToOracleDataSource();
+        }
+
+        // Use the current datasource to fetch data
+        DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+        try (Connection connection = currentDataSource.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM your_table");
+             ResultSet resultSet = preparedStatement.executeQuery()) {
+
+            // Process the result set
+            while (resultSet.next()) {
+                // Process each row
+            }
+
+        } catch (SQLException e) {
+            // Handle SQL exception
+            e.printStackTrace();
+        }
+    }
+
+    private boolean shouldSwitchToOracle() {
+        // Your logic to determine when to switch to Oracle
+        // Example: Check data in MS SQL Server and decide to switch based on certain conditions
+        return false; // Change this condition based on your requirements
+    }
 
 
 	public static String convertToIndianCurrency(String num) {
