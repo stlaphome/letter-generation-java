@@ -24,10 +24,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
 import javax.sql.rowset.serial.SerialBlob;
 
 import com.itextpdf.html2pdf.ConverterProperties;
@@ -62,9 +67,11 @@ import com.st.lap.dynamicReportTemplate.model.DynamicTemplate;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplateModel;
 import com.st.lap.dynamicReportTemplate.model.DynamicVariables;
 import com.st.lap.dynamicReportTemplate.model.GenerateTemplateModel;
+import com.st.lap.dynamicReportTemplate.model.LetterProduct;
 import com.st.lap.dynamicReportTemplate.repo.DynamicReportContainerRepo;
 import com.st.lap.dynamicReportTemplate.repo.DynamicTemplateRepo;
 import com.st.lap.dynamicReportTemplate.repo.DynamicVariablesRepo;
+import com.st.lap.dynamicReportTemplate.repo.LetterProductRepo;
 
 import freemarker.template.Configuration;
 import lombok.Data;
@@ -81,6 +88,9 @@ public class DynamicTemplateService {
 
 	@Autowired
 	DynamicReportContainerRepo dynamicReportContainerRepo;
+	
+	@Autowired
+	LetterProductRepo letterProductRepo;
 
 	@Autowired
 	JavaMailSender javaMailSender;
@@ -547,8 +557,12 @@ public class DynamicTemplateService {
 				"//~~Property_Boundary_Details~~//","//~~Type_Of_Loan~~//","//~~Repayment_Mode~~//","//~~Account_No~~//","//~~End_Use_of_Loan~~//",
 				"//~~Cersai Fee~~//","//~~kerala_Document_Charges~~//","//~~Rajasthan_Document_Charges~~//","//~~Maha_Gujarat_Document_Charges~~//","//~~Other_Document_Charges~~//",
 				"//~~MOTD Fee~~//","//~~Statement_Charges~~//","//~~Settlement_Figure_Charges~~//","//~~Document_Retrieval_Charges~~//","//~~Cheque_Return_Charges~~//",
-"//~~TamilNadu_Document_Handling_Charges~~//","//~~Andra_Document_Handling_Charges~~//","//~~Karnataka_Document_Handling_Charges~~//","//~~Madhya_Document_Handling_Charges~~//",
-"//~~Photocopy_Charges~~//","//~~Custodial_Charges~~//","//~~Annexures_Tables~~//");
+				"//~~TamilNadu_Document_Handling_Charges~~//","//~~Andra_Document_Handling_Charges~~//","//~~Karnataka_Document_Handling_Charges~~//","//~~Madhya_Document_Handling_Charges~~//",
+				"//~~Photocopy_Charges~~//","//~~Custodial_Charges~~//","//~~Annexures_Tables~~//",
+				"//~~Sanction_Loan_Amount~~//","//~~Sanction_Processing_Fee~~//","//~~Sanction_Term~~//",
+				"//~~Sanction_Net_Rate~~//","//~~Sanction_EMI~~//","//~~Sanction_Account_No~~//","//~~Sanction_End_Use_of_Loan~~//","//~~Sanction_Purpose_of_Loan~~//",
+				"//~~Sanction_Header_Company_Name~~//","//~~Sanction_Current_Date~~//","//~~Sanction_Branch_Address~~//","//~~Sanction_To_Address~~//",
+				"//~~Sanction_TelePhone_No~~//","//~~Sanction_Header_Mail~~//","//~~Sanction_Header_Branch_Address~~//");
 	}
 	public String replaceValues(String content, String applicationNumber) {
 		Map<String, String> valuesMap = returnVariablesDataMapForMITC(applicationNumber);
@@ -903,6 +917,25 @@ if(returnResponse.size()==0) {
 			return 0;
 		}
 	}
+	
+	public ResponseEntity<List<Map<Integer, String>>> getProductTypeList() {
+		List<LetterProduct> letterproductAllData = letterProductRepo.findAll();
+		 List<Map<Integer, String>> productCodeList = letterproductAllData.stream().filter(distinctByKey(data->data.getProductCode())).map(datas->{
+			 Map<Integer,String> productMap = new HashMap<>();
+			productMap.put(datas.getProductId(), datas.getProductCode());
+			return productMap;
+		}).distinct().collect(Collectors.toList());
+		return ResponseEntity.ok(productCodeList);
+	}
+	
+	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+		if (keyExtractor != null) {
+			Map<Object, Boolean> seen = new ConcurrentHashMap<>();
+			return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
+		}
+		return null;
+	}
+
 
 	public static String convertToIndianCurrency(String num) {
 		BigDecimal bd = new BigDecimal(num);
@@ -1114,5 +1147,6 @@ if(returnResponse.size()==0) {
 		private String branch;
 
 	}
+
 
 }

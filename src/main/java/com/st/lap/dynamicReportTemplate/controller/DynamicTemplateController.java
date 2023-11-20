@@ -78,4 +78,10 @@ public class DynamicTemplateController {
 		return dynamicTemplateService.sendNotification(dataMap);
 	}
 	
+	@PostMapping("/getProductTypeList")
+	public ResponseEntity<List<Map<Integer, String>>> getProductTypeList(){
+		return dynamicTemplateService.getProductTypeList();
+		
+	}
+	
 }

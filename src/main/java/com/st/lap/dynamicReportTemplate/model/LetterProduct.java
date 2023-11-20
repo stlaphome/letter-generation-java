@@ -22,10 +22,10 @@ public class LetterProduct {
 	private String productCode;
 	
 	@Column(name = "letter_name")
-	private Blob letterName;
+	private String letterName;
 	
 	@Column(name = "data_base")
-	private Blob dataBase;
+	private String dataBase;
 	
 	@Column(name = "product_data")
 	private Blob productData;
