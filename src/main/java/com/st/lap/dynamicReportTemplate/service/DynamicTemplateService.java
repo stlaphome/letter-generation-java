@@ -940,7 +940,7 @@ if(returnResponse.size()==0) {
 	public void performDatabaseSwitch() {
         // Your condition to switch to Oracle database
         if (shouldSwitchToOracle()) {
-           // dynamicDataSourceService.switchToOracleDataSource();
+            dynamicDataSourceService.switchToOracleDataSource();
         }
 
         // Use the current datasource to fetch data

@@ -10,23 +10,22 @@ import org.springframework.stereotype.Service;
 public class DynamicDataSourceService {
 	@Autowired
 	private final DataSource msSqlDataSource;
-//	@Autowired
-//	private final DataSource oracleDataSource;
+	@Autowired
+	private final DataSource oracleDataSource;
 
 	private DataSource currentDataSource;
-//,			@Qualifier("oracleDataSource") DataSource oracleDataSource
 	public DynamicDataSourceService(
-			@Qualifier("msSqlDataSource") DataSource msSqlDataSource
-			
+			@Qualifier("msSqlDataSource") DataSource msSqlDataSource,
+			@Qualifier("oracleDataSource") DataSource oracleDataSource
 			) {
 		this.msSqlDataSource = msSqlDataSource;
-	//	this.oracleDataSource = oracleDataSource;
+		this.oracleDataSource = oracleDataSource;
 		this.currentDataSource = msSqlDataSource; // Set the initial datasource
 	}
 
-//	public void switchToOracleDataSource() {
-//		this.currentDataSource = oracleDataSource;
-//	}
+	public void switchToOracleDataSource() {
+		this.currentDataSource = oracleDataSource;
+	}
 
 	// Add similar methods for other datasources if needed
 
