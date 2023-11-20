@@ -79,7 +79,7 @@ public class DynamicTemplateController {
 	}
 	
 	@PostMapping("/getProductTypeList")
-	public ResponseEntity<List<Map<Integer, String>>> getProductTypeList(){
+	public ResponseEntity<List<Map<String,Object>>> getProductTypeList(){
 		return dynamicTemplateService.getProductTypeList();
 		
 	}

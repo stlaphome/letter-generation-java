@@ -918,11 +918,12 @@ if(returnResponse.size()==0) {
 		}
 	}
 	
-	public ResponseEntity<List<Map<Integer, String>>> getProductTypeList() {
+	public ResponseEntity<List<Map<String, Object>>> getProductTypeList() {
 		List<LetterProduct> letterproductAllData = letterProductRepo.findAll();
-		 List<Map<Integer, String>> productCodeList = letterproductAllData.stream().filter(distinctByKey(data->data.getProductCode())).map(datas->{
-			 Map<Integer,String> productMap = new HashMap<>();
-			productMap.put(datas.getProductId(), datas.getProductCode());
+		 List<Map<String, Object>> productCodeList = letterproductAllData.stream().filter(distinctByKey(data->data.getProductCode())).map(datas->{
+			 Map<String,Object> productMap = new HashMap<>();
+			productMap.put("value",datas.getProductId());
+			productMap.put("text",datas.getProductCode());
 			return productMap;
 		}).distinct().collect(Collectors.toList());
 		return ResponseEntity.ok(productCodeList);
