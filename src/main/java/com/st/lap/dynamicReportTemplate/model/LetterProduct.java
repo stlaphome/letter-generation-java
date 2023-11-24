@@ -5,6 +5,7 @@ import java.sql.Blob;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.persistence.Table;
 
 import lombok.Data;
@@ -27,8 +28,9 @@ public class LetterProduct {
 	@Column(name = "data_base")
 	private String dataBase;
 	
+	@Lob
 	@Column(name = "product_data")
-	private Blob productData;
+	private String productData;
 
 
 }

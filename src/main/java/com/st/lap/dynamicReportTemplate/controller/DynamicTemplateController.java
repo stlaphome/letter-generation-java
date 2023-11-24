@@ -1,13 +1,16 @@
 package com.st.lap.dynamicReportTemplate.controller;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplateModel;
@@ -44,14 +47,14 @@ public class DynamicTemplateController {
 		return dynamicTemplateService.getVariablesList(dynamicTemplateModel.getTemplateName());
 	}
 	
-	@PostMapping("/getTemplateNameList")
-	public ResponseEntity<List<String>> getTemplateNameList() {
-		return dynamicTemplateService.getTemplateNameList();
+	@GetMapping("/getTemplateNameList")
+	public ResponseEntity<List<String>> getTemplateNameList(@RequestParam String productCode ) {
+		return dynamicTemplateService.getTemplateNameList(productCode);
 	}
 	
-	@PostMapping("/getAllApplicationNumbers")
-	public ResponseEntity<List<String>> getAllApplicationNumbers() {
-		return dynamicTemplateService.getAllApplicationNumbers();
+	@GetMapping("/getAllApplicationNumbers")
+	public ResponseEntity<List<String>> getAllApplicationNumbers(@RequestParam String productCode) {
+		return dynamicTemplateService.getAllApplicationNumbers(productCode);
 	}
 	
 	@PostMapping("/getTemplateForView")
@@ -62,7 +65,7 @@ public class DynamicTemplateController {
 	
 	@PostMapping("/generateLetter")
 	public ResponseEntity<Map<String, Object>> generateLetter(
-			@RequestBody GenerateTemplateModel model) {
+			@RequestBody GenerateTemplateModel model) throws SQLException {
 		return dynamicTemplateService.generateLetter(model);
 	}
 	
@@ -81,6 +84,12 @@ public class DynamicTemplateController {
 	@PostMapping("/getProductTypeList")
 	public ResponseEntity<List<Map<String,Object>>> getProductTypeList(){
 		return dynamicTemplateService.getProductTypeList();
+		
+	}
+	
+	@PostMapping("/fetchDataBasedOnDB")
+	public ResponseEntity<List<Map<String,Object>>> fetchDataBasedOnDB(@RequestBody GenerateTemplateModel model){
+		return dynamicTemplateService.fetchDataBasedOnDB(model);
 		
 	}
 	

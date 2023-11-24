@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-@Configuration
 //@PropertySource(value = {"file:${STLAP_LMS}/lms_application.properties"})
 public class DataSourceConfig {
 	
