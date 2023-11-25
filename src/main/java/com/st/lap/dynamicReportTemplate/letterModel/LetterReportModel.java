@@ -3,9 +3,12 @@ package com.st.lap.dynamicReportTemplate.letterModel;
 import lombok.Data;
 
 @Data
-public class SanctionLetterModel {
+public class LetterReportModel {
 
+	//sanction
 	private String contractNumber;
+	private String applicationDate;
+	private String branchCode;
 	private String currentDate;
 	private String customerCode;
 	private String amountFinanced;
@@ -25,6 +28,15 @@ public class SanctionLetterModel {
 	private String customerName;
 	private String customerAddress;
 	private String accountNo;
+	private String applicationNumber;
+	//mitc
+	private String product;
+	private String balancePayable;
+	private String documentationCharges;
+	private String prePaymentCharges;
+	private String cashHandlingCharges;
+	private String chequeReturnCharges;
+	
 	
 	
 	
