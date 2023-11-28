@@ -9,16 +9,16 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 @Configuration
 public class OracleDataSourceConfig {
-	@Value("${spring.datasource.datasource-oracle.driver-class-name}")
+	@Value("${spring.datasource.hfsbeta.driver-class-name}")
 	private String oracleDriverName;
 	
-	@Value("${spring.datasource.datasource-oracle.url}")
+	@Value("${spring.datasource.hfsbeta.url}")
 	private String oracleUrl;
 	
-	@Value("${spring.datasource.datasource-oracle.username}")
+	@Value("${spring.datasource.hfsbeta.username}")
 	private String oracleUsername;
 	
-	@Value("${spring.datasource.datasource-oracle.password}")
+	@Value("${spring.datasource.hfsbeta.password}")
 	private String oraclePassword;
 	
 	 @Bean(name = "oracleDataSource")
