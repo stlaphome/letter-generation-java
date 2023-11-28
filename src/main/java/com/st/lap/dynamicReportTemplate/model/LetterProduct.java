@@ -4,19 +4,26 @@ import java.sql.Blob;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.Table;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Entity
 @Table(name = "ST_TB_LMS_LETTER_PRODUCT")
+@NoArgsConstructor
+@AllArgsConstructor
 public class LetterProduct {
 	
 	@Id
 	@Column(name = "product_id")
+	@GeneratedValue(strategy = GenerationType.SEQUENCE)
 	private int productId;
 	
 	@Column(name = "product_code")

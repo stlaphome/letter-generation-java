@@ -1,4 +1,4 @@
-package com.st.lap.dynamicReportTemplate.model;
+package com.st.lap.dynamicReportTemplate.letterModel;
 
 import lombok.Data;
 
@@ -6,6 +6,7 @@ import lombok.Data;
 public class DynamicTemplateModel {
 	
 	private int templateHeaderKey;
+	private String productCode;
 	private String templateName;
 	private String templateKey;
 	private String content;

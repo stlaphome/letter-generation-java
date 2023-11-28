@@ -1,5 +1,9 @@
 package com.st.lap.dynamicReportTemplate.letterModel;
 
+import java.util.List;
+
+import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService.CashHandlingChargesModel;
+
 import lombok.Data;
 
 @Data
@@ -34,7 +38,7 @@ public class LetterReportModel {
 	private String balancePayable;
 	private String documentationCharges;
 	private String prePaymentCharges;
-	private String cashHandlingCharges;
+	private List<CashHandlingChargesModel> cashHandlingCharges;
 	private String chequeReturnCharges;
 	
 	

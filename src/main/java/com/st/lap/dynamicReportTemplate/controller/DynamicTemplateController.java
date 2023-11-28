@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.st.lap.dynamicReportTemplate.model.DynamicTemplateModel;
-import com.st.lap.dynamicReportTemplate.model.GenerateTemplateModel;
+import com.st.lap.dynamicReportTemplate.letterModel.DynamicTemplateModel;
+import com.st.lap.dynamicReportTemplate.letterModel.GenerateTemplateModel;
 import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService;
 
 @RestController
