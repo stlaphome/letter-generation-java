@@ -751,7 +751,7 @@ public class DynamicTemplateService {
 			pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
 				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
 				canvas.beginText()
-				.setFontAndSize(pdf.getDefaultFont(), 12)
+				.setFontAndSize(pdf.getDefaultFont(), 6)
 				.moveText(36, 20) // Adjust the coordinates for the position of the page number
 				.showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
 				.endText();
@@ -1114,7 +1114,7 @@ public class DynamicTemplateService {
 			pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
 				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
 				canvas.beginText()
-				.setFontAndSize(pdf.getDefaultFont(), 12)
+				.setFontAndSize(pdf.getDefaultFont(), 6)
 				.moveText(36, 20) // Adjust the coordinates for the position of the page number
 				.showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
 				.endText();
