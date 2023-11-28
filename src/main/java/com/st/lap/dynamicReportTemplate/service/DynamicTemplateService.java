@@ -65,12 +65,14 @@ import com.st.lap.dynamicReportTemplate.letterModel.BranchAddress;
 import com.st.lap.dynamicReportTemplate.letterModel.DynamicTemplateModel;
 import com.st.lap.dynamicReportTemplate.letterModel.GenerateTemplateModel;
 import com.st.lap.dynamicReportTemplate.letterModel.LetterReportModel;
+import com.st.lap.dynamicReportTemplate.letterModel.MemorandumHeader;
 import com.st.lap.dynamicReportTemplate.model.DynamicReportContainer;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplate;
 import com.st.lap.dynamicReportTemplate.model.LetterProduct;
 import com.st.lap.dynamicReportTemplate.repo.DynamicReportContainerRepo;
 import com.st.lap.dynamicReportTemplate.repo.DynamicTemplateRepo;
 import com.st.lap.dynamicReportTemplate.repo.LetterProductRepo;
+import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService.CashHandlingChargesModel;
 
 import freemarker.template.Configuration;
 import lombok.Data;
@@ -408,14 +410,10 @@ public class DynamicTemplateService {
 
 		// Prepayment Charges Calculation
 		dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
-		ResponseEntity<PrepaymentChargesModel> prepaymentResponse = webClient.post()
-				.uri(stlapServerUrl + "/prepaymentCharges/findByReasonAndMaxEffectiveDate").bodyValue(dataMap)
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-				.toEntity(PrepaymentChargesModel.class).block();
 
-		PrepaymentChargesModel prepaymentModel = prepaymentResponse.getBody();
+		PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
 		String prepaymentCharge = "";
-		if(prepaymentModel!=null) {
+		if(prepaymentModel!=null ) {
 			prepaymentCharge = String.valueOf(prepaymentModel.getRate().intValue());
 		}
 		//customer address
@@ -538,6 +536,66 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Property_Boundary_Details~~", "TEST");
 		return variablesValueMap;
 	}
+	
+	public int getFeeDataForLetterGeneration(Map<String, String> dataMap) {
+		String applicationNumber = getString(dataMap.get("applicationNum"));
+		List<MemorandumHeader> memorandumSavedData = new ArrayList<>();
+		try (Connection connection = dataSource.getConnection()) {
+			String query = "SELECT memo_code_desc,txn_indicator,txn_amt FROM ST_TB_LMS_MEMO_HDR where application_num=?";
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, applicationNumber);
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						MemorandumHeader memoData = new MemorandumHeader();
+						memoData.setMemoCode(resultSet.getString(1));
+						memoData.setTxnIndicator(resultSet.getString(2));
+						memoData.setTxnAmt(resultSet.getInt(3));
+						memorandumSavedData.add(memoData);
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		AtomicInteger processingFee = new AtomicInteger(0);
+		memorandumSavedData.stream().forEach(action -> {
+		if (action.getMemoCode().equalsIgnoreCase("PROCESSING FEE")) {
+			if (action.getTxnIndicator().equals("accrual")) {
+				processingFee.set(processingFee.get() + action.getTxnAmt());
+			} else {
+				processingFee.set(processingFee.get() - action.getTxnAmt());
+			}
+		} 
+		});
+		return processingFee.get();
+	}
+	
+	private PrepaymentChargesModel getDataFromPrepaymentCharges(Map<String, String> dataMap) {
+		PrepaymentChargesModel chargesResponse = new PrepaymentChargesModel();
+		AtomicInteger rowId = new AtomicInteger(0);
+		try (Connection connection = dataSource.getConnection()) {
+			String query = "SELECT product,rate_type,rate,customer_type,prepayment_reason FROM ST_TB_LMS_PREPAYMENT_CHARGE_MSTR where prepayment_reason=? AND effective_date=(SELECT MAX(effective_date) FROM ST_TB_LMS_PREPAYMENT_CHARGE_MSTR where prepayment_reason=?)";
+
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, dataMap.get("prepayment_reason"));
+				statement.setString(2, dataMap.get("prepayment_reason"));
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						chargesResponse.setId(rowId.get());
+						chargesResponse.setProduct(resultSet.getString(1));
+						chargesResponse.setRateType(resultSet.getString(2));
+						chargesResponse.setRate(resultSet.getBigDecimal(3));
+						chargesResponse.setCustomerType(resultSet.getString(4));
+						chargesResponse.setPrepaymentReason(resultSet.getString(5));
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return chargesResponse;
+	}
+
 	private String getString(String name) {
 		return Objects.nonNull(name) ? name : "";
 	}
@@ -842,7 +900,21 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
 		variablesValueMap.put("~~Penal_Interest~~","Nil"); //its static in sanction letter
 		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", sanctionModel.getCashHandlingCharges());
+		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
+		StringBuilder cashHandlingChargesTables = new StringBuilder(
+				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
+		cashHandlingChargesList.stream().forEach(item -> {
+			cashHandlingChargesTables.append(
+					"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+			cashHandlingChargesTables
+			.append("Rs." + item.getFromReceiptAmt() + "/- to Rs." + item.getToReceiptAmt() + "/-");
+			cashHandlingChargesTables.append(
+					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+			cashHandlingChargesTables.append("Rs." + item.getCashHandlingCharges() + "/- + GST Per Receipt");
+			cashHandlingChargesTables.append("</td></tr>");
+		});
+		cashHandlingChargesTables.append("</tbody></table>");
+		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
 		return variablesValueMap;
 	}
 
@@ -1546,11 +1618,8 @@ public class DynamicTemplateService {
 			dataMap.put("applicationNum",letterModel.getApplicationNumber());
 			dataMap.put("type", "accrual");
 			//get processingfee
-			ResponseEntity<Map> processingFeeData = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeDataForLetterGeneration")
-					.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-					.toEntity(Map.class).block();
-			int processingFee = (Integer) processingFeeData.getBody().get("processingFee");
-			letterModel.setProcessingFee(String.valueOf(processingFee));
+			int processingFeeData =  getFeeDataForLetterGeneration(dataMap);
+			letterModel.setProcessingFee(String.valueOf(processingFeeData));
 
 			ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
 					.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
@@ -1591,17 +1660,14 @@ public class DynamicTemplateService {
 
 			// Prepayment Charges Calculation
 			dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
-			ResponseEntity<PrepaymentChargesModel> prepaymentResponse = webClient.post()
-					.uri(stlapServerUrl + "/prepaymentCharges/findByReasonAndMaxEffectiveDate").bodyValue(dataMap)
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-					.toEntity(PrepaymentChargesModel.class).block();
-
-			PrepaymentChargesModel prepaymentModel = prepaymentResponse.getBody();
+			PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
 			String prepaymentCharge = "";
-			if(prepaymentModel!=null) {
+			if(prepaymentModel!=null ) {
 				prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
 			}
 			letterModel.setPrePaymentCharges(prepaymentCharge);
+			letterModel.setProduct(prepaymentModel.getProduct());
+			
 			// ChequeReturnCharges Calculation
 
 			dataMap.put("parameterName", "ChequeReturnCharges");
@@ -1862,6 +1928,7 @@ public class DynamicTemplateService {
 
 	}
 
+	
 
 
 
