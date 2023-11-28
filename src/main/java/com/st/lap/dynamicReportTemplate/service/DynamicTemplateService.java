@@ -7,6 +7,10 @@ import java.math.BigDecimal;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -33,19 +37,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.sql.DataSource;
 import javax.sql.rowset.serial.SerialBlob;
-
-import com.itextpdf.html2pdf.ConverterProperties;
-import com.itextpdf.html2pdf.HtmlConverter;
-import com.itextpdf.kernel.events.PdfDocumentEvent;
-import com.itextpdf.kernel.geom.PageSize;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfPage;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.property.TextAlignment;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,22 +48,28 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import com.ironsoftware.ironpdf.*;
-import com.ironsoftware.ironpdf.render.WaitFor;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
-import com.ironsoftware.ironpdf.render.ChromePdfRenderOptions;
+import com.itextpdf.kernel.events.PdfDocumentEvent;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.layout.Document;
+import com.st.lap.dynamicDataSource.service.DynamicDataSourceService;
+import com.st.lap.dynamicReportTemplate.letterModel.BranchAddress;
+import com.st.lap.dynamicReportTemplate.letterModel.DynamicTemplateModel;
+import com.st.lap.dynamicReportTemplate.letterModel.GenerateTemplateModel;
+import com.st.lap.dynamicReportTemplate.letterModel.LetterReportModel;
 import com.st.lap.dynamicReportTemplate.model.DynamicReportContainer;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplate;
-import com.st.lap.dynamicReportTemplate.model.DynamicTemplateModel;
-import com.st.lap.dynamicReportTemplate.model.DynamicVariables;
-import com.st.lap.dynamicReportTemplate.model.GenerateTemplateModel;
 import com.st.lap.dynamicReportTemplate.model.LetterProduct;
 import com.st.lap.dynamicReportTemplate.repo.DynamicReportContainerRepo;
 import com.st.lap.dynamicReportTemplate.repo.DynamicTemplateRepo;
-import com.st.lap.dynamicReportTemplate.repo.DynamicVariablesRepo;
 import com.st.lap.dynamicReportTemplate.repo.LetterProductRepo;
 
 import freemarker.template.Configuration;
@@ -83,12 +82,10 @@ public class DynamicTemplateService {
 	@Autowired
 	DynamicTemplateRepo dynamicTemplateRepo;
 
-	@Autowired
-	DynamicVariablesRepo dynamicVariablesRepo;
 
 	@Autowired
 	DynamicReportContainerRepo dynamicReportContainerRepo;
-	
+
 	@Autowired
 	LetterProductRepo letterProductRepo;
 
@@ -102,7 +99,17 @@ public class DynamicTemplateService {
 	ResourceLoader loader;
 
 	@Autowired
+	DataSource dataSource;
+
+	@Autowired
 	private WebClient webClient;
+
+	@Autowired
+	private  DynamicDataSourceService dynamicDataSourceService;
+
+
+	private final ObjectMapper objectMapper = new ObjectMapper();
+
 
 	@Value("${stlap.server.url}")
 	private String stlapServerUrl;
@@ -112,6 +119,10 @@ public class DynamicTemplateService {
 
 	public ResponseEntity<String> saveTemplate(DynamicTemplateModel dynamicTemplateModel) {
 		String errorContent = validateEditorContent(dynamicTemplateModel.getContent(), returnVariablesList());
+		List<LetterProduct> productList = letterProductRepo.findByProductCode(dynamicTemplateModel.getProductCode());
+		Optional<LetterProduct> productData = productList.stream().filter(pr->(Objects.isNull(pr.getLetterName()) || pr.getLetterName().equals(dynamicTemplateModel.getTemplateName()))).findFirst();
+		LetterProduct product = new LetterProduct();
+
 		if (Objects.isNull(errorContent)) {
 			DynamicTemplate dynamicTemplate = new DynamicTemplate();
 			Blob blob;
@@ -161,6 +172,22 @@ public class DynamicTemplateService {
 				}
 			} else {
 				dynamicTemplateRepo.save(dynamicTemplate);
+			}
+			if(productData.isPresent()) {
+				product = productData.get();
+				product.setProductCode(dynamicTemplateModel.getProductCode());
+				product.setLetterName(dynamicTemplateModel.getTemplateName());
+				switch(product.getProductCode()) {
+				case "STLAP":
+					product.setDataBase("MSSQL");
+					break;
+				case "HOMEFIN":
+					product.setDataBase("ORACLE");
+					break;
+				default:
+					break;
+				}
+				letterProductRepo.save(product);
 			}
 			return ResponseEntity
 					.ok(dynamicTemplateModel.getMode().equalsIgnoreCase("NEW") ? "Template Saved Successfully"
@@ -233,12 +260,14 @@ public class DynamicTemplateService {
 		return ResponseEntity.ok(returnVariablesList());
 	}
 
-	public ResponseEntity<List<String>> getTemplateNameList() {
-		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findAll();
+	public ResponseEntity<List<String>> getTemplateNameList(String productType) {
+		List<LetterProduct> letterproductAllData = letterProductRepo.findByProductCode(productType);
 		Set<String> templateNameSet = new HashSet<>();
 		List<String> templateNameList = new ArrayList<>();
-		dynamicTemplateList.stream().forEach(item -> {
-			templateNameSet.add(item.getTemplateName());
+		letterproductAllData.stream().forEach(item -> {
+			if(Objects.nonNull(item.getLetterName())) {
+				templateNameSet.add(item.getLetterName());
+			}
 		});
 		templateNameList.addAll(templateNameSet);
 		return ResponseEntity.ok(templateNameList);
@@ -258,6 +287,8 @@ public class DynamicTemplateService {
 				.uri(stlapServerUrl + "/losCustomer/getCustomerDataByAppNum")
 				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
 				.bodyToMono(Map.class).block();
+
+
 
 		// Calculate Documentation Charges
 		ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
@@ -337,7 +368,7 @@ public class DynamicTemplateService {
 		scheduledChangeTables.append("</tbody></table>");
 		//annxure table
 		List<Map<String,Object>> annexureChrgeTableList = new ArrayList<>();
-		
+
 		Map<String,Object> annexureTableValuesMap = new HashMap<>();
 		annexureTableValuesMap.put("Documentation Charges", "Kerala – Rs.800/-, Rajasthan – Rs.700/-, Maharashtra & Gujarat\r\n"
 				+ "Rs.600/- and Other states Rs.450/-");
@@ -357,7 +388,7 @@ public class DynamicTemplateService {
 		annexureChrgeTableList.stream().forEach(item -> {
 			int index = 1;
 			for (Map.Entry<String, Object> entry : item.entrySet()) {
-				
+
 				annexureChrgeTables.append(
 						"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 50.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
 				annexureChrgeTables
@@ -371,7 +402,7 @@ public class DynamicTemplateService {
 				annexureChrgeTables.append("</td></tr>");
 				++index;
 			}
-			
+
 		});
 		annexureChrgeTables.append("</tbody></table>");
 
@@ -387,10 +418,10 @@ public class DynamicTemplateService {
 		if(prepaymentModel!=null) {
 			prepaymentCharge = String.valueOf(prepaymentModel.getRate().intValue());
 		}
-
+		//customer address
+		String customerAddress = getCustomerAddress(Integer.parseInt( String.valueOf(returnResponse.get("customerId"))), String.valueOf(returnResponse.get("customerName")));
 
 		// ChequeReturnCharges Calculation
-
 		dataMap.put("parameterName", "ChequeReturnCharges");
 		Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
 				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
@@ -398,63 +429,59 @@ public class DynamicTemplateService {
 		String todayDate = formatter1.format(currentDate);
 		String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
 				&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
-						? parameterResponse.get("paramValue").toString()
+				? parameterResponse.get("paramValue").toString()
 						: "0";
 		int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
 		int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));		
-		DynamicVariables dynamicVariables = dynamicVariablesRepo.findByApplicationNumber("TEST");
-		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 		YearMonth yearMonth = YearMonth.now();
-        String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
+		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
 		Map<String, String> variablesValueMap = new HashMap<String, String>();
-		String toAddress = returnResponse.get("customerName") + ",<br>" +dynamicVariables.getToAddress();
-		String[] branchAddress = dynamicVariables.getBranchAddress().split(",");
-		String branchNewAddress = getExpandedAddress(branchAddress);
-		String toNewAddress = returnResponse.get("customerName") +getExpandedAddress(dynamicVariables.getToAddress().split(","));
-		variablesValueMap.put("~~Branch_Address~~", dynamicVariables.getBranchAddress());
+		//String toAddress = returnResponse.get("customerName") + ",<br>" +dynamicVariables.getToAddress();
+		//String[] branchAddress = dynamicVariables.getBranchAddress().split(",");
+		//String branchNewAddress = getExpandedAddress(branchAddress);
+		String toNewAddress = returnResponse.get("customerName") +getExpandedAddress(customerAddress.split(","));
+		variablesValueMap.put("~~Branch_Address~~", "Nil");
 		variablesValueMap.put("~~Date~~", formatter.format(date));
 		variablesValueMap.put("~~To_Address~~", toNewAddress);
 		variablesValueMap.put("~~Application_Number~~", returnResponse.get("applicationNum").toString());
 		variablesValueMap.put("~~Loan_Amount~~", String.valueOf(loanAmount));
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(loanAmount)));
-		variablesValueMap.put("~~Product~~", dynamicVariables.getProduct());
-		variablesValueMap.put("~~Purpose_of_Loan~~", dynamicVariables.getPurposeofLoan());
+		variablesValueMap.put("~~Product~~", "Nil");
+		variablesValueMap.put("~~Purpose_of_Loan~~", "Nil");
 		variablesValueMap.put("~~Term~~", String.valueOf(returnResponse.get("tenure")));
 		variablesValueMap.put("~~ROI~~", String.valueOf(returnResponse.get("rateOfInterest")));
-		variablesValueMap.put("~~EMI~~", dynamicVariables.getEmi());
-		variablesValueMap.put("~~Upfront_Processing_Fee~~", dynamicVariables.getUpfrontProcessingFee());
+		variablesValueMap.put("~~EMI~~", "Nil");
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", "Nil"); //los_fee or accural_fee
 		variablesValueMap.put("~~Balance_Payable~~", String.valueOf((int) Math.round(balancePayable)));
 		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(documentationCharges.get()));
-		variablesValueMap.put("~~CERSAI_Charges~~", dynamicVariables.getCersaiCharges());
-		variablesValueMap.put("~~Appraisal_Charges~~", dynamicVariables.getAppraisalCharges());
-		variablesValueMap.put("~~Switch_Fee~~", dynamicVariables.getSwitchFee());
-		variablesValueMap.put("~~Retrieval_Charges~~", dynamicVariables.getRetrievalCharges());
-		variablesValueMap.put("~~Conversion_Charges~~", dynamicVariables.getConversionCharges());
+		variablesValueMap.put("~~CERSAI_Charges~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Appraisal_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Switch_Fee~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");//
+		variablesValueMap.put("~~Conversion_Charges~~", "Nil");
 		variablesValueMap.put("~~Cheque_Return_Charges~~", chequeReturnCharges);
-		variablesValueMap.put("~~GST_Tamilnadu~~", dynamicVariables.getGstTamilnadu());
-		variablesValueMap.put("~~GST_Andra~~", dynamicVariables.getGstAndra());
-		variablesValueMap.put("~~GST_Karnataka~~", dynamicVariables.getGstKarnataka());
-		variablesValueMap.put("~~GST_Others~~", dynamicVariables.getGstOthers());
-		variablesValueMap.put("~~Repricing_Fee~~", dynamicVariables.getRepricingFee());
-		variablesValueMap.put("~~CA_Certification_Fee~~", dynamicVariables.getCaCertificationFee());
-		variablesValueMap.put("~~Outstation_Cheque_Charges~~", dynamicVariables.getOutstationChequeCharges());
-		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~",
-				dynamicVariables.getOutstationChequeChargesTotal());
-		variablesValueMap.put("~~PDC_Charges~~", dynamicVariables.getPdcCharges());
-		variablesValueMap.put("~~Swapping_Charges~~", dynamicVariables.getSwappingCharges());
-		variablesValueMap.put("~~Travelling_Expense~~", dynamicVariables.getTravellingExpense());
-		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~",
-				dynamicVariables.getBureauChargesIndividualCustomer());
-		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~",
-				dynamicVariables.getBureauChargesNonIndividualCustomer());
+		variablesValueMap.put("~~GST_Tamilnadu~~", "Nil");  //its static in sanction letter
+		variablesValueMap.put("~~GST_Andra~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~GST_Karnataka~~","Nil"); //its static in sanction letter
+		variablesValueMap.put("~~GST_Others~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Repricing_Fee~~",  "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~CA_Certification_Fee~~", "Nil"); //
+		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","Nil"); //
+		variablesValueMap.put("~~PDC_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Swapping_Charges~~","Nil"); //
+		variablesValueMap.put("~~Travelling_Expense~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","Nil"); //
+		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","Nil"); //
 		variablesValueMap.put("~~Prepayment_Charges~~", prepaymentCharge);
-		variablesValueMap.put("~~Penal_Interest~~", dynamicVariables.getPenalInterest());
-		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", dynamicVariables.getChequeDishonourCharges());
+		variablesValueMap.put("~~Penal_Interest~~","Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "Nil"); //
 		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
 		variablesValueMap.put("~~Annexures_Tables~~", annexureChrgeTables.toString());
 		variablesValueMap.put("~~MOTD_Title_Execution~~", "TEST");
@@ -511,18 +538,53 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Property_Boundary_Details~~", "TEST");
 		return variablesValueMap;
 	}
+	private String getString(String name) {
+		return Objects.nonNull(name) ? name : "";
+	}
+
+	public String getCustomerAddress(int customerId, String applicantName) {
+		StringBuilder addressBuilder = new StringBuilder();
+
+		try (Connection connection = dataSource.getConnection()) {
+			String query = "SELECT * FROM st_tb_los_customer_information WHERE customer_id = " + customerId;
+
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						String customerName = getString(resultSet.getString("sur_name")) + " "
+								+ getString(resultSet.getString("first_name")) + " "
+								+ getString(resultSet.getString("middle_name"));
+						if (applicantName.equals(customerName)) {
+							addressBuilder.append(resultSet.getString("flat_door_building_block")).append(", ");
+							addressBuilder.append(resultSet.getString("road_street")).append(", ");
+							addressBuilder.append(resultSet.getString("area_locality")).append(", ");
+							addressBuilder.append(resultSet.getString("landmark")).append(", ");
+							addressBuilder.append(resultSet.getString("city_town")).append(", ");
+							addressBuilder.append(resultSet.getString("state")).append(" - ");
+							addressBuilder.append(resultSet.getString("pincode"));
+							break;
+						}
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
+		return addressBuilder.toString();
+	}
 
 	private String getExpandedAddress(String[] addressContent) {
 		String newAddress = "";
-		 for (String singleAddress : addressContent) {
-			 if(newAddress.isEmpty()) {
-				 newAddress= newAddress+singleAddress;
-			 }else {
-				 newAddress = newAddress+",<br>" +singleAddress;
-			 }
-	        }
-		 return newAddress;
-		
+		for (String singleAddress : addressContent) {
+			if(newAddress.isEmpty()) {
+				newAddress= newAddress+singleAddress;
+			}else {
+				newAddress = newAddress+",<br>" +singleAddress;
+			}
+		}
+		return newAddress;
+
 	}
 
 	public List<String> returnVariablesList() {
@@ -562,7 +624,7 @@ public class DynamicTemplateService {
 				"//~~Sanction_Loan_Amount~~//","//~~Sanction_Processing_Fee~~//","//~~Sanction_Term~~//",
 				"//~~Sanction_Net_Rate~~//","//~~Sanction_EMI~~//","//~~Sanction_Account_No~~//","//~~Sanction_End_Use_of_Loan~~//","//~~Sanction_Purpose_of_Loan~~//",
 				"//~~Sanction_Header_Company_Name~~//","//~~Sanction_Current_Date~~//","//~~Sanction_Branch_Address~~//","//~~Sanction_To_Address~~//",
-				"//~~Sanction_TelePhone_No~~//","//~~Sanction_Header_Mail~~//","//~~Sanction_Header_Branch_Address~~//");
+				"//~~Sanction_TelePhone_No~~//","//~~Sanction_Header_Mail~~//","//~~Sanction_Header_Branch_Address~~//","//~~Life_Insurance~~//");
 	}
 	public String replaceValues(String content, String applicationNumber) {
 		Map<String, String> valuesMap = returnVariablesDataMapForMITC(applicationNumber);
@@ -577,12 +639,28 @@ public class DynamicTemplateService {
 		return returnValue.toString();
 	}
 
-	public ResponseEntity<List<String>> getAllApplicationNumbers() {
-Map<String,Object> dataMap = new HashMap<>();
-dataMap.put("status", "Sanctioned");
-		List<String> returnResponse = webClient.post().uri(stlapServerUrl + "/losCustomer/getAppNumByStatus")
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-				.bodyToMono(List.class).block();
+	public ResponseEntity<List<String>> getAllApplicationNumbers(String productCode) {
+		String dataBase = "MSSQL";
+		List<LetterProduct> letterproductAllData = letterProductRepo.findByProductCode(productCode);
+		if(!letterproductAllData.isEmpty()) {
+			dataBase = letterproductAllData.stream().findFirst().get().getDataBase();
+		}
+
+		return fetchApplicationNumber(dataBase);
+
+	}
+
+	private ResponseEntity<List<String>> fetchApplicationNumber(String dataBase) {
+		List<String> returnResponse = new ArrayList<>();
+		if(dataBase.equals("ORACLE")) {
+			returnResponse = getOracleApplicationNumber();
+		}else {
+			Map<String,Object> dataMap = new HashMap<>();
+			dataMap.put("status", "Sanctioned");
+			returnResponse = webClient.post().uri(stlapServerUrl + "/losCustomer/getAppNumByStatus")
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
+					.bodyToMono(List.class).block();
+		}
 		return ResponseEntity.ok(returnResponse);
 	}
 
@@ -610,17 +688,17 @@ dataMap.put("status", "Sanctioned");
 		byte[] arr = null;
 		try {
 			os = new FileOutputStream(output);
-			 PdfDocument pdf = new PdfDocument((new PdfWriter(os)));
-		        Document document = new Document(pdf, PageSize.A4);
-		        pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
-		            PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
-		            canvas.beginText()
-		                    .setFontAndSize(pdf.getDefaultFont(), 12)
-		                    .moveText(36, 20) // Adjust the coordinates for the position of the page number
-		                    .showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
-		                    .endText();
-		        });
-		        HtmlConverter.convertToPdf(htmlContent, pdf, new ConverterProperties());
+			PdfDocument pdf = new PdfDocument((new PdfWriter(os)));
+			Document document = new Document(pdf, PageSize.A4);
+			pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
+				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
+				canvas.beginText()
+				.setFontAndSize(pdf.getDefaultFont(), 12)
+				.moveText(36, 20) // Adjust the coordinates for the position of the page number
+				.showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
+				.endText();
+			});
+			HtmlConverter.convertToPdf(htmlContent, pdf, new ConverterProperties());
 
 			//HtmlConverter.convertToPdf(htmlContent, os);
 			arr = new byte[(int) output.length()];
@@ -635,18 +713,162 @@ dataMap.put("status", "Sanctioned");
 
 	}
 
-	public ResponseEntity<Map<String, Object>> generateLetter(GenerateTemplateModel model) {
-		DynamicTemplate dynamicTemplate = dynamicTemplateRepo.findByTemplateNameAndActive(model.getTemplateName(), true)
-				.get(0);
-		if (model.getSanctionDate() != null) {
-			return ResponseEntity.ok(generateReportForSanctionDate(model, dynamicTemplate));
-		} else if (!model.getApplicationNumber().isEmpty()) {
-			return ResponseEntity.ok(generateReportForApplicationNumber(model, dynamicTemplate));
+	public ResponseEntity<Map<String, Object>> generateLetter(GenerateTemplateModel model) throws SQLException {
+		String dataBase = "MSSQL";
+		LetterProduct letterProduct = letterProductRepo.findByProductCodeAndLetterName(model.getProductCode(),model.getTemplateName());
+		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByTemplateNameAndActive(model.getTemplateName(), true);
+		DynamicTemplate dynamicTemplate;
+		if(!dynamicTemplateList.isEmpty()) {
+			dynamicTemplate = dynamicTemplateList.get(0);
+			if(Objects.nonNull(letterProduct)) {
+				dataBase = letterProduct.getDataBase();
+				return ResponseEntity.ok(generateLetterForApplicationNumber(model,letterProduct,dynamicTemplate));
+				//				if(dataBase.equals("ORACLE")) {
+				//					if (model.getSanctionDate() != null) {
+				//						return ResponseEntity.ok(generateLetterForSanctionDate(model,dataBase,dynamicTemplate));
+				//					} else if (!model.getApplicationNumber().isEmpty()) {
+				//						return ResponseEntity.ok(generateLetterForApplicationNumber(model,letterProduct,dynamicTemplate));
+				//					}
+				//				}else {
+				//					if (model.getSanctionDate() != null) {
+				//						return ResponseEntity.ok(generateReportForSanctionDate(model, dynamicTemplate));
+				//					} else if (!model.getApplicationNumber().isEmpty()) {
+				//						return ResponseEntity.ok(generateReportForApplicationNumber(model, dynamicTemplate));
+				//					}
+				//				}
+				//
+			}
+
+
+
 		}
+
 		Map<String, Object> resultMap = new HashMap<>();
 		resultMap.put("FilesList", new ArrayList());
 		resultMap.put("Status", "Error Occured Letter Not Generated.");
 		return ResponseEntity.ok(resultMap);
+	}
+
+	private Map<String, Object> generateLetterForApplicationNumber(GenerateTemplateModel model, LetterProduct letterProduct, DynamicTemplate dynamicTemplate) throws SQLException {
+		String productData = letterProduct.getProductData();
+		Date date = new Date();
+		Map<String, String> filesMap = new HashMap<>();
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
+		Blob blob = dynamicTemplate.getContent();
+		byte[] bdata;
+		bdata = blob.getBytes(1, (int) blob.length());
+		String htmlContent = new String(bdata);
+		Map<String, Object> resultMap = new HashMap<>();
+		List<String> applicationList = new ArrayList<>();
+		try {
+			List<LetterReportModel> sanctionModelList = objectMapper.readValue(productData, new TypeReference<List<LetterReportModel>>() {}); 
+			sanctionModelList.stream().forEach(sanctionModel->{
+				Map<String, Object> variableMap = new HashMap<>();
+				String fileName = (dynamicTemplate.getTemplateName()).concat("_").concat(sanctionModel.getApplicationNumber())
+						.concat("_").concat(dateFormat.format(date)).concat(".pdf");
+				//			File file = new File("./downloads/letter_generation/" + fileName);
+				//filesMap.put("applicationNum", model.getApplicationNumber());
+				filesMap.put(sanctionModel.getApplicationNumber(), fileName);
+				applicationList.add(sanctionModel.getApplicationNumber());
+				switch (model.getTemplateName()) {
+				case "Sanction":
+					variableMap = getDataForOracleSanctionLetter(model,sanctionModel);
+					break;
+				case "MITC":
+					variableMap = getDataForMITC(model,sanctionModel);
+					break;
+				default:
+					break;
+				}
+				String outputVariable = replaceVariable(htmlContent,variableMap);
+				saveDataToContainer(outputVariable,fileName);
+			});
+		} catch (Exception e) {
+			resultMap.put("FilesList", filesMap);
+			resultMap.put("Status", "Letter Generated Failed");
+			e.printStackTrace();
+		}
+
+
+
+		resultMap.put("FilesList", filesMap);
+		resultMap.put("ApplicationList", applicationList);
+		resultMap.put("Status", "Letter Generated Successfully");
+
+		return resultMap;
+	}
+
+	private Map<String, Object> getDataForMITC(GenerateTemplateModel model, LetterReportModel sanctionModel) {
+		Date date = new Date();
+		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
+		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		YearMonth yearMonth = YearMonth.now();
+		String amount =Objects.nonNull(sanctionModel.getAmountFinanced())?sanctionModel.getAmountFinanced():"0";
+		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
+		String toNewAddress = sanctionModel.getCustomerName() +getExpandedAddress(sanctionModel.getCustomerAddress().split(","));
+		variablesValueMap.put("~~Branch_Address~~", "Nil");
+		variablesValueMap.put("~~Date~~", formatter.format(date));
+		variablesValueMap.put("~~To_Address~~", toNewAddress);
+		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
+		variablesValueMap.put("~~Loan_Amount~~", amount);
+		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(amount)));
+		variablesValueMap.put("~~Product~~", "Nil");
+		variablesValueMap.put("~~Purpose_of_Loan~~", sanctionModel.getPurposeOfLoan());
+		variablesValueMap.put("~~Term~~", String.valueOf(sanctionModel.getTerm()));
+		variablesValueMap.put("~~ROI~~", String.valueOf(sanctionModel.getNetRate()));
+		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount());
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee()); //los_fee or accural_fee
+		variablesValueMap.put("~~Balance_Payable~~", sanctionModel.getBalancePayable());
+		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
+		variablesValueMap.put("~~CERSAI_Charges~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Appraisal_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Switch_Fee~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");//
+		variablesValueMap.put("~~Conversion_Charges~~", "Nil");
+		variablesValueMap.put("~~Cheque_Return_Charges~~", sanctionModel.getChequeReturnCharges());
+		variablesValueMap.put("~~GST_Tamilnadu~~", "Nil");  //its static in sanction letter
+		variablesValueMap.put("~~GST_Andra~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~GST_Karnataka~~","Nil"); //its static in sanction letter
+		variablesValueMap.put("~~GST_Others~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Repricing_Fee~~",  "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~CA_Certification_Fee~~", "Nil"); //
+		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","Nil"); //
+		variablesValueMap.put("~~PDC_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Swapping_Charges~~","Nil"); //
+		variablesValueMap.put("~~Travelling_Expense~~", "Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","Nil"); //
+		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","Nil"); //
+		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
+		variablesValueMap.put("~~Penal_Interest~~","Nil"); //its static in sanction letter
+		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", sanctionModel.getCashHandlingCharges());
+		return variablesValueMap;
+	}
+
+	private void saveDataToContainer(String outputValue, String fileName) {
+		DynamicReportContainer reportContainer = new DynamicReportContainer();
+		try {
+			Blob blob = (Blob) new SerialBlob(outputValue.getBytes());
+			reportContainer.setReportFile(blob);
+			reportContainer.setReportFileName(fileName);
+			SecureRandom secureRandom;
+			secureRandom = SecureRandom.getInstance("SHA1PRNG");
+			int randomValue = secureRandom.nextInt();
+			if (randomValue < 0) {
+				reportContainer.setDynamicReportContainerHeaderKey(randomValue * -1);
+			} else {
+				reportContainer.setDynamicReportContainerHeaderKey(randomValue);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		dynamicReportContainerRepo.save(reportContainer);		
+	}
+
+	private Map<String, Object> generateLetterForSanctionDate(GenerateTemplateModel model, String dataBase, DynamicTemplate dynamicTemplate) {
+		return null;
 	}
 
 	public Map<String, Object> generateReportForSanctionDate(GenerateTemplateModel model,
@@ -663,21 +885,21 @@ dataMap.put("status", "Sanctioned");
 
 		Date date = new Date();
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
-if(returnResponse.size()==0) {
-	Map<String, Object> resultMap = new HashMap<>();
-	resultMap.put("FilesList", filesMap);
-	resultMap.put("Status", "No Application Found For this Sanctioned Date");
-	resultMap.put("ApplicationList", applicationList);
-	resultMap.put("ContactList", contactDetails);
-	return resultMap;
-}
+		if(returnResponse.size()==0) {
+			Map<String, Object> resultMap = new HashMap<>();
+			resultMap.put("FilesList", filesMap);
+			resultMap.put("Status", "No Application Found For this Sanctioned Date");
+			resultMap.put("ApplicationList", applicationList);
+			resultMap.put("ContactList", contactDetails);
+			return resultMap;
+		}
 		returnResponse.stream().forEach(application -> {
 			try {
 				String fileName = (dynamicTemplate.getTemplateName()).concat("_")
 						.concat(application.get("applicationNum")).concat("_").concat(dateFormat.format(date))
 						.concat(".pdf");
 
-//				File file = new File("./downloads/letter_generation/" + fileName);
+				//				File file = new File("./downloads/letter_generation/" + fileName);
 
 				filesMap.put(application.get("applicationNum"), fileName);
 				applicationList.add(application.get("applicationNum"));
@@ -685,7 +907,7 @@ if(returnResponse.size()==0) {
 				contactDetailsList.add(application.get("mobileNumber"));
 				contactDetailsList.add(application.get("emailId"));
 				contactDetails.put(application.get("applicationNum"), contactDetailsList);
-//				FileOutputStream fos = new FileOutputStream(file);
+				//				FileOutputStream fos = new FileOutputStream(file);
 
 				Blob blob = dynamicTemplate.getContent();
 
@@ -717,7 +939,7 @@ if(returnResponse.size()==0) {
 
 				dynamicReportContainerRepo.save(reportContainer);
 
-//				HtmlConverter.convertToPdf(content, fos);
+				//				HtmlConverter.convertToPdf(content, fos);
 			} catch (Exception e) {
 				e.printStackTrace();
 
@@ -742,7 +964,7 @@ if(returnResponse.size()==0) {
 			String fileName = (dynamicTemplate.getTemplateName()).concat("_").concat(model.getApplicationNumber())
 					.concat("_").concat(dateFormat.format(date)).concat(".pdf");
 
-//			File file = new File("./downloads/letter_generation/" + fileName);
+			//			File file = new File("./downloads/letter_generation/" + fileName);
 			filesMap.put("applicationNum", model.getApplicationNumber());
 
 			Map<String, String> responseMap = webClient.post().uri(stlapServerUrl + "/losCustomer/getByAppNum")
@@ -757,7 +979,7 @@ if(returnResponse.size()==0) {
 			applicationList.add(model.getApplicationNumber());
 			filesMap.put(model.getApplicationNumber(), fileName);
 
-//			FileOutputStream fos = new FileOutputStream(file);
+			//			FileOutputStream fos = new FileOutputStream(file);
 
 			Blob blob = dynamicTemplate.getContent();
 
@@ -789,7 +1011,7 @@ if(returnResponse.size()==0) {
 
 			dynamicReportContainerRepo.save(reportContainer);
 
-//			HtmlConverter.convertToPdf(content, fos);
+			//			HtmlConverter.convertToPdf(content, fos);
 		} catch (Exception e) {
 			e.printStackTrace();
 
@@ -815,17 +1037,17 @@ if(returnResponse.size()==0) {
 			String s = new String(bdata);
 			File file = new File(filePath);
 			FileOutputStream fos = new FileOutputStream(file);
-			 PdfDocument pdf = new PdfDocument((new PdfWriter(fos)));
-		        Document document = new Document(pdf, PageSize.A4);
-		        pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
-		            PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
-		            canvas.beginText()
-		                    .setFontAndSize(pdf.getDefaultFont(), 12)
-		                    .moveText(36, 20) // Adjust the coordinates for the position of the page number
-		                    .showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
-		                    .endText();
-		        });
-		        HtmlConverter.convertToPdf(s, pdf, new ConverterProperties());
+			PdfDocument pdf = new PdfDocument((new PdfWriter(fos)));
+			Document document = new Document(pdf, PageSize.A4);
+			pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
+				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
+				canvas.beginText()
+				.setFontAndSize(pdf.getDefaultFont(), 12)
+				.moveText(36, 20) // Adjust the coordinates for the position of the page number
+				.showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
+				.endText();
+			});
+			HtmlConverter.convertToPdf(s, pdf, new ConverterProperties());
 			//HtmlConverter.convertToPdf(s, fos);
 			FileInputStream fis = new FileInputStream(file);
 			byte[] bytes = new byte[(int) file.length()];
@@ -836,7 +1058,7 @@ if(returnResponse.size()==0) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 			return ResponseEntity.ok(new byte[0]);
- 
+
 		}
 
 	}
@@ -899,7 +1121,7 @@ if(returnResponse.size()==0) {
 					return ResponseEntity.ok("SMS Sent Successfully");
 				} else {
 					return ResponseEntity.ok("SMS Not Send for : " + errorExists.toString()
-							+ "Since Mobile Number Not Present / Invalid");
+					+ "Since Mobile Number Not Present / Invalid");
 				}
 
 			}
@@ -917,18 +1139,18 @@ if(returnResponse.size()==0) {
 			return 0;
 		}
 	}
-	
+
 	public ResponseEntity<List<Map<String, Object>>> getProductTypeList() {
 		List<LetterProduct> letterproductAllData = letterProductRepo.findAll();
-		 List<Map<String, Object>> productCodeList = letterproductAllData.stream().filter(distinctByKey(data->data.getProductCode())).map(datas->{
-			 Map<String,Object> productMap = new HashMap<>();
+		List<Map<String, Object>> productCodeList = letterproductAllData.stream().filter(distinctByKey(data->data.getProductCode())).map(datas->{
+			Map<String,Object> productMap = new HashMap<>();
 			productMap.put("value",datas.getProductId());
 			productMap.put("text",datas.getProductCode());
 			return productMap;
 		}).distinct().collect(Collectors.toList());
 		return ResponseEntity.ok(productCodeList);
 	}
-	
+
 	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
 		if (keyExtractor != null) {
 			Map<Object, Boolean> seen = new ConcurrentHashMap<>();
@@ -937,6 +1159,486 @@ if(returnResponse.size()==0) {
 		return null;
 	}
 
+	public Map<String, Object> getDataForOracleSanctionLetter(GenerateTemplateModel model, LetterReportModel sanctionModel) {
+		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
+		variablesValueMap.put("~~Sanction_Header_Company_Name~~", nullCheckStringField(sanctionModel.getCompanyName()));
+		variablesValueMap.put("~~Sanction_Header_Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
+		variablesValueMap.put("~~Sanction_TelePhone_No~~", nullCheckStringField(sanctionModel.getTelePhoneNumber()));
+		variablesValueMap.put("~~Sanction_Header_Mail~~", nullCheckStringField(sanctionModel.getBranchMailId()));
+		variablesValueMap.put("~~Sanction_Current_Date~~", nullCheckStringField(sanctionModel.getCurrentDate()));
+		variablesValueMap.put("~~Sanction_Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
+		variablesValueMap.put("~~Sanction_To_Address~~", nullCheckStringField(sanctionModel.getCustomerAddress()));
+		variablesValueMap.put("~~Sanction_Loan_Amount~~", nullCheckStringField(sanctionModel.getAmountFinanced()));
+		variablesValueMap.put("~~Sanction_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee()));
+		variablesValueMap.put("~~Sanction_Term~~", nullCheckStringField(sanctionModel.getTerm()));
+		variablesValueMap.put("~~Sanction_Net_Rate~~", nullCheckStringField(sanctionModel.getNetRate()));
+		variablesValueMap.put("~~Sanction_EMI~~", sanctionModel.getEmiAmount()!=null?sanctionModel.getEmiAmount():"0");
+		variablesValueMap.put("~~Sanction_Account_No~~", nullCheckStringField(sanctionModel.getAccountNo()));
+		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getUseOfLoan()));
+		variablesValueMap.put("~~Sanction_End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
+		return variablesValueMap;
+	}
+
+	public String nullCheckStringField(String fieldValue) {
+		if(Objects.nonNull(fieldValue)) {
+			return fieldValue;
+		}
+		return "Nil";
+	}
+
+	public String replaceVariable(String htmlContent, Map<String, Object> valuesMap) {
+		StringBuilder returnValue = new StringBuilder(htmlContent);
+		valuesMap.entrySet().stream().forEach(value -> {
+			String temp = returnValue.toString();
+			returnValue.delete(0, returnValue.length());
+			returnValue.append(temp.replaceAll(String.valueOf("//" + value.getKey() + "//"),
+					Objects.isNull(value.getValue()) ? "" : String.valueOf(value.getValue())));
+		});
+		//System.out.println(returnValue.toString());
+		return returnValue.toString();
+	}
+	private List<LetterReportModel> fetchDataForOracleDataBase(GenerateTemplateModel model) {
+
+		List<LetterReportModel> letterModelList = new ArrayList<>();
+
+		BranchAddress branchAddress = new BranchAddress();
+		dynamicDataSourceService.switchToOracleDataSource();
+		// Use the current datasource to fetch data
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		try (Connection connection = currentDataSource.getConnection();
+				) {
+			String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER FROM cc_contract_master where Purpose_Of_Loan is not null and application_number=?";
+			String query2 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER FROM cc_contract_master where Purpose_Of_Loan is not null and application_date=?";
+			String sql = "";
+			String value = "";
+			if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
+				sql = query1;
+				value = model.getApplicationNumber();
+			}else {
+				SimpleDateFormat inputFormater = new SimpleDateFormat("dd/MM/YYYY");
+				SimpleDateFormat outputFormater = new SimpleDateFormat("dd-MM-yy");
+				if(model.getSanctionDate()!=null) {
+
+					Date inputDate = inputFormater.parse(model.getSanctionDate());
+					sql = query2;
+					value =  outputFormater.format(inputDate);
+					value =  "09-04-20";
+				}
+			}
+			PreparedStatement preparedStatement = connection.prepareStatement(sql);
+			preparedStatement.setString(1, value);
+			ResultSet resultSet = preparedStatement.executeQuery();
+			while (resultSet.next()) {
+				LetterReportModel letterModel = new LetterReportModel();
+				letterModel.setApplicationDate(model.getSanctionDate());
+				letterModel.setContractNumber(resultSet.getString(1));
+				letterModel.setBranchCode(resultSet.getString(2));
+				letterModel.setCustomerCode(resultSet.getString(3));
+				letterModel.setAmountFinanced(resultSet.getString(4));
+				letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
+				letterModel.setApplicationNumber(resultSet.getString(6));
+				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT FROM Cc_Contract_Rate_Details where contract_number=?");
+				preparedStatement1.setString(1, letterModel.getContractNumber());
+				ResultSet resultSet1 = preparedStatement1.executeQuery();
+				while (resultSet1.next()) {
+					letterModel.setNetRate(String.valueOf(resultSet1.getInt(1)));
+					letterModel.setTerm(String.valueOf(resultSet1.getInt(2)));
+					letterModel.setEmiAmount(String.valueOf(resultSet1.getInt(3)));
+				}
+
+				PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT PF_RECEIVABLE FROM Cc_Contract_Fee_Details where contract_number=?");
+				preparedStatement2.setString(1, letterModel.getContractNumber());
+				ResultSet resultSet2 = preparedStatement2.executeQuery();
+				while (resultSet2.next()) {
+					letterModel.setProcessingFee(resultSet2.getString(1));
+				}
+
+				PreparedStatement preparedStatement3 = connection.prepareStatement("SELECT BASE_FILE_NUMBER FROM Hfs_File_Auto_Topup_Upload where customer_code=?");
+				preparedStatement3.setString(1, letterModel.getCustomerCode());
+				ResultSet resultSet3 = preparedStatement3.executeQuery();
+				while (resultSet3.next()) {
+					letterModel.setBaseFileNumber(resultSet3.getString(1));
+				}
+
+
+				PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT ocm_company_name FROM sa_organization_company_master");
+				ResultSet resultSet6 = preparedStatement6.executeQuery();
+				while (resultSet6.next()) {
+					letterModel.setCompanyName(resultSet6.getString(1));
+				}
+				PreparedStatement preparedStatement7 = connection.prepareStatement("SELECT a.obm_address_info.email"
+						+ "  FROM sa_organization_branch_master a"
+						+ "  WHERE obm_branch_code = ?");
+				preparedStatement7.setString(1, letterModel.getBranchCode());
+				ResultSet resultSet7 = preparedStatement7.executeQuery();
+
+				while (resultSet7.next()) {
+					letterModel.setBranchMailId(resultSet7.getString(1));
+				}
+
+				PreparedStatement preparedStatement8 = connection.prepareStatement("Select A.Obm_Address_Info.Street_L , A.Obm_Address_Info.Column1_L ,"
+						+ "                A.Obm_Address_Info.Column2_L, A.Obm_Address_Info.Column3_L,"
+						+ "                A.Obm_Address_Info.Column4_L, A.Obm_Address_Info.Column5_L,"
+						+ "                A.Obm_Address_Info.Column7_L,"
+						+ "                A.Obm_Address_Info.Pin_Zip_Code_L,"
+						+ "                Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
+						+ "                     Trim (A.Obm_Address_Info.Column6_L)"
+						+ "                    ),"
+						+ "                Trim (A.Obm_Address_Info.Office_Fax_No) From Sa_Organization_Branch_Master A  Where Upper (Obm_Branch_Code) = Upper (?) And Rownum < 2");
+				preparedStatement8.setString(1, letterModel.getBranchCode());
+				ResultSet resultSet8 = preparedStatement8.executeQuery();
+				while (resultSet8.next()) {
+					branchAddress.setStreet(resultSet8.getString(1));
+					branchAddress.setAddress1(resultSet8.getString(2));
+					branchAddress.setAddress2(resultSet8.getString(3));
+					branchAddress.setAddress3(resultSet8.getString(4));
+					branchAddress.setAddress4(resultSet8.getString(5));
+					branchAddress.setAddress5(resultSet8.getString(6));
+					branchAddress.setAddress7(resultSet8.getString(7));
+					branchAddress.setPinCode(resultSet8.getString(8));
+					branchAddress.setTelePhoneNumber(resultSet8.getString(9));
+					branchAddress.setOfficeFaxNo(resultSet8.getString(10));
+				}
+
+				PreparedStatement preparedStatement9 = connection.prepareStatement("Select City_Name"
+						+ "   From Hfs_Vw_City"
+						+ "   Where City_Code = ?"
+						+ "   And State_Record_Id ="
+						+ "   (Select Record_Id"
+						+ "   From Hfs_Vw_State"
+						+ "   Where State_Code = ?"
+						+ "   And Country_Code = ?)");
+				preparedStatement9.setString(1, branchAddress.getAddress4());
+				preparedStatement9.setString(2, branchAddress.getAddress3());
+				preparedStatement9.setString(3, branchAddress.getAddress2());
+				ResultSet resultSet9 = preparedStatement9.executeQuery();
+				while (resultSet9.next()) {
+					branchAddress.setDistrictName(resultSet9.getString(1));
+				}
+				PreparedStatement preparedStatement10 = connection.prepareStatement("Select Location_Name"
+						+ "   From Hfs_Vw_Postal_Code"
+						+ "   Where Location_Code =?"
+						+ "   And City_Code = ?"
+						+ "   And State_Code = ?"
+						+ "   And Country_Code = ?");
+				preparedStatement10.setString(1, branchAddress.getAddress5());
+				preparedStatement10.setString(2, branchAddress.getAddress4());
+				preparedStatement10.setString(3, branchAddress.getAddress3());
+				preparedStatement10.setString(4, branchAddress.getAddress2());
+				ResultSet resultSet10 = preparedStatement10.executeQuery();
+				while (resultSet10.next()) {
+					branchAddress.setLocationName(resultSet10.getString(1));
+				}
+
+
+
+				PreparedStatement preparedStatement11 = connection.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L,A.CUM_NAME_INFO.NAME_2_L"
+						+ ",A.CUM_NAME_INFO.NAME_3_L,"
+						+ "A.CUM_NAME_INFO.NAME_4_L,A.CUM_NAME_INFO.NAME_5_L FROM Sa_Customer_Master A "
+						+ "Where CUM_Customer_Code = ?");
+				preparedStatement11.setString(1, letterModel.getCustomerCode());
+				ResultSet resultSet11 = preparedStatement11.executeQuery();
+				while (resultSet11.next()) {
+					String custName = appendCustomerName(resultSet11);
+					letterModel.setCustomerName(custName);
+					if(Objects.nonNull(custName)) {
+						letterModel.setCustomerAddress(custName);
+					}
+				}
+
+				PreparedStatement preparedStatement12 = connection.prepareStatement("Select Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
+						+ "   Trim (A.Obm_Address_Info.Column6_L)"
+						+ "     ),"
+						+ "                Trim (A.Obm_Address_Info.Office_Fax_No)"
+						+ "           From Sa_Organization_Branch_Master A"
+						+ "          Where Upper (Obm_Branch_Code) = Upper (?)"
+						+ "                And Rownum < 2");
+				preparedStatement12.setString(1, letterModel.getBranchCode());
+				ResultSet resultSet12 = preparedStatement12.executeQuery();
+				while (resultSet12.next()) {
+					letterModel.setTelePhoneNumber(getConvertedPhoneNumber(resultSet12.getString(1),resultSet12.getString(2)));
+				}
+
+
+				String branchAddressString = convertBranchAddress(branchAddress);
+				letterModel.setBranchAddress(branchAddressString);
+				PreparedStatement preparedStatement5 = connection.prepareStatement("Select Listagg(Loan_Desc,', ') Within Group (Order By Loan_Desc)"
+						+ "      From ("
+						+ "      Select Upper(Usage_Of_Loan_Desc)||' - '||Listagg(End_Use_Desc,', ') Within Group (Order By Usage_Of_Loan_Code) Loan_Desc From"
+						+ "      Hfs_Tb_End_Of_Usage_Loan"
+						+ "      Where File_Number = ? Group By Usage_Of_Loan_Desc)");
+				preparedStatement5.setString(1, letterModel.getContractNumber());
+				ResultSet resultSet5 = preparedStatement5.executeQuery();
+				while (resultSet5.next()) {
+					letterModel.setEndUseOfLoan(resultSet5.getString(1));
+				}
+				letterModel.setCurrentDate(String.valueOf(LocalDate.now()));
+				letterModelList.add(letterModel);
+			}
+
+		} catch (Exception e) {
+			// Handle SQL exception
+			e.printStackTrace();
+		}
+		return letterModelList;
+	}
+
+	private String appendCustomerName(ResultSet resultSet) throws SQLException {
+		String customerName = "";
+		if(Objects.nonNull(resultSet.getString(1))) {
+			customerName = resultSet.getString(1);
+		}
+		if(Objects.nonNull(resultSet.getString(2))) {
+			customerName = customerName + "."+resultSet.getString(2);
+		}
+		if(Objects.nonNull(resultSet.getString(3))) {
+			if(Objects.isNull(resultSet.getString(2))) {
+				customerName = customerName + "."+resultSet.getString(3);
+			}else {
+				customerName = customerName + " "+resultSet.getString(3);
+			}
+		}
+		if(Objects.nonNull(resultSet.getString(4))) {
+			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))) {
+				customerName = customerName + "."+resultSet.getString(4);
+			}else {
+				customerName = customerName + " "+resultSet.getString(4);
+			}
+		}
+		if(Objects.nonNull(resultSet.getString(5))) {
+			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))&& Objects.isNull(resultSet.getString(4))) {
+				customerName = customerName + "."+resultSet.getString(5);
+			}else {
+				customerName = customerName + " "+resultSet.getString(5);
+			}
+		}
+		return customerName;
+	}
+
+	private String getConvertedPhoneNumber(String telePhoneNumber, String faxNumber) {
+		String phoneNumber = "";
+		if(Objects.nonNull(faxNumber)) {
+			if(Objects.nonNull(telePhoneNumber)) {
+				phoneNumber = telePhoneNumber+" "+"Fax"+"-"+faxNumber;
+			}else {
+				phoneNumber = "Fax" +"-"+faxNumber;
+			}
+		}else if(Objects.nonNull(telePhoneNumber)) {
+			phoneNumber = "Tel" +'-' + telePhoneNumber;
+		}
+		return phoneNumber;
+	}
+
+	private String convertBranchAddress(BranchAddress branchAddress) {
+		String brnachAddressString ="";
+		if(Objects.nonNull(branchAddress.getStreet())) {
+			brnachAddressString = brnachAddressString+branchAddress.getStreet();
+		} if(Objects.nonNull(branchAddress.getAddress1())) {
+			brnachAddressString = brnachAddressString+","+" "+branchAddress.getAddress1();
+		} if(Objects.nonNull(branchAddress.getAddress6())) {
+			brnachAddressString = brnachAddressString+","+" "+branchAddress.getAddress6();
+		} if(Objects.nonNull(branchAddress.getLocationName())) {
+			brnachAddressString = brnachAddressString+","+" "+branchAddress.getLocationName();
+		} if(Objects.nonNull(branchAddress.getDistrictName())) {
+			brnachAddressString = brnachAddressString+","+" "+branchAddress.getDistrictName();
+		} if(Objects.nonNull(branchAddress.getPinCode())) {
+			brnachAddressString = brnachAddressString+'-'+branchAddress.getPinCode();
+		}
+		return brnachAddressString;
+	}
+
+	public List<String> getOracleApplicationNumber() {
+		// Your condition to switch to Oracle database
+		List<String> applicationNumberList = new ArrayList<>();
+		dynamicDataSourceService.switchToOracleDataSource();
+		// Use the current datasource to fetch data
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		try (Connection connection = currentDataSource.getConnection();
+				) {
+			PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM cc_contract_master where application_number is not null and contract_status=6");
+			ResultSet resultSet = preparedStatement.executeQuery();
+			// Process the result set
+			while (resultSet.next()) {
+				applicationNumberList.add(resultSet.getString(10));
+			}
+
+		} catch (SQLException e) {
+			// Handle SQL exception
+			e.printStackTrace();
+		}
+		return applicationNumberList;
+	}
+
+	public ResponseEntity<List<Map<String, Object>>> fetchDataBasedOnDB(GenerateTemplateModel model) {
+		String dataBase = "MSSQL";
+		LetterProduct letterProduct = letterProductRepo.findByProductCodeAndLetterName(model.getProductCode(),model.getTemplateName());
+		LetterReportModel letterModel = new LetterReportModel();
+		List<LetterReportModel> letterModelList = new ArrayList<>();
+		if(Objects.nonNull(letterProduct)) {
+			dataBase = letterProduct.getDataBase();
+			if(dataBase.equals("ORACLE")) {
+				letterModelList = fetchDataForOracleDataBase(model);
+			}else {
+				letterModelList = fetchDataForMsSqlDataBase(model);
+			}
+			if(!letterModelList.isEmpty())
+			{
+				Blob blob;
+				try{
+					String jsonValue = objectMapper.writeValueAsString(letterModelList);
+					letterProduct.setProductData(jsonValue);
+					letterProductRepo.save(letterProduct);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return null;
+	}
+
+
+
+
+	private List<LetterReportModel> fetchDataForMsSqlDataBase(GenerateTemplateModel model) {
+
+		List<LetterReportModel> letterModelList = new ArrayList<>();
+		Date date = new Date();
+		SimpleDateFormat formatter1 = new SimpleDateFormat("MM/dd/yyyy");
+
+		List<Map<String, Object>> returnResponseList = new ArrayList<>();
+		Map<String, String> dataMap = new HashMap<>();
+		// Get Los Customer Data
+		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
+			dataMap.put("applicationNum", model.getApplicationNumber());
+			Map<String, Object> returnResponse = webClient.post()
+					.uri(stlapServerUrl + "/losCustomer/getCustomerDataByAppNum")
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
+					.bodyToMono(Map.class).block();
+			returnResponseList.add(returnResponse);
+		}else {
+			Map<String, String> filesMap = new HashMap();
+			filesMap.put("sanctiondate", model.getSanctionDate());
+			returnResponseList = webClient.post()
+					.uri(stlapServerUrl + "/losCustomer/getBySanctionDate")
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(filesMap).retrieve()
+					.bodyToMono(List.class).block();
+		}
+
+		returnResponseList.stream().forEach(returnResponse->{
+			LetterReportModel letterModel = new LetterReportModel();
+			letterModel.setApplicationNumber(String.valueOf(returnResponse.get("applicationNum")));
+			letterModel.setCustomerCode(String.valueOf(returnResponse.get("customerId")));
+			letterModel.setCustomerName(String.valueOf(returnResponse.get("customerName")));
+			letterModel.setCurrentDate(String.valueOf(LocalDate.now()));
+			int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
+			int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));	
+			letterModel.setAmountFinanced(String.valueOf(loanAmount));
+			letterModel.setTerm(String.valueOf(returnResponse.get("tenure")));
+			letterModel.setNetRate(String.valueOf(returnResponse.get("rateOfInterest")));
+			//customer address
+			String customerAddress = getCustomerAddress(Integer.parseInt(letterModel.getCustomerCode()), String.valueOf(letterModel.getCustomerName()));
+			letterModel.setCustomerAddress(customerAddress);
+
+			//purpose of loan from los
+			letterModel = getLosApplicationSQL(letterModel.getApplicationNumber(),letterModel);
+
+			//feeData
+			dataMap.put("applicationNum",letterModel.getApplicationNumber());
+			dataMap.put("type", "accrual");
+			//get processingfee
+			ResponseEntity<Map> processingFeeData = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeDataForLetterGeneration")
+					.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+					.toEntity(Map.class).block();
+			int processingFee = (Integer) processingFeeData.getBody().get("processingFee");
+			letterModel.setProcessingFee(String.valueOf(processingFee));
+
+			ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
+					.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+					.toEntity(Map.class).block();
+
+			List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
+			AtomicInteger documentationCharges = new AtomicInteger();
+			feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
+			.forEach(item -> {
+				int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
+				documentationCharges.set(tempValue);
+			});
+			letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
+
+			// Amort Calculation for Balance Payable
+			Calendar calendar = Calendar.getInstance();
+			Date currentDate = getDate(calendar.getTime());
+			calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
+			Date dueStartDate = getDate(calendar.getTime());
+			Double balancePayable = 0.0;
+
+			ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
+					.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
+					.block();
+			List<Amort> amortData = amortDataResponse.getBody();
+			balancePayable = amortData.stream().filter(amort -> (amort.getDueStartDate().after(dueStartDate)
+					|| amort.getDueStartDate().compareTo(dueStartDate) == 0)).mapToDouble(Amort::getEmiDue).sum();
+			letterModel.setBalancePayable(String.valueOf(balancePayable));
+
+			// Cash Handling Charges Calculation
+			ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
+					.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+					.toEntityList(CashHandlingChargesModel.class).block();
+			List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
+			letterModel.setCashHandlingCharges(cashHandlingChargesList);
+
+			// Prepayment Charges Calculation
+			dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
+			ResponseEntity<PrepaymentChargesModel> prepaymentResponse = webClient.post()
+					.uri(stlapServerUrl + "/prepaymentCharges/findByReasonAndMaxEffectiveDate").bodyValue(dataMap)
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+					.toEntity(PrepaymentChargesModel.class).block();
+
+			PrepaymentChargesModel prepaymentModel = prepaymentResponse.getBody();
+			String prepaymentCharge = "";
+			if(prepaymentModel!=null) {
+				prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
+			}
+			letterModel.setPrePaymentCharges(prepaymentCharge);
+			// ChequeReturnCharges Calculation
+
+			dataMap.put("parameterName", "ChequeReturnCharges");
+			Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
+					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
+					.bodyToMono(Map.class).block();
+			String todayDate = formatter1.format(currentDate);
+			String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
+					&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
+					? parameterResponse.get("paramValue").toString()
+							: "0";
+			letterModel.setChequeReturnCharges(chequeReturnCharges);
+			letterModelList.add(letterModel);
+		});
+		return letterModelList;
+	}
+
+
+	private LetterReportModel getLosApplicationSQL(String applicationNumber, LetterReportModel letterModel) {
+		try (Connection connection = dataSource.getConnection()) {
+			String query = "SELECT purpose_of_loan,emi_amount FROM st_tb_los_application_information WHERE application_number = ?";
+
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, applicationNumber);
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						letterModel.setPurposeOfLoan(resultSet.getString(1));
+						letterModel.setEmiAmount(resultSet.getString(2));
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
+		return letterModel;
+	}
 
 	public static String convertToIndianCurrency(String num) {
 		BigDecimal bd = new BigDecimal(num);
@@ -986,7 +1688,7 @@ if(returnResponse.size()==0) {
 				String plural = (counter > 0 && number > 9) ? "s" : "";
 				String tmp = (number < 21) ? words.get(Integer.valueOf((int) number)) + " " + digits[counter] + plural
 						: words.get(Integer.valueOf((int) Math.floor(number / 10) * 10)) + " "
-								+ words.get(Integer.valueOf((int) (number % 10))) + " " + digits[counter] + plural;
+						+ words.get(Integer.valueOf((int) (number % 10))) + " " + digits[counter] + plural;
 				str.add(tmp);
 			} else {
 				str.add("");
@@ -998,10 +1700,21 @@ if(returnResponse.size()==0) {
 
 		String paise = (decimal) > 0
 				? " And Paise " + words.get(Integer.valueOf((int) (decimal - decimal % 10))) + " "
-						+ words.get(Integer.valueOf((int) (decimal % 10)))
+				+ words.get(Integer.valueOf((int) (decimal % 10)))
 				: "";
 		return "Rupees " + Rupees + paise + " Only";
 	}
+
+	public void insertProductData() {
+		List<LetterProduct> entityList = new ArrayList<>();
+		LetterProduct entity1 = new LetterProduct(1,"HOMEFIN",null,"ORACLE",null);
+		LetterProduct entity2 = new LetterProduct(1,"STLAP",null,"MSSQL",null);
+		entityList.add(entity2);
+		entityList.add(entity1);
+		letterProductRepo.saveAll(entityList);
+	}
+
+
 
 	@Data
 	@NoArgsConstructor
@@ -1148,6 +1861,9 @@ if(returnResponse.size()==0) {
 		private String branch;
 
 	}
+
+
+
 
 
 }
