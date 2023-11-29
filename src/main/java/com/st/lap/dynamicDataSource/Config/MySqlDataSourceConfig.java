@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import com.st.lap.dynamicDataSource.service.DynamicDataSourceService;
 
 @Configuration
-@PropertySource(value = {"file:C:/Users/V20246/Documents/letter/application/application.properties"})
 public class MySqlDataSourceConfig {
 	@Value("${spring.datasource.driver-class-name}")
 	private String driverName;

@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 @Configuration
-@PropertySource(value = {"file:C:/Users/V20246/Documents/letter/application/application.properties"})
 public class OracleDataSourceConfig {
 	@Value("${spring.datasource.hfsbeta.driver-class-name}")
 	private String oracleDriverName;
