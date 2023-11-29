@@ -682,7 +682,8 @@ public class DynamicTemplateService {
 				"//~~Sanction_Loan_Amount~~//","//~~Sanction_Processing_Fee~~//","//~~Sanction_Term~~//",
 				"//~~Sanction_Net_Rate~~//","//~~Sanction_EMI~~//","//~~Sanction_Account_No~~//","//~~Sanction_End_Use_of_Loan~~//","//~~Sanction_Purpose_of_Loan~~//",
 				"//~~Sanction_Header_Company_Name~~//","//~~Sanction_Current_Date~~//","//~~Sanction_Branch_Address~~//","//~~Sanction_To_Address~~//",
-				"//~~Sanction_TelePhone_No~~//","//~~Sanction_Header_Mail~~//","//~~Sanction_Header_Branch_Address~~//","//~~Life_Insurance~~//");
+				"//~~Sanction_TelePhone_No~~//","//~~Sanction_Header_Mail~~//",
+				"//~~Sanction_Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//");
 	}
 	public String replaceValues(String content, String applicationNumber) {
 		Map<String, String> valuesMap = returnVariablesDataMapForMITC(applicationNumber);
@@ -1236,21 +1237,34 @@ public class DynamicTemplateService {
 
 	public Map<String, Object> getDataForOracleSanctionLetter(GenerateTemplateModel model, LetterReportModel sanctionModel) {
 		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
+		variablesValueMap.put("~~Application_Number~~", nullCheckStringField(sanctionModel.getApplicationNumber()));
 		variablesValueMap.put("~~Sanction_Header_Company_Name~~", nullCheckStringField(sanctionModel.getCompanyName()));
 		variablesValueMap.put("~~Sanction_Header_Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
 		variablesValueMap.put("~~Sanction_TelePhone_No~~", nullCheckStringField(sanctionModel.getTelePhoneNumber()));
 		variablesValueMap.put("~~Sanction_Header_Mail~~", nullCheckStringField(sanctionModel.getBranchMailId()));
 		variablesValueMap.put("~~Sanction_Current_Date~~", nullCheckStringField(sanctionModel.getCurrentDate()));
+		variablesValueMap.put("~~Date~~", nullCheckStringField(sanctionModel.getCurrentDate()));
 		variablesValueMap.put("~~Sanction_Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
+		variablesValueMap.put("~~Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
 		variablesValueMap.put("~~Sanction_To_Address~~", nullCheckStringField(sanctionModel.getCustomerAddress()));
+		variablesValueMap.put("~~To_Address~~", nullCheckStringField(sanctionModel.getCustomerAddress()));
 		variablesValueMap.put("~~Sanction_Loan_Amount~~", nullCheckStringField(sanctionModel.getAmountFinanced()));
+		variablesValueMap.put("~~Loan_Amount~~", nullCheckStringField(sanctionModel.getAmountFinanced()));
 		variablesValueMap.put("~~Sanction_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee()));
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee()));
 		variablesValueMap.put("~~Sanction_Term~~", nullCheckStringField(sanctionModel.getTerm()));
+		variablesValueMap.put("~~Term~~", nullCheckStringField(sanctionModel.getTerm()));
 		variablesValueMap.put("~~Sanction_Net_Rate~~", nullCheckStringField(sanctionModel.getNetRate()));
+		variablesValueMap.put("~~ROI~~", nullCheckStringField(sanctionModel.getNetRate()));
 		variablesValueMap.put("~~Sanction_EMI~~", sanctionModel.getEmiAmount()!=null?sanctionModel.getEmiAmount():"0");
+		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount()!=null?sanctionModel.getEmiAmount():"0");
 		variablesValueMap.put("~~Sanction_Account_No~~", nullCheckStringField(sanctionModel.getAccountNo()));
 		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Sanction_End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
+		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getCustomerName()));
+		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(null));
 		return variablesValueMap;
 	}
 
