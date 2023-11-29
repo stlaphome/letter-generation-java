@@ -443,7 +443,7 @@ public class DynamicTemplateService {
 		//String toAddress = returnResponse.get("customerName") + ",<br>" +dynamicVariables.getToAddress();
 		//String[] branchAddress = dynamicVariables.getBranchAddress().split(",");
 		//String branchNewAddress = getExpandedAddress(branchAddress);
-		String toNewAddress = returnResponse.get("customerName") +getExpandedAddress(customerAddress.split(","));
+		String toNewAddress = getExpandedAddress(customerAddress.split(","),returnResponse.get("customerName"));
 		variablesValueMap.put("~~Branch_Address~~", "Nil");
 		variablesValueMap.put("~~Date~~", formatter.format(date));
 		variablesValueMap.put("~~To_Address~~", toNewAddress);
@@ -613,7 +613,7 @@ public class DynamicTemplateService {
 								+ getString(resultSet.getString("first_name")) + " "
 								+ getString(resultSet.getString("middle_name"));
 						if (applicantName.equals(customerName)) {
-							addressBuilder.append(resultSet.getString("flat_door_building_block")).append(", ");
+							addressBuilder.append(resultSet.getString("flat_door_building_block")).append(".");
 							addressBuilder.append(resultSet.getString("road_street")).append(", ");
 							addressBuilder.append(resultSet.getString("area_locality")).append(", ");
 							addressBuilder.append(resultSet.getString("landmark")).append(", ");
@@ -632,8 +632,8 @@ public class DynamicTemplateService {
 		return addressBuilder.toString();
 	}
 
-	private String getExpandedAddress(String[] addressContent) {
-		String newAddress = "";
+	private String getExpandedAddress(String[] addressContent, Object customerName) {
+		String newAddress = String.valueOf(customerName);
 		for (String singleAddress : addressContent) {
 			if(newAddress.isEmpty()) {
 				newAddress= newAddress+singleAddress;
@@ -803,6 +803,7 @@ public class DynamicTemplateService {
 
 		Map<String, Object> resultMap = new HashMap<>();
 		resultMap.put("FilesList", new ArrayList());
+		resultMap.put("ApplicationList", new ArrayList());
 		resultMap.put("Status", "Error Occured Letter Not Generated.");
 		return ResponseEntity.ok(resultMap);
 	}
@@ -820,6 +821,7 @@ public class DynamicTemplateService {
 		List<String> applicationList = new ArrayList<>();
 		try {
 			List<LetterReportModel> sanctionModelList = objectMapper.readValue(productData, new TypeReference<List<LetterReportModel>>() {}); 
+			
 			sanctionModelList.stream().forEach(sanctionModel->{
 				Map<String, Object> variableMap = new HashMap<>();
 				String fileName = (dynamicTemplate.getTemplateName()).concat("_").concat(sanctionModel.getApplicationNumber())
@@ -843,6 +845,7 @@ public class DynamicTemplateService {
 			});
 		} catch (Exception e) {
 			resultMap.put("FilesList", filesMap);
+			resultMap.put("ApplicationList", applicationList);
 			resultMap.put("Status", "Letter Generated Failed");
 			e.printStackTrace();
 		}
@@ -863,8 +866,8 @@ public class DynamicTemplateService {
 		YearMonth yearMonth = YearMonth.now();
 		String amount =Objects.nonNull(sanctionModel.getAmountFinanced())?sanctionModel.getAmountFinanced():"0";
 		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
-		String toNewAddress = sanctionModel.getCustomerName() +getExpandedAddress(sanctionModel.getCustomerAddress().split(","));
-		variablesValueMap.put("~~Branch_Address~~", "Nil");
+		String toNewAddress =   getExpandedAddress(sanctionModel.getCustomerAddress().split(","),sanctionModel.getCustomerName());
+		variablesValueMap.put("~~Branch_Address~~", sanctionModel.getBranchAddress());
 		variablesValueMap.put("~~Date~~", formatter.format(date));
 		variablesValueMap.put("~~To_Address~~", toNewAddress);
 		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
@@ -1269,18 +1272,83 @@ public class DynamicTemplateService {
 		//System.out.println(returnValue.toString());
 		return returnValue.toString();
 	}
-	private List<LetterReportModel> fetchDataForOracleDataBase(GenerateTemplateModel model) {
-
-		List<LetterReportModel> letterModelList = new ArrayList<>();
-
+	
+	public BranchAddress fetchBranchAddressForMsSQL(String branchCode){
 		BranchAddress branchAddress = new BranchAddress();
 		dynamicDataSourceService.switchToOracleDataSource();
 		// Use the current datasource to fetch data
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		try (Connection connection = currentDataSource.getConnection();
 				) {
-			String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER FROM cc_contract_master where Purpose_Of_Loan is not null and application_number=?";
-			String query2 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER FROM cc_contract_master where Purpose_Of_Loan is not null and application_date=?";
+		PreparedStatement preparedStatement1 = connection.prepareStatement("Select A.Obm_Address_Info.Street_L , A.Obm_Address_Info.Column1_L ,"
+				+ "                A.Obm_Address_Info.Column2_L, A.Obm_Address_Info.Column3_L,"
+				+ "                A.Obm_Address_Info.Column4_L, A.Obm_Address_Info.Column5_L,"
+				+ "                A.Obm_Address_Info.Column7_L,"
+				+ "                A.Obm_Address_Info.Pin_Zip_Code_L,"
+				+ "                Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
+				+ "                     Trim (A.Obm_Address_Info.Column6_L)"
+				+ "                    ),"
+				+ "                Trim (A.Obm_Address_Info.Office_Fax_No) From Sa_Organization_Branch_Master A  Where Upper (Obm_Branch_Code) = Upper (?) And Rownum < 2");
+		preparedStatement1.setString(1, branchCode);
+		ResultSet resultSet1 = preparedStatement1.executeQuery();
+		while (resultSet1.next()) {
+			branchAddress.setStreet(resultSet1.getString(1));
+			branchAddress.setAddress1(resultSet1.getString(2));
+			branchAddress.setAddress2(resultSet1.getString(3));
+			branchAddress.setAddress3(resultSet1.getString(4));
+			branchAddress.setAddress4(resultSet1.getString(5));
+			branchAddress.setAddress5(resultSet1.getString(6));
+			branchAddress.setAddress7(resultSet1.getString(7));
+			branchAddress.setPinCode(resultSet1.getString(8));
+			branchAddress.setTelePhoneNumber(resultSet1.getString(9));
+			branchAddress.setOfficeFaxNo(resultSet1.getString(10));
+		}
+		PreparedStatement preparedStatement2 = connection.prepareStatement("Select City_Name"
+				+ "   From Hfs_Vw_City"
+				+ "   Where City_Code = ?"
+				+ "   And State_Record_Id ="
+				+ "   (Select Record_Id"
+				+ "   From Hfs_Vw_State"
+				+ "   Where State_Code = ?"
+				+ "   And Country_Code = ?)");
+		preparedStatement2.setString(1, branchAddress.getAddress4());
+		preparedStatement2.setString(2, branchAddress.getAddress3());
+		preparedStatement2.setString(3, branchAddress.getAddress2());
+		ResultSet resultSet2 = preparedStatement2.executeQuery();
+		while (resultSet2.next()) {
+			branchAddress.setDistrictName(resultSet2.getString(1));
+		}
+		PreparedStatement preparedStatement3 = connection.prepareStatement("Select Location_Name"
+				+ "   From Hfs_Vw_Postal_Code"
+				+ "   Where Location_Code =?"
+				+ "   And City_Code = ?"
+				+ "   And State_Code = ?"
+				+ "   And Country_Code = ?");
+		preparedStatement3.setString(1, branchAddress.getAddress5());
+		preparedStatement3.setString(2, branchAddress.getAddress4());
+		preparedStatement3.setString(3, branchAddress.getAddress3());
+		preparedStatement3.setString(4, branchAddress.getAddress2());
+		ResultSet resultSet3 = preparedStatement3.executeQuery();
+		while (resultSet3.next()) {
+			branchAddress.setLocationName(resultSet3.getString(1));
+		}
+
+		}catch (Exception e) {
+			// TODO: handle exception
+		}
+		return branchAddress;
+		
+	}
+	private List<LetterReportModel> fetchDataForOracleDataBase(GenerateTemplateModel model) {
+		List<LetterReportModel> letterModelList = new ArrayList<>();
+		BranchAddress branchAddress = new BranchAddress();
+		dynamicDataSourceService.switchToOracleDataSource();
+		// Use the current datasource to fetch data
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		try (Connection connection = currentDataSource.getConnection();
+				) {
+			String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER FROM cc_contract_master where application_number=?";
+			String query2 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER FROM cc_contract_master where application_date=?";
 			String sql = "";
 			String value = "";
 			if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
@@ -1309,7 +1377,7 @@ public class DynamicTemplateService {
 				letterModel.setAmountFinanced(resultSet.getString(4));
 				letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
 				letterModel.setApplicationNumber(resultSet.getString(6));
-				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT FROM Cc_Contract_Rate_Details where contract_number=?");
+				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
 				preparedStatement1.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet1 = preparedStatement1.executeQuery();
 				while (resultSet1.next()) {
@@ -1524,14 +1592,16 @@ public class DynamicTemplateService {
 		List<String> applicationNumberList = new ArrayList<>();
 		dynamicDataSourceService.switchToOracleDataSource();
 		// Use the current datasource to fetch data
+		//String query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null and GENERATED_TRN  in (SELECT TRN_NO FROM HFS_FILE_AUTO_TOPUP_DETAILS)";
+		String query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null and GENERATED_TRN  in (SELECT TRN_NO FROM HFS_FILE_AUTO_TOPUP_DETAILS where application_status='link expired')";
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		try (Connection connection = currentDataSource.getConnection();
 				) {
-			PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM cc_contract_master where application_number is not null and contract_status=6");
+			PreparedStatement preparedStatement = connection.prepareStatement(query1);
 			ResultSet resultSet = preparedStatement.executeQuery();
 			// Process the result set
 			while (resultSet.next()) {
-				applicationNumberList.add(resultSet.getString(10));
+				applicationNumberList.add(resultSet.getString(1));
 			}
 
 		} catch (SQLException e) {
@@ -1553,8 +1623,6 @@ public class DynamicTemplateService {
 			}else {
 				letterModelList = fetchDataForMsSqlDataBase(model);
 			}
-			if(!letterModelList.isEmpty())
-			{
 				Blob blob;
 				try{
 					String jsonValue = objectMapper.writeValueAsString(letterModelList);
@@ -1563,7 +1631,7 @@ public class DynamicTemplateService {
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-			}
+		
 		}
 		return null;
 	}
@@ -1602,11 +1670,15 @@ public class DynamicTemplateService {
 			letterModel.setCustomerCode(String.valueOf(returnResponse.get("customerId")));
 			letterModel.setCustomerName(String.valueOf(returnResponse.get("customerName")));
 			letterModel.setCurrentDate(String.valueOf(LocalDate.now()));
+			letterModel.setBranchCode(String.valueOf(returnResponse.get("branchCode")));
 			int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
 			int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));	
 			letterModel.setAmountFinanced(String.valueOf(loanAmount));
 			letterModel.setTerm(String.valueOf(returnResponse.get("tenure")));
 			letterModel.setNetRate(String.valueOf(returnResponse.get("rateOfInterest")));
+			BranchAddress branchAddress = fetchBranchAddressForMsSQL(letterModel.getBranchCode());
+			String branchAddressString = convertBranchAddress(branchAddress);
+			letterModel.setBranchAddress(branchAddressString);
 			//customer address
 			String customerAddress = getCustomerAddress(Integer.parseInt(letterModel.getCustomerCode()), String.valueOf(letterModel.getCustomerName()));
 			letterModel.setCustomerAddress(customerAddress);

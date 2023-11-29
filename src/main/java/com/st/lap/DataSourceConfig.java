@@ -2,13 +2,15 @@ package com.st.lap;
 
 import javax.sql.DataSource;
 
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-//@PropertySource(value = {"file:${STLAP_LMS}/lms_application.properties"})
-//@PropertySource(value = {"file:C:/Users/V20246/Documents/letter/application/application.properties"})
+@Configuration
+@PropertySource(value = {"file:${STLAP_LMS}/lms_application.properties"})
+//@PropertySource(value = {"file:C:/Users/V20246/Documents/letter/application/lms_application.properties"})
 public class DataSourceConfig {
 	
 	@Value("${spring.datasource.driver-class-name}")
