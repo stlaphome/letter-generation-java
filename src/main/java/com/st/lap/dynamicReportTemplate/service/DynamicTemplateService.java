@@ -874,7 +874,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Loan_Amount~~", amount);
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(amount)));
 		variablesValueMap.put("~~Product~~", "Nil");
-		variablesValueMap.put("~~Purpose_of_Loan~~", sanctionModel.getPurposeOfLoan());
+		variablesValueMap.put("~~Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Term~~", String.valueOf(sanctionModel.getTerm()));
 		variablesValueMap.put("~~ROI~~", String.valueOf(sanctionModel.getNetRate()));
 		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount());
@@ -1249,7 +1249,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Sanction_Net_Rate~~", nullCheckStringField(sanctionModel.getNetRate()));
 		variablesValueMap.put("~~Sanction_EMI~~", sanctionModel.getEmiAmount()!=null?sanctionModel.getEmiAmount():"0");
 		variablesValueMap.put("~~Sanction_Account_No~~", nullCheckStringField(sanctionModel.getAccountNo()));
-		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getUseOfLoan()));
+		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Sanction_End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
 		return variablesValueMap;
 	}
