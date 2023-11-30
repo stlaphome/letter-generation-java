@@ -1,7 +1,9 @@
 package com.st.lap.dynamicReportTemplate.letterModel;
 
+import java.math.BigDecimal;
 import java.util.List;
 
+import com.google.type.Decimal;
 import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService.CashHandlingChargesModel;
 
 import lombok.Data;
@@ -15,11 +17,11 @@ public class LetterReportModel {
 	private String branchCode;
 	private String currentDate;
 	private String customerCode;
-	private String amountFinanced;
+	private int amountFinanced;
 	private String purposeOfLoan;
 	private String netRate;
-	private String term;
-	private String emiAmount;
+	private int term;
+	private int emiAmount;
 	private String processingFee;
 	private String baseFileNumber;
 	private String endUse;

@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -861,19 +862,18 @@ public class DynamicTemplateService {
 	}
 
 	private Map<String, Object> getDataForMITC(GenerateTemplateModel model, LetterReportModel sanctionModel) {
-		Date date = new Date();
 		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
+		Date date = new Date();
 		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 		YearMonth yearMonth = YearMonth.now();
-		String amount =Objects.nonNull(sanctionModel.getAmountFinanced())?sanctionModel.getAmountFinanced():"0";
 		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
 		String toNewAddress =   getExpandedAddress(sanctionModel.getCustomerAddress().split(","),sanctionModel.getCustomerName());
 		variablesValueMap.put("~~Branch_Address~~", sanctionModel.getBranchAddress());
 		variablesValueMap.put("~~Date~~", formatter.format(date));
 		variablesValueMap.put("~~To_Address~~", toNewAddress);
 		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
-		variablesValueMap.put("~~Loan_Amount~~", amount);
-		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(amount)));
+		variablesValueMap.put("~~Loan_Amount~~", sanctionModel.getAmountFinanced());
+		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(sanctionModel.getAmountFinanced())));
 		variablesValueMap.put("~~Product~~", "Nil");
 		variablesValueMap.put("~~Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Term~~", String.valueOf(sanctionModel.getTerm()));
@@ -1236,6 +1236,9 @@ public class DynamicTemplateService {
 	}
 
 	public Map<String, Object> getDataForOracleSanctionLetter(GenerateTemplateModel model, LetterReportModel sanctionModel) {
+		Date date = new Date();
+		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		formatter.format(date);
 		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
 		variablesValueMap.put("~~Application_Number~~", nullCheckStringField(sanctionModel.getApplicationNumber()));
 		variablesValueMap.put("~~Sanction_Header_Company_Name~~", nullCheckStringField(sanctionModel.getCompanyName()));
@@ -1248,16 +1251,16 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
 		variablesValueMap.put("~~Sanction_To_Address~~", nullCheckStringField(sanctionModel.getCustomerAddress()));
 		variablesValueMap.put("~~To_Address~~", nullCheckStringField(sanctionModel.getCustomerAddress()));
-		variablesValueMap.put("~~Sanction_Loan_Amount~~", nullCheckStringField(sanctionModel.getAmountFinanced()));
-		variablesValueMap.put("~~Loan_Amount~~", nullCheckStringField(sanctionModel.getAmountFinanced()));
+		variablesValueMap.put("~~Sanction_Loan_Amount~~", (sanctionModel.getAmountFinanced()));
+		variablesValueMap.put("~~Loan_Amount~~", (sanctionModel.getAmountFinanced()));
 		variablesValueMap.put("~~Sanction_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee()));
 		variablesValueMap.put("~~Upfront_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee()));
-		variablesValueMap.put("~~Sanction_Term~~", nullCheckStringField(sanctionModel.getTerm()));
-		variablesValueMap.put("~~Term~~", nullCheckStringField(sanctionModel.getTerm()));
-		variablesValueMap.put("~~Sanction_Net_Rate~~", nullCheckStringField(sanctionModel.getNetRate()));
-		variablesValueMap.put("~~ROI~~", nullCheckStringField(sanctionModel.getNetRate()));
-		variablesValueMap.put("~~Sanction_EMI~~", sanctionModel.getEmiAmount()!=null?sanctionModel.getEmiAmount():"0");
-		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount()!=null?sanctionModel.getEmiAmount():"0");
+		variablesValueMap.put("~~Sanction_Term~~", (sanctionModel.getTerm()));
+		variablesValueMap.put("~~Term~~", (sanctionModel.getTerm()));
+		variablesValueMap.put("~~Sanction_Net_Rate~~", (sanctionModel.getNetRate()));
+		variablesValueMap.put("~~ROI~~", (sanctionModel.getNetRate()));
+		variablesValueMap.put("~~Sanction_EMI~~", sanctionModel.getEmiAmount());
+		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount());
 		variablesValueMap.put("~~Sanction_Account_No~~", nullCheckStringField(sanctionModel.getAccountNo()));
 		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Sanction_End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
@@ -1388,16 +1391,16 @@ public class DynamicTemplateService {
 				letterModel.setContractNumber(resultSet.getString(1));
 				letterModel.setBranchCode(resultSet.getString(2));
 				letterModel.setCustomerCode(resultSet.getString(3));
-				letterModel.setAmountFinanced(resultSet.getString(4));
+				letterModel.setAmountFinanced(convertRoundedValue(resultSet.getString(4)));
 				letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
 				letterModel.setApplicationNumber(resultSet.getString(6));
 				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
 				preparedStatement1.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet1 = preparedStatement1.executeQuery();
 				while (resultSet1.next()) {
-					letterModel.setNetRate(String.valueOf(resultSet1.getInt(1)));
-					letterModel.setTerm(String.valueOf(resultSet1.getInt(2)));
-					letterModel.setEmiAmount(String.valueOf(resultSet1.getInt(3)));
+					letterModel.setNetRate(convertDecimalValue(resultSet1.getString(1)));
+					letterModel.setTerm((resultSet1.getInt(2)));
+					letterModel.setEmiAmount(convertRoundedValue(String.valueOf(resultSet1.getInt(3))));
 				}
 
 				PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT PF_RECEIVABLE FROM Cc_Contract_Fee_Details where contract_number=?");
@@ -1526,7 +1529,9 @@ public class DynamicTemplateService {
 				while (resultSet5.next()) {
 					letterModel.setEndUseOfLoan(resultSet5.getString(1));
 				}
-				letterModel.setCurrentDate(String.valueOf(LocalDate.now()));
+				Date date = new Date();
+				SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+				letterModel.setCurrentDate(formatter.format(date));
 				letterModelList.add(letterModel);
 			}
 
@@ -1657,7 +1662,7 @@ public class DynamicTemplateService {
 
 		List<LetterReportModel> letterModelList = new ArrayList<>();
 		Date date = new Date();
-		SimpleDateFormat formatter1 = new SimpleDateFormat("MM/dd/yyyy");
+		SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy");
 
 		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		Map<String, String> dataMap = new HashMap<>();
@@ -1683,13 +1688,15 @@ public class DynamicTemplateService {
 			letterModel.setApplicationNumber(String.valueOf(returnResponse.get("applicationNum")));
 			letterModel.setCustomerCode(String.valueOf(returnResponse.get("customerId")));
 			letterModel.setCustomerName(String.valueOf(returnResponse.get("customerName")));
-			letterModel.setCurrentDate(String.valueOf(LocalDate.now()));
+			letterModel.setCurrentDate(formatter.format(date));
 			letterModel.setBranchCode(String.valueOf(returnResponse.get("branchCode")));
 			int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
 			int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));	
-			letterModel.setAmountFinanced(String.valueOf(loanAmount));
-			letterModel.setTerm(String.valueOf(returnResponse.get("tenure")));
-			letterModel.setNetRate(String.valueOf(returnResponse.get("rateOfInterest")));
+			letterModel.setAmountFinanced(convertRoundedValue(String.valueOf(returnResponse.get("loanAmt"))));
+			letterModel.setTerm(Integer.parseInt(String.valueOf(returnResponse.get("tenure"))));
+			BigDecimal netRate1 = BigDecimal.valueOf(Double.parseDouble(String.valueOf(returnResponse.get("rateOfInterest"))));
+			String netRate = convertDecimalValue(String.valueOf(returnResponse.get("rateOfInterest")));
+			letterModel.setNetRate(netRate);
 			BranchAddress branchAddress = fetchBranchAddressForMsSQL(letterModel.getBranchCode());
 			String branchAddressString = convertBranchAddress(branchAddress);
 			letterModel.setBranchAddress(branchAddressString);
@@ -1760,7 +1767,7 @@ public class DynamicTemplateService {
 			Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
 					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
 					.bodyToMono(Map.class).block();
-			String todayDate = formatter1.format(currentDate);
+			String todayDate = formatter.format(currentDate);
 			String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
 					&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
 					? parameterResponse.get("paramValue").toString()
@@ -1772,6 +1779,12 @@ public class DynamicTemplateService {
 	}
 
 
+	private String convertDecimalValue(String value) {
+		DecimalFormat format = new DecimalFormat("0.00");
+		String outputValue = format.format(Double.parseDouble(value));
+		return outputValue;
+	}
+
 	private LetterReportModel getLosApplicationSQL(String applicationNumber, LetterReportModel letterModel) {
 		try (Connection connection = dataSource.getConnection()) {
 			String query = "SELECT purpose_of_loan,emi_amount FROM st_tb_los_application_information WHERE application_number = ?";
@@ -1781,7 +1794,7 @@ public class DynamicTemplateService {
 				try (ResultSet resultSet = statement.executeQuery()) {
 					while (resultSet.next()) {
 						letterModel.setPurposeOfLoan(resultSet.getString(1));
-						letterModel.setEmiAmount(resultSet.getString(2));
+						letterModel.setEmiAmount(convertRoundedValue(resultSet.getString(2)));
 					}
 				}
 			}
@@ -1791,7 +1804,9 @@ public class DynamicTemplateService {
 
 		return letterModel;
 	}
-
+public int convertRoundedValue(String value) {
+	return (int)Math.round(Double.parseDouble(value));
+}
 	public static String convertToIndianCurrency(String num) {
 		BigDecimal bd = new BigDecimal(num);
 		long number = bd.longValue();
