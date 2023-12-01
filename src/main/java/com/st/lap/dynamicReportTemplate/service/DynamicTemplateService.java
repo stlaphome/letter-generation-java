@@ -178,20 +178,21 @@ public class DynamicTemplateService {
 			}
 			if(productData.isPresent()) {
 				product = productData.get();
-				product.setProductCode(dynamicTemplateModel.getProductCode());
-				product.setLetterName(dynamicTemplateModel.getTemplateName());
-				switch(product.getProductCode()) {
-				case "STLAP":
-					product.setDataBase("MSSQL");
-					break;
-				case "HOMEFIN":
-					product.setDataBase("ORACLE");
-					break;
-				default:
-					break;
-				}
-				letterProductRepo.save(product);
 			}
+			product.setProductCode(dynamicTemplateModel.getProductCode());
+			product.setLetterName(dynamicTemplateModel.getTemplateName());
+			switch(product.getProductCode()) {
+			case "STLAP":
+				product.setDataBase("MSSQL");
+				break;
+			case "HOMEFIN":
+				product.setDataBase("ORACLE");
+				break;
+			default:
+				break;
+			}
+			letterProductRepo.save(product);
+
 			return ResponseEntity
 					.ok(dynamicTemplateModel.getMode().equalsIgnoreCase("NEW") ? "Template Saved Successfully"
 							: "Template Updated Successfully");
@@ -537,7 +538,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Property_Boundary_Details~~", "TEST");
 		return variablesValueMap;
 	}
-	
+
 	public int getFeeDataForLetterGeneration(Map<String, String> dataMap) {
 		String applicationNumber = getString(dataMap.get("applicationNum"));
 		List<MemorandumHeader> memorandumSavedData = new ArrayList<>();
@@ -560,17 +561,17 @@ public class DynamicTemplateService {
 		}
 		AtomicInteger processingFee = new AtomicInteger(0);
 		memorandumSavedData.stream().forEach(action -> {
-		if (action.getMemoCode().equalsIgnoreCase("PROCESSING FEE")) {
-			if (action.getTxnIndicator().equals("accrual")) {
-				processingFee.set(processingFee.get() + action.getTxnAmt());
-			} else {
-				processingFee.set(processingFee.get() - action.getTxnAmt());
-			}
-		} 
+			if (action.getMemoCode().equalsIgnoreCase("PROCESSING FEE")) {
+				if (action.getTxnIndicator().equals("accrual")) {
+					processingFee.set(processingFee.get() + action.getTxnAmt());
+				} else {
+					processingFee.set(processingFee.get() - action.getTxnAmt());
+				}
+			} 
 		});
 		return processingFee.get();
 	}
-	
+
 	private PrepaymentChargesModel getDataFromPrepaymentCharges(Map<String, String> dataMap) {
 		PrepaymentChargesModel chargesResponse = new PrepaymentChargesModel();
 		AtomicInteger rowId = new AtomicInteger(0);
@@ -783,20 +784,6 @@ public class DynamicTemplateService {
 			if(Objects.nonNull(letterProduct)) {
 				dataBase = letterProduct.getDataBase();
 				return ResponseEntity.ok(generateLetterForApplicationNumber(model,letterProduct,dynamicTemplate));
-				//				if(dataBase.equals("ORACLE")) {
-				//					if (model.getSanctionDate() != null) {
-				//						return ResponseEntity.ok(generateLetterForSanctionDate(model,dataBase,dynamicTemplate));
-				//					} else if (!model.getApplicationNumber().isEmpty()) {
-				//						return ResponseEntity.ok(generateLetterForApplicationNumber(model,letterProduct,dynamicTemplate));
-				//					}
-				//				}else {
-				//					if (model.getSanctionDate() != null) {
-				//						return ResponseEntity.ok(generateReportForSanctionDate(model, dynamicTemplate));
-				//					} else if (!model.getApplicationNumber().isEmpty()) {
-				//						return ResponseEntity.ok(generateReportForApplicationNumber(model, dynamicTemplate));
-				//					}
-				//				}
-				//
 			}
 
 
@@ -823,7 +810,12 @@ public class DynamicTemplateService {
 		List<String> applicationList = new ArrayList<>();
 		try {
 			List<LetterReportModel> sanctionModelList = objectMapper.readValue(productData, new TypeReference<List<LetterReportModel>>() {}); 
-			
+			if(sanctionModelList.isEmpty()) {
+				resultMap.put("FilesList", filesMap);
+				resultMap.put("ApplicationList", applicationList);
+				resultMap.put("Status", "Error Occured. Letter Not Generated.");
+				return resultMap;
+			}
 			sanctionModelList.stream().forEach(sanctionModel->{
 				Map<String, Object> variableMap = new HashMap<>();
 				String fileName = (dynamicTemplate.getTemplateName()).concat("_").concat(sanctionModel.getApplicationNumber())
@@ -848,7 +840,7 @@ public class DynamicTemplateService {
 		} catch (Exception e) {
 			resultMap.put("FilesList", filesMap);
 			resultMap.put("ApplicationList", applicationList);
-			resultMap.put("Status", "Letter Generated Failed");
+			resultMap.put("Status", "Error Occured. Letter Not Generated.");
 			e.printStackTrace();
 		}
 
@@ -857,7 +849,6 @@ public class DynamicTemplateService {
 		resultMap.put("FilesList", filesMap);
 		resultMap.put("ApplicationList", applicationList);
 		resultMap.put("Status", "Letter Generated Successfully");
-
 		return resultMap;
 	}
 
@@ -964,7 +955,7 @@ public class DynamicTemplateService {
 		if(returnResponse.size()==0) {
 			Map<String, Object> resultMap = new HashMap<>();
 			resultMap.put("FilesList", filesMap);
-			resultMap.put("Status", "No Application Found For this Sanctioned Date");
+			resultMap.put("Status", "No Report Found For this Sanctioned Date");
 			resultMap.put("ApplicationList", applicationList);
 			resultMap.put("ContactList", contactDetails);
 			return resultMap;
@@ -1289,7 +1280,7 @@ public class DynamicTemplateService {
 		//System.out.println(returnValue.toString());
 		return returnValue.toString();
 	}
-	
+
 	public BranchAddress fetchBranchAddressForMsSQL(String branchCode){
 		BranchAddress branchAddress = new BranchAddress();
 		dynamicDataSourceService.switchToOracleDataSource();
@@ -1297,64 +1288,64 @@ public class DynamicTemplateService {
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		try (Connection connection = currentDataSource.getConnection();
 				) {
-		PreparedStatement preparedStatement1 = connection.prepareStatement("Select A.Obm_Address_Info.Street_L , A.Obm_Address_Info.Column1_L ,"
-				+ "                A.Obm_Address_Info.Column2_L, A.Obm_Address_Info.Column3_L,"
-				+ "                A.Obm_Address_Info.Column4_L, A.Obm_Address_Info.Column5_L,"
-				+ "                A.Obm_Address_Info.Column7_L,"
-				+ "                A.Obm_Address_Info.Pin_Zip_Code_L,"
-				+ "                Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
-				+ "                     Trim (A.Obm_Address_Info.Column6_L)"
-				+ "                    ),"
-				+ "                Trim (A.Obm_Address_Info.Office_Fax_No) From Sa_Organization_Branch_Master A  Where Upper (Obm_Branch_Code) = Upper (?) And Rownum < 2");
-		preparedStatement1.setString(1, branchCode);
-		ResultSet resultSet1 = preparedStatement1.executeQuery();
-		while (resultSet1.next()) {
-			branchAddress.setStreet(resultSet1.getString(1));
-			branchAddress.setAddress1(resultSet1.getString(2));
-			branchAddress.setAddress2(resultSet1.getString(3));
-			branchAddress.setAddress3(resultSet1.getString(4));
-			branchAddress.setAddress4(resultSet1.getString(5));
-			branchAddress.setAddress5(resultSet1.getString(6));
-			branchAddress.setAddress7(resultSet1.getString(7));
-			branchAddress.setPinCode(resultSet1.getString(8));
-			branchAddress.setTelePhoneNumber(resultSet1.getString(9));
-			branchAddress.setOfficeFaxNo(resultSet1.getString(10));
-		}
-		PreparedStatement preparedStatement2 = connection.prepareStatement("Select City_Name"
-				+ "   From Hfs_Vw_City"
-				+ "   Where City_Code = ?"
-				+ "   And State_Record_Id ="
-				+ "   (Select Record_Id"
-				+ "   From Hfs_Vw_State"
-				+ "   Where State_Code = ?"
-				+ "   And Country_Code = ?)");
-		preparedStatement2.setString(1, branchAddress.getAddress4());
-		preparedStatement2.setString(2, branchAddress.getAddress3());
-		preparedStatement2.setString(3, branchAddress.getAddress2());
-		ResultSet resultSet2 = preparedStatement2.executeQuery();
-		while (resultSet2.next()) {
-			branchAddress.setDistrictName(resultSet2.getString(1));
-		}
-		PreparedStatement preparedStatement3 = connection.prepareStatement("Select Location_Name"
-				+ "   From Hfs_Vw_Postal_Code"
-				+ "   Where Location_Code =?"
-				+ "   And City_Code = ?"
-				+ "   And State_Code = ?"
-				+ "   And Country_Code = ?");
-		preparedStatement3.setString(1, branchAddress.getAddress5());
-		preparedStatement3.setString(2, branchAddress.getAddress4());
-		preparedStatement3.setString(3, branchAddress.getAddress3());
-		preparedStatement3.setString(4, branchAddress.getAddress2());
-		ResultSet resultSet3 = preparedStatement3.executeQuery();
-		while (resultSet3.next()) {
-			branchAddress.setLocationName(resultSet3.getString(1));
-		}
+			PreparedStatement preparedStatement1 = connection.prepareStatement("Select A.Obm_Address_Info.Street_L , A.Obm_Address_Info.Column1_L ,"
+					+ "                A.Obm_Address_Info.Column2_L, A.Obm_Address_Info.Column3_L,"
+					+ "                A.Obm_Address_Info.Column4_L, A.Obm_Address_Info.Column5_L,"
+					+ "                A.Obm_Address_Info.Column7_L,"
+					+ "                A.Obm_Address_Info.Pin_Zip_Code_L,"
+					+ "                Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
+					+ "                     Trim (A.Obm_Address_Info.Column6_L)"
+					+ "                    ),"
+					+ "                Trim (A.Obm_Address_Info.Office_Fax_No) From Sa_Organization_Branch_Master A  Where Upper (Obm_Branch_Code) = Upper (?) And Rownum < 2");
+			preparedStatement1.setString(1, branchCode);
+			ResultSet resultSet1 = preparedStatement1.executeQuery();
+			while (resultSet1.next()) {
+				branchAddress.setStreet(resultSet1.getString(1));
+				branchAddress.setAddress1(resultSet1.getString(2));
+				branchAddress.setAddress2(resultSet1.getString(3));
+				branchAddress.setAddress3(resultSet1.getString(4));
+				branchAddress.setAddress4(resultSet1.getString(5));
+				branchAddress.setAddress5(resultSet1.getString(6));
+				branchAddress.setAddress7(resultSet1.getString(7));
+				branchAddress.setPinCode(resultSet1.getString(8));
+				branchAddress.setTelePhoneNumber(resultSet1.getString(9));
+				branchAddress.setOfficeFaxNo(resultSet1.getString(10));
+			}
+			PreparedStatement preparedStatement2 = connection.prepareStatement("Select City_Name"
+					+ "   From Hfs_Vw_City"
+					+ "   Where City_Code = ?"
+					+ "   And State_Record_Id ="
+					+ "   (Select Record_Id"
+					+ "   From Hfs_Vw_State"
+					+ "   Where State_Code = ?"
+					+ "   And Country_Code = ?)");
+			preparedStatement2.setString(1, branchAddress.getAddress4());
+			preparedStatement2.setString(2, branchAddress.getAddress3());
+			preparedStatement2.setString(3, branchAddress.getAddress2());
+			ResultSet resultSet2 = preparedStatement2.executeQuery();
+			while (resultSet2.next()) {
+				branchAddress.setDistrictName(resultSet2.getString(1));
+			}
+			PreparedStatement preparedStatement3 = connection.prepareStatement("Select Location_Name"
+					+ "   From Hfs_Vw_Postal_Code"
+					+ "   Where Location_Code =?"
+					+ "   And City_Code = ?"
+					+ "   And State_Code = ?"
+					+ "   And Country_Code = ?");
+			preparedStatement3.setString(1, branchAddress.getAddress5());
+			preparedStatement3.setString(2, branchAddress.getAddress4());
+			preparedStatement3.setString(3, branchAddress.getAddress3());
+			preparedStatement3.setString(4, branchAddress.getAddress2());
+			ResultSet resultSet3 = preparedStatement3.executeQuery();
+			while (resultSet3.next()) {
+				branchAddress.setLocationName(resultSet3.getString(1));
+			}
 
 		}catch (Exception e) {
 			// TODO: handle exception
 		}
 		return branchAddress;
-		
+
 	}
 	private List<LetterReportModel> fetchDataForOracleDataBase(GenerateTemplateModel model) {
 		List<LetterReportModel> letterModelList = new ArrayList<>();
@@ -1375,16 +1366,21 @@ public class DynamicTemplateService {
 				SimpleDateFormat inputFormater = new SimpleDateFormat("dd/MM/YYYY");
 				SimpleDateFormat outputFormater = new SimpleDateFormat("dd-MM-yy");
 				if(model.getSanctionDate()!=null) {
-
 					Date inputDate = inputFormater.parse(model.getSanctionDate());
 					sql = query2;
-					value =  outputFormater.format(inputDate);
-					value =  "09-04-20";
+					value = model.getSanctionDate();
+
 				}
+			}
+			if(sql.isEmpty()) {
+				return letterModelList;
 			}
 			PreparedStatement preparedStatement = connection.prepareStatement(sql);
 			preparedStatement.setString(1, value);
 			ResultSet resultSet = preparedStatement.executeQuery();
+			if(!resultSet.isBeforeFirst()) {
+				return letterModelList;
+			}
 			while (resultSet.next()) {
 				LetterReportModel letterModel = new LetterReportModel();
 				letterModel.setApplicationDate(model.getSanctionDate());
@@ -1394,13 +1390,15 @@ public class DynamicTemplateService {
 				letterModel.setAmountFinanced(convertRoundedValue(resultSet.getString(4)));
 				letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
 				letterModel.setApplicationNumber(resultSet.getString(6));
-				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
+				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,RATE_TYPE,PRINCIPAL_OS FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
 				preparedStatement1.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet1 = preparedStatement1.executeQuery();
 				while (resultSet1.next()) {
 					letterModel.setNetRate(convertDecimalValue(resultSet1.getString(1)));
 					letterModel.setTerm((resultSet1.getInt(2)));
 					letterModel.setEmiAmount(convertRoundedValue(String.valueOf(resultSet1.getInt(3))));
+					letterModel.setRateType((String.valueOf(resultSet1.getString(4))));
+					letterModel.setPrincipalOutstanding(convertRoundedValue(String.valueOf(resultSet1.getInt(5))));
 				}
 
 				PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT PF_RECEIVABLE FROM Cc_Contract_Fee_Details where contract_number=?");
@@ -1410,11 +1408,17 @@ public class DynamicTemplateService {
 					letterModel.setProcessingFee(resultSet2.getString(1));
 				}
 
-				PreparedStatement preparedStatement3 = connection.prepareStatement("SELECT BASE_FILE_NUMBER FROM Hfs_File_Auto_Topup_Upload where customer_code=?");
-				preparedStatement3.setString(1, letterModel.getCustomerCode());
-				ResultSet resultSet3 = preparedStatement3.executeQuery();
-				while (resultSet3.next()) {
-					letterModel.setBaseFileNumber(resultSet3.getString(1));
+				//				PreparedStatement preparedStatement3 = connection.prepareStatement("Select Rate_Type, Rate_Type_Desc From Sa_Rate_Type_Dir; where Rate_Type=?");
+				//				preparedStatement3.setString(1, letterModel.getRateType());
+				//				ResultSet resultSet3 = preparedStatement3.executeQuery();
+				//				while (resultSet3.next()) {
+				//					letterModel.setRateTypeString(resultSet2.getString(2));
+				//				}
+				PreparedStatement preparedStatement4 = connection.prepareStatement("SELECT BASE_FILE_NUMBER FROM Hfs_File_Auto_Topup_Upload where customer_code=?");
+				preparedStatement4.setString(1, letterModel.getCustomerCode());
+				ResultSet resultSet4 = preparedStatement4.executeQuery();
+				while (resultSet4.next()) {
+					letterModel.setBaseFileNumber(resultSet4.getString(1));
 				}
 
 
@@ -1529,6 +1533,61 @@ public class DynamicTemplateService {
 				while (resultSet5.next()) {
 					letterModel.setEndUseOfLoan(resultSet5.getString(1));
 				}
+
+				//				PreparedStatement preparedStatement13 = connection.prepareStatement("Select Land_Area_Sq_Ft From Sa_Customer_Property_Dtls Where Customer_Code = ?");
+				//				preparedStatement13.setString(1, letterModel.getCustomerCode());
+				//				ResultSet resultSet13 = preparedStatement13.executeQuery();
+				//				while (resultSet13.next()) {
+				//					letterModel.setLandAreaSft(resultSet13.getString(1));
+				//				}
+				//				PreparedStatement preparedStatement14 = connection.prepareStatement("Select Title_Holder_Name Title_Holder_Name From Sa_Customer_Property_Share Where Customer_Code =?");
+				//				preparedStatement14.setString(1, letterModel.getCustomerCode());
+				//				ResultSet resultSet14 = preparedStatement14.executeQuery();
+				//				while (resultSet14.next()) {
+				//					letterModel.setTitleHolderName(resultSet14.getString(1));
+				//				}
+				//				PreparedStatement preparedStatement15 = connection.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
+				//				preparedStatement15.setString(1, letterModel.getCustomerCode());
+				//				ResultSet resultSet15 = preparedStatement15.executeQuery();
+				//				while (resultSet15.next()) {
+				//					letterModel.setDateOfBirth(resultSet15.getString(1));
+				//				}
+				//				PreparedStatement preparedStatement16 = connection.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
+				//						+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
+				//						+ "	A.Property_Address.Column4_L,A.Property_Address.Column5_L,"
+				//						+ "	A.Property_Address.Column6_L,A.Property_Address.Column7_L,"
+				//						+ "	A.Property_Address.Column8_L,A.Property_Address.Column9_L,"
+				//						+ "	A.Property_Address.Column10_L,A.Property_Address.Pin_Zip_Code_L,"
+				//						+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
+				//						+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
+				//						+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
+				//						+ "	A.Property_Address.Email"
+				//						+ "	From Sa_Customer_Property_Dtls");
+				//				preparedStatement16.setString(1, letterModel.getCustomerCode());
+				//				ResultSet resultSet16 = preparedStatement16.executeQuery();
+				//				while (resultSet16.next()) {
+				//					
+				//				}
+				//				//schedule a
+				//				//boundries & measurements
+				//				PreparedStatement preparedStatement18 = connection.prepareStatement("Select North_By,South_By,East_By,West_By,"
+				//						+ "North_By_Measurements,South_By_Measurements,"
+				//						+ "East_By_Measurements,West_By_Measurements "
+				//						+ "From Cc_Technical_Valuation_Report where contract_number=?");
+				//				preparedStatement18.setString(1, letterModel.getContractNumber());
+				//				ResultSet resultSet18 = preparedStatement18.executeQuery();
+				//				while (resultSet18.next()) {
+				//					letterModel.setNorthBoundry(resultSet16.getString(1));
+				//					letterModel.setSouthBoundry(resultSet16.getString(2));
+				//					letterModel.setEastBoundry(resultSet16.getString(3));
+				//					letterModel.setWestBoundry(resultSet16.getString(4));
+				//					letterModel.setNorthMeasurement(resultSet16.getString(5));
+				//					letterModel.setSouthMeasurement(resultSet16.getString(6));
+				//					letterModel.setEastMeasurement(resultSet16.getString(7));
+				//					letterModel.setWestMeasurement(resultSet16.getString(8));
+				//				}
+
+
 				Date date = new Date();
 				SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 				letterModel.setCurrentDate(formatter.format(date));
@@ -1611,8 +1670,7 @@ public class DynamicTemplateService {
 		List<String> applicationNumberList = new ArrayList<>();
 		dynamicDataSourceService.switchToOracleDataSource();
 		// Use the current datasource to fetch data
-		//String query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null and GENERATED_TRN  in (SELECT TRN_NO FROM HFS_FILE_AUTO_TOPUP_DETAILS)";
-		String query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null and GENERATED_TRN  in (SELECT TRN_NO FROM HFS_FILE_AUTO_TOPUP_DETAILS where application_status='link expired')";
+		String query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null";
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		try (Connection connection = currentDataSource.getConnection();
 				) {
@@ -1630,10 +1688,10 @@ public class DynamicTemplateService {
 		return applicationNumberList;
 	}
 
-	public ResponseEntity<List<Map<String, Object>>> fetchDataBasedOnDB(GenerateTemplateModel model) {
+	public ResponseEntity<Map<String, Object>> fetchDataBasedOnDB(GenerateTemplateModel model) {
 		String dataBase = "MSSQL";
 		LetterProduct letterProduct = letterProductRepo.findByProductCodeAndLetterName(model.getProductCode(),model.getTemplateName());
-		LetterReportModel letterModel = new LetterReportModel();
+		Map<String,Object> returnMap = new HashMap<>();
 		List<LetterReportModel> letterModelList = new ArrayList<>();
 		if(Objects.nonNull(letterProduct)) {
 			dataBase = letterProduct.getDataBase();
@@ -1642,17 +1700,21 @@ public class DynamicTemplateService {
 			}else {
 				letterModelList = fetchDataForMsSqlDataBase(model);
 			}
-				Blob blob;
-				try{
-					String jsonValue = objectMapper.writeValueAsString(letterModelList);
-					letterProduct.setProductData(jsonValue);
-					letterProductRepo.save(letterProduct);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-		
+			if(letterModelList.isEmpty()) {
+				returnMap.put("status", "No Related Data present");
+			}else {
+				returnMap.put("status", "Fetched Realted Data Successfully");
+			}
+			Blob blob;
+			try{
+				String jsonValue = objectMapper.writeValueAsString(letterModelList);
+				letterProduct.setProductData(jsonValue);
+				letterProductRepo.save(letterProduct);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
-		return null;
+		return ResponseEntity.ok(returnMap);
 	}
 
 
@@ -1666,6 +1728,7 @@ public class DynamicTemplateService {
 
 		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		Map<String, String> dataMap = new HashMap<>();
+		try {
 		// Get Los Customer Data
 		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
 			dataMap.put("applicationNum", model.getApplicationNumber());
@@ -1713,68 +1776,73 @@ public class DynamicTemplateService {
 			//get processingfee
 			int processingFeeData =  getFeeDataForLetterGeneration(dataMap);
 			letterModel.setProcessingFee(String.valueOf(processingFeeData));
+		
 
-			ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
-					.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-					.toEntity(Map.class).block();
+				ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
+						.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+						.toEntity(Map.class).block();
 
-			List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
-			AtomicInteger documentationCharges = new AtomicInteger();
-			feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
-			.forEach(item -> {
-				int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
-				documentationCharges.set(tempValue);
-			});
-			letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
 
-			// Amort Calculation for Balance Payable
-			Calendar calendar = Calendar.getInstance();
-			Date currentDate = getDate(calendar.getTime());
-			calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
-			Date dueStartDate = getDate(calendar.getTime());
-			Double balancePayable = 0.0;
+				List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
+				AtomicInteger documentationCharges = new AtomicInteger();
+				feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
+				.forEach(item -> {
+					int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
+					documentationCharges.set(tempValue);
+				});
+				letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
 
-			ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
-					.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
-					.block();
-			List<Amort> amortData = amortDataResponse.getBody();
-			balancePayable = amortData.stream().filter(amort -> (amort.getDueStartDate().after(dueStartDate)
-					|| amort.getDueStartDate().compareTo(dueStartDate) == 0)).mapToDouble(Amort::getEmiDue).sum();
-			letterModel.setBalancePayable(String.valueOf(balancePayable));
+				// Amort Calculation for Balance Payable
+				Calendar calendar = Calendar.getInstance();
+				Date currentDate = getDate(calendar.getTime());
+				calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
+				Date dueStartDate = getDate(calendar.getTime());
+				Double balancePayable = 0.0;
 
-			// Cash Handling Charges Calculation
-			ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
-					.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-					.toEntityList(CashHandlingChargesModel.class).block();
-			List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
-			letterModel.setCashHandlingCharges(cashHandlingChargesList);
+				ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
+						.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
+						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
+						.block();
+				List<Amort> amortData = amortDataResponse.getBody();
+				balancePayable = amortData.stream().filter(amort -> (amort.getDueStartDate().after(dueStartDate)
+						|| amort.getDueStartDate().compareTo(dueStartDate) == 0)).mapToDouble(Amort::getEmiDue).sum();
+				letterModel.setBalancePayable(String.valueOf(balancePayable));
 
-			// Prepayment Charges Calculation
-			dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
-			PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
-			String prepaymentCharge = "";
-			if(prepaymentModel!=null ) {
-				prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
-			}
-			letterModel.setPrePaymentCharges(prepaymentCharge);
-			letterModel.setProduct(prepaymentModel.getProduct());
-			
-			// ChequeReturnCharges Calculation
+				// Cash Handling Charges Calculation
+				ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
+						.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
+						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+						.toEntityList(CashHandlingChargesModel.class).block();
+				List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
+				letterModel.setCashHandlingCharges(cashHandlingChargesList);
 
-			dataMap.put("parameterName", "ChequeReturnCharges");
-			Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-					.bodyToMono(Map.class).block();
-			String todayDate = formatter.format(currentDate);
-			String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
-					&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
-					? parameterResponse.get("paramValue").toString()
-							: "0";
-			letterModel.setChequeReturnCharges(chequeReturnCharges);
-			letterModelList.add(letterModel);
+				// Prepayment Charges Calculation
+				dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
+				PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
+				String prepaymentCharge = "";
+				if(prepaymentModel!=null ) {
+					prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
+				}
+				letterModel.setPrePaymentCharges(prepaymentCharge);
+				letterModel.setProduct(prepaymentModel.getProduct());
+
+				// ChequeReturnCharges Calculation
+
+				dataMap.put("parameterName", "ChequeReturnCharges");
+				Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
+						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
+						.bodyToMono(Map.class).block();
+				String todayDate = formatter.format(currentDate);
+				String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
+						&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
+						? parameterResponse.get("paramValue").toString()
+								: "0";
+				letterModel.setChequeReturnCharges(chequeReturnCharges);
+				letterModelList.add(letterModel);
 		});
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
 		return letterModelList;
 	}
 
@@ -1804,9 +1872,9 @@ public class DynamicTemplateService {
 
 		return letterModel;
 	}
-public int convertRoundedValue(String value) {
-	return (int)Math.round(Double.parseDouble(value));
-}
+	public int convertRoundedValue(String value) {
+		return (int)Math.round(Double.parseDouble(value));
+	}
 	public static String convertToIndianCurrency(String num) {
 		BigDecimal bd = new BigDecimal(num);
 		long number = bd.longValue();
@@ -1873,12 +1941,17 @@ public int convertRoundedValue(String value) {
 	}
 
 	public void insertProductData() {
-		List<LetterProduct> entityList = new ArrayList<>();
-		LetterProduct entity1 = new LetterProduct(1,"HOMEFIN",null,"ORACLE",null);
-		LetterProduct entity2 = new LetterProduct(1,"STLAP",null,"MSSQL",null);
-		entityList.add(entity2);
-		entityList.add(entity1);
-		letterProductRepo.saveAll(entityList);
+		List<String> productList = new ArrayList<>();
+		productList.add("HOMEFIN");
+		productList.add("STLAP");
+		List<LetterProduct> entityList = letterProductRepo.findByProductCodeIn(productList);
+		if(entityList.isEmpty()) {
+			LetterProduct entity1 = new LetterProduct(1,"HOMEFIN",null,"ORACLE",null);
+			LetterProduct entity2 = new LetterProduct(1,"STLAP",null,"MSSQL",null);
+			entityList.add(entity2);
+			entityList.add(entity1);
+			letterProductRepo.saveAll(entityList);
+		}
 	}
 
 
@@ -2029,7 +2102,7 @@ public int convertRoundedValue(String value) {
 
 	}
 
-	
+
 
 
 
