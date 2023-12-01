@@ -88,7 +88,7 @@ public class DynamicTemplateController {
 	}
 	
 	@PostMapping("/fetchDataBasedOnDB")
-	public ResponseEntity<List<Map<String,Object>>> fetchDataBasedOnDB(@RequestBody GenerateTemplateModel model){
+	public ResponseEntity<Map<String, Object>> fetchDataBasedOnDB(@RequestBody GenerateTemplateModel model){
 		return dynamicTemplateService.fetchDataBasedOnDB(model);
 		
 	}
