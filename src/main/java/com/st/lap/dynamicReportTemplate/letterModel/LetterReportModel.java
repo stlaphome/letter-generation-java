@@ -42,6 +42,21 @@ public class LetterReportModel {
 	private String prePaymentCharges;
 	private List<CashHandlingChargesModel> cashHandlingCharges;
 	private String chequeReturnCharges;
+	//motd
+	private String landAreaSft; 
+	private String titleHolderName; 
+	private String dateOfBirth; 
+	private int principalOutstanding;
+	private String rateType;
+	private String rateTypeString;
+	private String northBoundry;
+	private String southBoundry;
+	private String eastBoundry;
+	private String westBoundry;
+	private String northMeasurement;
+	private String southMeasurement;
+	private String westMeasurement;
+	private String eastMeasurement;
 	
 	
 	
