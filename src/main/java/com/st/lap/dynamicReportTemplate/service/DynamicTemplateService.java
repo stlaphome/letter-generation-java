@@ -706,23 +706,18 @@ public class DynamicTemplateService {
 		if(!letterproductAllData.isEmpty()) {
 			dataBase = letterproductAllData.stream().findFirst().get().getDataBase();
 		}
-
 		return fetchApplicationNumber(dataBase);
 
 	}
 
 	private ResponseEntity<List<String>> fetchApplicationNumber(String dataBase) {
-		List<String> returnResponse = new ArrayList<>();
+		List<String> returnResponseList = new ArrayList<>();
 		if(dataBase.equals("ORACLE")) {
-			returnResponse = getOracleApplicationNumber();
+			returnResponseList = getOracleApplicationNumber();
 		}else {
-			Map<String,Object> dataMap = new HashMap<>();
-			dataMap.put("status", "Sanctioned");
-			returnResponse = webClient.post().uri(stlapServerUrl + "/losCustomer/getAppNumByStatus")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-					.bodyToMono(List.class).block();
+			returnResponseList = getLosApplicationNumber("Sanctioned");
 		}
-		return ResponseEntity.ok(returnResponse);
+		return ResponseEntity.ok(returnResponseList);
 	}
 
 	public ResponseEntity<byte[]> getTemplateForView(Map<String, String> dataMap) {
@@ -1726,26 +1721,11 @@ public class DynamicTemplateService {
 		Date date = new Date();
 		SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy");
 
-		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		Map<String, String> dataMap = new HashMap<>();
+		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		try {
-		// Get Los Customer Data
-		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
-			dataMap.put("applicationNum", model.getApplicationNumber());
-			Map<String, Object> returnResponse = webClient.post()
-					.uri(stlapServerUrl + "/losCustomer/getCustomerDataByAppNum")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-					.bodyToMono(Map.class).block();
-			returnResponseList.add(returnResponse);
-		}else {
-			Map<String, String> filesMap = new HashMap();
-			filesMap.put("sanctiondate", model.getSanctionDate());
-			returnResponseList = webClient.post()
-					.uri(stlapServerUrl + "/losCustomer/getBySanctionDate")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(filesMap).retrieve()
-					.bodyToMono(List.class).block();
-		}
-
+			// Get Los Customer Data
+			returnResponseList  = getcustomerDataFromLos(model);
 		returnResponseList.stream().forEach(returnResponse->{
 			LetterReportModel letterModel = new LetterReportModel();
 			letterModel.setApplicationNumber(String.valueOf(returnResponse.get("applicationNum")));
@@ -1753,11 +1733,8 @@ public class DynamicTemplateService {
 			letterModel.setCustomerName(String.valueOf(returnResponse.get("customerName")));
 			letterModel.setCurrentDate(formatter.format(date));
 			letterModel.setBranchCode(String.valueOf(returnResponse.get("branchCode")));
-			int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
-			int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));	
 			letterModel.setAmountFinanced(convertRoundedValue(String.valueOf(returnResponse.get("loanAmt"))));
 			letterModel.setTerm(Integer.parseInt(String.valueOf(returnResponse.get("tenure"))));
-			BigDecimal netRate1 = BigDecimal.valueOf(Double.parseDouble(String.valueOf(returnResponse.get("rateOfInterest"))));
 			String netRate = convertDecimalValue(String.valueOf(returnResponse.get("rateOfInterest")));
 			letterModel.setNetRate(netRate);
 			BranchAddress branchAddress = fetchBranchAddressForMsSQL(letterModel.getBranchCode());
@@ -1776,13 +1753,9 @@ public class DynamicTemplateService {
 			//get processingfee
 			int processingFeeData =  getFeeDataForLetterGeneration(dataMap);
 			letterModel.setProcessingFee(String.valueOf(processingFeeData));
-		
-
 				ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
 						.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
 						.toEntity(Map.class).block();
-
-
 				List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
 				AtomicInteger documentationCharges = new AtomicInteger();
 				feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
@@ -1846,6 +1819,65 @@ public class DynamicTemplateService {
 		return letterModelList;
 	}
 
+
+	
+
+	private List<Map<String, Object>> getcustomerDataFromLos(GenerateTemplateModel model) {
+		List<Map<String, Object>> returnResponseList = new ArrayList<>();
+		String sql = "";
+		String value = "";
+		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
+			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE application_num = ?";
+			value = model.getApplicationNumber();
+		}else if(model.getSanctionDate()!=null){
+			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE effective_date = ?";
+			value = model.getSanctionDate();
+		}
+		if(sql.isEmpty()) {
+			return returnResponseList;
+		}
+			
+		try (Connection connection = dataSource.getConnection()) {
+			try (PreparedStatement statement = connection.prepareStatement(sql)) {
+				statement.setString(1, value);
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						Map<String, Object> responseMap = new HashMap<>();
+						responseMap.put("applicationNum", resultSet.getString(1));
+						responseMap.put("customerId", resultSet.getString(2));
+						responseMap.put("customerName", resultSet.getString(3));
+						responseMap.put("branchCode", resultSet.getString(4));
+						responseMap.put("loanAmt", resultSet.getFloat(5));
+						responseMap.put("sanctionAmt", resultSet.getFloat(6));
+						responseMap.put("tenure", resultSet.getInt(7));
+						responseMap.put("rateOfInterest", resultSet.getFloat(8));
+						returnResponseList.add(responseMap);
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return returnResponseList;
+	}
+
+	private List<String> getLosApplicationNumber(String applicationNumber) {
+		List<String> responseMapList = new ArrayList<>();
+		String query = "SELECT application_num FROM ST_TB_LOS_CUSTOMER WHERE los_status = ?";
+		try (Connection connection = dataSource.getConnection()) {
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, applicationNumber);
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						responseMapList.add(resultSet.getString(1));
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return responseMapList;
+	}
 
 	private String convertDecimalValue(String value) {
 		DecimalFormat format = new DecimalFormat("0.00");
