@@ -12,8 +12,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -73,7 +75,6 @@ import com.st.lap.dynamicReportTemplate.model.LetterProduct;
 import com.st.lap.dynamicReportTemplate.repo.DynamicReportContainerRepo;
 import com.st.lap.dynamicReportTemplate.repo.DynamicTemplateRepo;
 import com.st.lap.dynamicReportTemplate.repo.LetterProductRepo;
-import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService.CashHandlingChargesModel;
 
 import freemarker.template.Configuration;
 import lombok.Data;
@@ -860,36 +861,36 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
 		variablesValueMap.put("~~Loan_Amount~~", sanctionModel.getAmountFinanced());
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(sanctionModel.getAmountFinanced())));
-		variablesValueMap.put("~~Product~~", "Nil");
+		variablesValueMap.put("~~Product~~", "Non-Housing Loans");
 		variablesValueMap.put("~~Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Term~~", String.valueOf(sanctionModel.getTerm()));
 		variablesValueMap.put("~~ROI~~", String.valueOf(sanctionModel.getNetRate()));
 		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount());
-		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee()); //los_fee or accural_fee
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee()); 
 		variablesValueMap.put("~~Balance_Payable~~", sanctionModel.getBalancePayable());
 		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
-		variablesValueMap.put("~~CERSAI_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Appraisal_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Switch_Fee~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");//
-		variablesValueMap.put("~~Conversion_Charges~~", "Nil");
+		variablesValueMap.put("~~CERSAI_Charges~~", "100");
+		variablesValueMap.put("~~Appraisal_Charges~~", "ranges from Rs.3000/- to Rs.10000/- + GST"); //
+		variablesValueMap.put("~~Switch_Fee~~", "0");  //Not Applicable
+		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");
+		variablesValueMap.put("~~Conversion_Charges~~", "Not Applicable");
 		variablesValueMap.put("~~Cheque_Return_Charges~~", sanctionModel.getChequeReturnCharges());
-		variablesValueMap.put("~~GST_Tamilnadu~~", "Nil");  //its static in sanction letter
-		variablesValueMap.put("~~GST_Andra~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~GST_Karnataka~~","Nil"); //its static in sanction letter
-		variablesValueMap.put("~~GST_Others~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Repricing_Fee~~",  "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~CA_Certification_Fee~~", "Nil"); //
-		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","Nil"); //
-		variablesValueMap.put("~~PDC_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Swapping_Charges~~","Nil"); //
-		variablesValueMap.put("~~Travelling_Expense~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","Nil"); //
-		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","Nil"); //
+		variablesValueMap.put("~~GST_Tamilnadu~~", "1200");  
+		variablesValueMap.put("~~GST_Andra~~", "1500"); 
+		variablesValueMap.put("~~GST_Karnataka~~","1550"); 
+		variablesValueMap.put("~~GST_Others~~", "2500"); 
+		variablesValueMap.put("~~Repricing_Fee~~",  "0"); //Not Applicable
+		variablesValueMap.put("~~CA_Certification_Fee~~", "10000"); //
+		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "4"); 
+		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","1000"); 
+		variablesValueMap.put("~~PDC_Charges~~", "300"); 
+		variablesValueMap.put("~~Swapping_Charges~~","500"); 
+		variablesValueMap.put("~~Travelling_Expense~~", "200"); 
+		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","49"); 
+		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","335"); 
 		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
-		variablesValueMap.put("~~Penal_Interest~~","Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Penal_Interest~~","0"); //Not Applicable
+		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "0"); //Not Applicable
 		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
 		StringBuilder cashHandlingChargesTables = new StringBuilder(
 				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
@@ -1822,7 +1823,7 @@ public class DynamicTemplateService {
 
 	
 
-	private List<Map<String, Object>> getcustomerDataFromLos(GenerateTemplateModel model) {
+	private List<Map<String, Object>> getcustomerDataFromLos(GenerateTemplateModel model) throws ParseException {
 		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		String sql = "";
 		String value = "";
@@ -1831,7 +1832,11 @@ public class DynamicTemplateService {
 			value = model.getApplicationNumber();
 		}else if(model.getSanctionDate()!=null){
 			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE effective_date = ?";
-			value = model.getSanctionDate();
+	        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+	        LocalDate date = LocalDate.parse(model.getSanctionDate(), inputFormatter);
+	        LocalDateTime dateTime = date.atStartOfDay();
+	        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSS");
+	        value =  dateTime.format(outputFormatter);
 		}
 		if(sql.isEmpty()) {
 			return returnResponseList;
