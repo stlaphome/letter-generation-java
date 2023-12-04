@@ -820,11 +820,11 @@ public class DynamicTemplateService {
 				//filesMap.put("applicationNum", model.getApplicationNumber());
 				filesMap.put(sanctionModel.getApplicationNumber(), fileName);
 				applicationList.add(sanctionModel.getApplicationNumber());
-				switch (model.getTemplateName()) {
-				case "Sanction":
+				switch (letterProduct.getDataBase()) {
+				case "ORACLE":
 					variableMap = getDataForOracleSanctionLetter(model,sanctionModel);
 					break;
-				case "MITC":
+				case "MSSQL":
 					variableMap = getDataForMITC(model,sanctionModel);
 					break;
 				default:
