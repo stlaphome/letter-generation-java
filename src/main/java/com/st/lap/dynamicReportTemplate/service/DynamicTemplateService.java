@@ -1251,10 +1251,10 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Sanction_Account_No~~", nullCheckStringField(sanctionModel.getAccountNo()));
 		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Sanction_End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
-		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getCustomerName()));
+		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
 		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
-		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(null));
-		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
+		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 		return variablesValueMap;
 	}
 
@@ -1416,6 +1416,12 @@ public class DynamicTemplateService {
 				while (resultSet4.next()) {
 					letterModel.setBaseFileNumber(resultSet4.getString(1));
 				}
+				PreparedStatement preparedStatement17 = connection.prepareStatement("SELECT NACH_BANK_ACC_NUM FROM Hfs_File_Auto_Topup_details where base_file_number=?");
+				preparedStatement17.setString(1, letterModel.getBaseFileNumber());
+				ResultSet resultSet17 = preparedStatement17.executeQuery();
+				while (resultSet17.next()) {
+					letterModel.setAccountNo(resultSet17.getString(1));
+				}
 
 
 				PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT ocm_company_name FROM sa_organization_company_master");
@@ -1496,13 +1502,37 @@ public class DynamicTemplateService {
 				preparedStatement11.setString(1, letterModel.getCustomerCode());
 				ResultSet resultSet11 = preparedStatement11.executeQuery();
 				while (resultSet11.next()) {
+					letterModel.setApplicant(resultSet11.getString(3));
 					String custName = appendCustomerName(resultSet11);
 					letterModel.setCustomerName(custName);
 					if(Objects.nonNull(custName)) {
 						letterModel.setCustomerAddress(custName);
 					}
 				}
-
+				List<String> customerCodeList = new ArrayList<>();
+				PreparedStatement preparedStatement15 = connection.prepareStatement("SELECT customer_code FROM cc_contract_addl_appl_dtls where contract_number=?"
+						+ " and customer_type='CO'"
+						+ "");
+				//preparedStatement15.setString(1, letterModel.getContractNumber());
+				ResultSet resultSet15 = preparedStatement15.executeQuery();
+				while (resultSet15.next()) {
+					customerCodeList.add(resultSet15.getString(1));
+				}
+				List<String> applicantNameList = new ArrayList<>();
+				customerCodeList.stream().forEach(code->{
+					try {
+						preparedStatement11.setString(1, code);
+						ResultSet resultSet16 = preparedStatement11.executeQuery();
+						while (resultSet16.next()) {
+							applicantNameList.add(resultSet16.getString(3));
+						}
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+				});
+				if(!applicantNameList.isEmpty()) {
+					getCoApplicantNames(applicantNameList,letterModel);
+				}
 				PreparedStatement preparedStatement12 = connection.prepareStatement("Select Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
 						+ "   Trim (A.Obm_Address_Info.Column6_L)"
 						+ "     ),"
@@ -1597,35 +1627,50 @@ public class DynamicTemplateService {
 		return letterModelList;
 	}
 
+	private void getCoApplicantNames(List<String> applicantNameList, LetterReportModel letterModel) {
+ 		int size = applicantNameList.size();
+		
+		if(size>0 && Objects.nonNull(applicantNameList.get(0))) {
+			letterModel.setCoApplicant1(applicantNameList.get(0));
+		}
+		if(size>1 && Objects.nonNull(applicantNameList.get(1))) {
+			letterModel.setCoApplicant2(applicantNameList.get(1));
+		}
+		if(size>2 && Objects.nonNull(applicantNameList.get(2))) {
+			letterModel.setCoApplicant3(applicantNameList.get(2));
+		}
+		
+	}
+
 	private String appendCustomerName(ResultSet resultSet) throws SQLException {
 		String customerName = "";
 		if(Objects.nonNull(resultSet.getString(1))) {
 			customerName = resultSet.getString(1);
 		}
-		if(Objects.nonNull(resultSet.getString(2))) {
-			customerName = customerName + "."+resultSet.getString(2);
-		}
 		if(Objects.nonNull(resultSet.getString(3))) {
-			if(Objects.isNull(resultSet.getString(2))) {
-				customerName = customerName + "."+resultSet.getString(3);
-			}else {
-				customerName = customerName + " "+resultSet.getString(3);
-			}
+			customerName = customerName + "."+resultSet.getString(3);
 		}
-		if(Objects.nonNull(resultSet.getString(4))) {
-			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))) {
-				customerName = customerName + "."+resultSet.getString(4);
-			}else {
-				customerName = customerName + " "+resultSet.getString(4);
-			}
-		}
-		if(Objects.nonNull(resultSet.getString(5))) {
-			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))&& Objects.isNull(resultSet.getString(4))) {
-				customerName = customerName + "."+resultSet.getString(5);
-			}else {
-				customerName = customerName + " "+resultSet.getString(5);
-			}
-		}
+//		if(Objects.nonNull(resultSet.getString(3))) {
+//			if(Objects.isNull(resultSet.getString(2))) {
+//				customerName = customerName + "."+resultSet.getString(3);
+//			}else {
+//				customerName = customerName + " "+resultSet.getString(3);
+//			}
+//		}
+//		if(Objects.nonNull(resultSet.getString(4))) {
+//			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))) {
+//				customerName = customerName + "."+resultSet.getString(4);
+//			}else {
+//				customerName = customerName + " "+resultSet.getString(4);
+//			}
+//		}
+//		if(Objects.nonNull(resultSet.getString(5))) {
+//			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))&& Objects.isNull(resultSet.getString(4))) {
+//				customerName = customerName + "."+resultSet.getString(5);
+//			}else {
+//				customerName = customerName + " "+resultSet.getString(5);
+//			}
+//		}
 		return customerName;
 	}
 
