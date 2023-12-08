@@ -1513,7 +1513,7 @@ public class DynamicTemplateService {
 				PreparedStatement preparedStatement15 = connection.prepareStatement("SELECT customer_code FROM cc_contract_addl_appl_dtls where contract_number=?"
 						+ " and customer_type='CO'"
 						+ "");
-				//preparedStatement15.setString(1, letterModel.getContractNumber());
+				preparedStatement15.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet15 = preparedStatement15.executeQuery();
 				while (resultSet15.next()) {
 					customerCodeList.add(resultSet15.getString(1));
