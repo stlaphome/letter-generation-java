@@ -69,6 +69,7 @@ import com.st.lap.dynamicReportTemplate.letterModel.DynamicTemplateModel;
 import com.st.lap.dynamicReportTemplate.letterModel.GenerateTemplateModel;
 import com.st.lap.dynamicReportTemplate.letterModel.LetterReportModel;
 import com.st.lap.dynamicReportTemplate.letterModel.MemorandumHeader;
+import com.st.lap.dynamicReportTemplate.letterModel.customerAddress;
 import com.st.lap.dynamicReportTemplate.model.DynamicReportContainer;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplate;
 import com.st.lap.dynamicReportTemplate.model.LetterProduct;
@@ -1505,15 +1506,12 @@ public class DynamicTemplateService {
 					letterModel.setApplicant(resultSet11.getString(3));
 					String custName = appendCustomerName(resultSet11);
 					letterModel.setCustomerName(custName);
-					if(Objects.nonNull(custName)) {
-						letterModel.setCustomerAddress(custName);
-					}
 				}
 				List<String> customerCodeList = new ArrayList<>();
 				PreparedStatement preparedStatement15 = connection.prepareStatement("SELECT customer_code FROM cc_contract_addl_appl_dtls where contract_number=?"
 						+ " and customer_type='CO'"
 						+ "");
-				//preparedStatement15.setString(1, letterModel.getContractNumber());
+				preparedStatement15.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet15 = preparedStatement15.executeQuery();
 				while (resultSet15.next()) {
 					customerCodeList.add(resultSet15.getString(1));
@@ -1559,7 +1557,69 @@ public class DynamicTemplateService {
 				while (resultSet5.next()) {
 					letterModel.setEndUseOfLoan(resultSet5.getString(1));
 				}
-
+				PreparedStatement preparedStatement18 = connection.prepareStatement("select C.Caa_Address_Info.Street_L,C.Caa_Address_Info.Column1_L,C.Caa_Address_Info.Column2_L,C.Caa_Address_Info.Column3_L,"
+						+ "C.Caa_Address_Info.Column4_L,C.Caa_Address_Info.Column5_L,C.Caa_Address_Info.Column7_L, C.Caa_Address_Info.Pin_Zip_Code_L Zipcode FROM Sa_Customer_Addl_Address_Dtls C "
+						+ "where C.caa_customer_code=? And C.CAA_ADDRESS_TYPE_CODE = 1");
+				preparedStatement18.setString(1, letterModel.getCustomerCode());
+				ResultSet resultSet18 = preparedStatement18.executeQuery();
+				customerAddress customerAddress = new customerAddress();
+				while (resultSet18.next()) {
+					customerAddress.setStreet(resultSet18.getString(1));
+					customerAddress.setAddress1(resultSet18.getString(2));
+					customerAddress.setAddress2(resultSet18.getString(3));
+					customerAddress.setAddress3(resultSet18.getString(4));
+					customerAddress.setAddress4(resultSet18.getString(5));
+					customerAddress.setAddress5(resultSet18.getString(6));
+					customerAddress.setAddress7(resultSet18.getString(7));
+					customerAddress.setZipCode(resultSet18.getString(8));
+				}
+				PreparedStatement preparedStatement19 = connection.prepareStatement("Select Gld_Geo_Level_Desc"
+						+ "	From   SA_GEOGRAPHICAL_LEVEL_DETAILS"
+						+ "	Where  Gld_Geo_Level_Code   = ?"
+						+ "	And    GLD_GEO_LEVEL_STATUS = 'A'"
+						+ "	And    GLD_GEO_LEVEL_STRING = ?||':'||?||':'||?"
+						+ "	And    GLD_GEO_LEVEL_NUMBER = (Select GL_GEO_LEVEL_NUMBER"
+						+ "	From  SA_GEOGRAPHICAL_LEVELS"
+						+ "	Where  GL_GEO_LEVEL_NAME = 'LOCATION')");
+				preparedStatement19.setString(1, customerAddress.getAddress5());
+				preparedStatement19.setString(2, customerAddress.getAddress2());
+				preparedStatement19.setString(3, customerAddress.getAddress3());
+				preparedStatement19.setString(4, customerAddress.getAddress4());
+				ResultSet resultSet19 = preparedStatement19.executeQuery();
+				while (resultSet19.next()) {
+					customerAddress.setLocation(resultSet19.getString(1));
+				}
+				
+				PreparedStatement preparedStatement20 = connection.prepareStatement("SELECT CITY_NAME FROM HFS_VW_CITY"
+						+ " WHERE CITY_CODE = ? AND STATE_RECORD_ID ="
+						+ " (SELECT RECORD_ID FROM HFS_VW_STATE WHERE STATE_CODE = ? AND COUNTRY_CODE = ?)");
+				preparedStatement20.setString(1, customerAddress.getAddress4());
+				preparedStatement20.setString(2, customerAddress.getAddress3());
+				preparedStatement20.setString(3, customerAddress.getAddress2());
+				ResultSet resultSet20 = preparedStatement20.executeQuery();
+				while (resultSet20.next()) {
+					customerAddress.setCity(resultSet20.getString(1));
+				}
+				
+				PreparedStatement preparedStatement21 = connection.prepareStatement("Select Gld_Geo_Level_Desc From SA_GEOGRAPHICAL_LEVEL_DETAILS Where Gld_Geo_Level_Code   = ?"
+						+ "	 And GLD_GEO_LEVEL_STATUS = 'A' And GLD_GEO_LEVEL_STRING = To_Char(Nvl(?,1)) And GLD_GEO_LEVEL_NUMBER = "
+						+ "  (Select GL_GEO_LEVEL_NUMBER From SA_GEOGRAPHICAL_LEVELS Where GL_GEO_LEVEL_NAME = 'STATE')");
+				preparedStatement21.setString(1, customerAddress.getAddress3());
+				preparedStatement21.setString(2, customerAddress.getAddress2());
+				ResultSet resultSet21 = preparedStatement21.executeQuery();
+				while (resultSet21.next()) {
+					customerAddress.setState(resultSet21.getString(1));
+				}
+				
+				PreparedStatement preparedStatement22 = connection.prepareStatement("select Gld_Geo_Level_Desc from SA_GEOGRAPHICAL_LEVEL_DETAILS Where Gld_Geo_Level_Code  = ? And GLD_GEO_LEVEL_STATUS = 'A'"
+						+ " And GLD_GEO_LEVEL_NUMBER = (Select GL_GEO_LEVEL_NUMBER From SA_GEOGRAPHICAL_LEVELS Where GL_GEO_LEVEL_NAME = 'COUNTRY')");
+				preparedStatement22.setString(1, customerAddress.getAddress2());
+				ResultSet resultSet22 = preparedStatement22.executeQuery();
+				while (resultSet22.next()) {
+					customerAddress.setCountry(resultSet22.getString(1));
+				}
+				String customerAddressString = appendCustomerAddress(customerAddress,letterModel.getCustomerAddress());
+				letterModel.setCustomerAddress(customerAddressString);
 				//				PreparedStatement preparedStatement13 = connection.prepareStatement("Select Land_Area_Sq_Ft From Sa_Customer_Property_Dtls Where Customer_Code = ?");
 				//				preparedStatement13.setString(1, letterModel.getCustomerCode());
 				//				ResultSet resultSet13 = preparedStatement13.executeQuery();
@@ -1625,6 +1685,35 @@ public class DynamicTemplateService {
 			e.printStackTrace();
 		}
 		return letterModelList;
+	}
+
+	private String appendCustomerAddress(customerAddress customerAddress, String customerName) {
+		String CustomerAddressString ="";
+		if(Objects.nonNull(customerName)) {
+			CustomerAddressString = customerName;
+		}
+		if(Objects.nonNull(customerAddress.getStreet())) {
+			CustomerAddressString =  CustomerAddressString.isEmpty()?customerAddress.getStreet():CustomerAddressString+",<br>"+customerAddress.getStreet();
+		}
+		if(Objects.nonNull(customerAddress.getAddress1())) {
+			CustomerAddressString = CustomerAddressString +",<br>"+customerAddress.getAddress1();
+		}
+		if(Objects.nonNull(customerAddress.getAddress7())) {
+			CustomerAddressString = CustomerAddressString +",<br>"+customerAddress.getAddress7();
+		}
+		if(Objects.nonNull(customerAddress.getLocation())) {
+			CustomerAddressString = CustomerAddressString +",<br>"+customerAddress.getLocation();
+		}
+		if(Objects.nonNull(customerAddress.getCity())&&(Objects.nonNull(customerAddress.getZipCode()))) {
+			CustomerAddressString = CustomerAddressString +",<br>"+customerAddress.getCity()+"-"+customerAddress.getZipCode();
+		}
+		if(Objects.nonNull(customerAddress.getState())) {
+			CustomerAddressString = CustomerAddressString +",<br>"+customerAddress.getState();
+		}
+		if(Objects.nonNull(customerAddress.getCountry())) {
+			CustomerAddressString = CustomerAddressString +",<br>"+customerAddress.getCountry();
+		}
+		return CustomerAddressString;
 	}
 
 	private void getCoApplicantNames(List<String> applicantNameList, LetterReportModel letterModel) {
