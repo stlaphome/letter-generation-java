@@ -12,8 +12,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -73,7 +75,6 @@ import com.st.lap.dynamicReportTemplate.model.LetterProduct;
 import com.st.lap.dynamicReportTemplate.repo.DynamicReportContainerRepo;
 import com.st.lap.dynamicReportTemplate.repo.DynamicTemplateRepo;
 import com.st.lap.dynamicReportTemplate.repo.LetterProductRepo;
-import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService.CashHandlingChargesModel;
 
 import freemarker.template.Configuration;
 import lombok.Data;
@@ -706,23 +707,18 @@ public class DynamicTemplateService {
 		if(!letterproductAllData.isEmpty()) {
 			dataBase = letterproductAllData.stream().findFirst().get().getDataBase();
 		}
-
 		return fetchApplicationNumber(dataBase);
 
 	}
 
 	private ResponseEntity<List<String>> fetchApplicationNumber(String dataBase) {
-		List<String> returnResponse = new ArrayList<>();
+		List<String> returnResponseList = new ArrayList<>();
 		if(dataBase.equals("ORACLE")) {
-			returnResponse = getOracleApplicationNumber();
+			returnResponseList = getOracleApplicationNumber();
 		}else {
-			Map<String,Object> dataMap = new HashMap<>();
-			dataMap.put("status", "Sanctioned");
-			returnResponse = webClient.post().uri(stlapServerUrl + "/losCustomer/getAppNumByStatus")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-					.bodyToMono(List.class).block();
+			returnResponseList = getLosApplicationNumber("Sanctioned");
 		}
-		return ResponseEntity.ok(returnResponse);
+		return ResponseEntity.ok(returnResponseList);
 	}
 
 	public ResponseEntity<byte[]> getTemplateForView(Map<String, String> dataMap) {
@@ -824,11 +820,11 @@ public class DynamicTemplateService {
 				//filesMap.put("applicationNum", model.getApplicationNumber());
 				filesMap.put(sanctionModel.getApplicationNumber(), fileName);
 				applicationList.add(sanctionModel.getApplicationNumber());
-				switch (model.getTemplateName()) {
-				case "Sanction":
+				switch (letterProduct.getDataBase()) {
+				case "ORACLE":
 					variableMap = getDataForOracleSanctionLetter(model,sanctionModel);
 					break;
-				case "MITC":
+				case "MSSQL":
 					variableMap = getDataForMITC(model,sanctionModel);
 					break;
 				default:
@@ -865,36 +861,36 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
 		variablesValueMap.put("~~Loan_Amount~~", sanctionModel.getAmountFinanced());
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(sanctionModel.getAmountFinanced())));
-		variablesValueMap.put("~~Product~~", "Nil");
+		variablesValueMap.put("~~Product~~", "Non-Housing Loans");
 		variablesValueMap.put("~~Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Term~~", String.valueOf(sanctionModel.getTerm()));
 		variablesValueMap.put("~~ROI~~", String.valueOf(sanctionModel.getNetRate()));
 		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount());
-		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee()); //los_fee or accural_fee
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee()); 
 		variablesValueMap.put("~~Balance_Payable~~", sanctionModel.getBalancePayable());
 		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
-		variablesValueMap.put("~~CERSAI_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Appraisal_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Switch_Fee~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");//
-		variablesValueMap.put("~~Conversion_Charges~~", "Nil");
+		variablesValueMap.put("~~CERSAI_Charges~~", "100");
+		variablesValueMap.put("~~Appraisal_Charges~~", "ranges from Rs.3000/- to Rs.10000/- + GST"); //
+		variablesValueMap.put("~~Switch_Fee~~", "0");  //Not Applicable
+		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");
+		variablesValueMap.put("~~Conversion_Charges~~", "Not Applicable");
 		variablesValueMap.put("~~Cheque_Return_Charges~~", sanctionModel.getChequeReturnCharges());
-		variablesValueMap.put("~~GST_Tamilnadu~~", "Nil");  //its static in sanction letter
-		variablesValueMap.put("~~GST_Andra~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~GST_Karnataka~~","Nil"); //its static in sanction letter
-		variablesValueMap.put("~~GST_Others~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Repricing_Fee~~",  "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~CA_Certification_Fee~~", "Nil"); //
-		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","Nil"); //
-		variablesValueMap.put("~~PDC_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Swapping_Charges~~","Nil"); //
-		variablesValueMap.put("~~Travelling_Expense~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","Nil"); //
-		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","Nil"); //
+		variablesValueMap.put("~~GST_Tamilnadu~~", "1200");  
+		variablesValueMap.put("~~GST_Andra~~", "1500"); 
+		variablesValueMap.put("~~GST_Karnataka~~","1550"); 
+		variablesValueMap.put("~~GST_Others~~", "2500"); 
+		variablesValueMap.put("~~Repricing_Fee~~",  "0"); //Not Applicable
+		variablesValueMap.put("~~CA_Certification_Fee~~", "10000"); //
+		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "4"); 
+		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","1000"); 
+		variablesValueMap.put("~~PDC_Charges~~", "300"); 
+		variablesValueMap.put("~~Swapping_Charges~~","500"); 
+		variablesValueMap.put("~~Travelling_Expense~~", "200"); 
+		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","49"); 
+		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","335"); 
 		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
-		variablesValueMap.put("~~Penal_Interest~~","Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Penal_Interest~~","0"); //Not Applicable
+		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "0"); //Not Applicable
 		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
 		StringBuilder cashHandlingChargesTables = new StringBuilder(
 				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
@@ -1255,10 +1251,10 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Sanction_Account_No~~", nullCheckStringField(sanctionModel.getAccountNo()));
 		variablesValueMap.put("~~Sanction_Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~Sanction_End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
-		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getCustomerName()));
+		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
 		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
-		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(null));
-		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
+		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 		return variablesValueMap;
 	}
 
@@ -1420,6 +1416,12 @@ public class DynamicTemplateService {
 				while (resultSet4.next()) {
 					letterModel.setBaseFileNumber(resultSet4.getString(1));
 				}
+				PreparedStatement preparedStatement17 = connection.prepareStatement("SELECT NACH_BANK_ACC_NUM FROM Hfs_File_Auto_Topup_details where base_file_number=?");
+				preparedStatement17.setString(1, letterModel.getBaseFileNumber());
+				ResultSet resultSet17 = preparedStatement17.executeQuery();
+				while (resultSet17.next()) {
+					letterModel.setAccountNo(resultSet17.getString(1));
+				}
 
 
 				PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT ocm_company_name FROM sa_organization_company_master");
@@ -1500,13 +1502,37 @@ public class DynamicTemplateService {
 				preparedStatement11.setString(1, letterModel.getCustomerCode());
 				ResultSet resultSet11 = preparedStatement11.executeQuery();
 				while (resultSet11.next()) {
+					letterModel.setApplicant(resultSet11.getString(3));
 					String custName = appendCustomerName(resultSet11);
 					letterModel.setCustomerName(custName);
 					if(Objects.nonNull(custName)) {
 						letterModel.setCustomerAddress(custName);
 					}
 				}
-
+				List<String> customerCodeList = new ArrayList<>();
+				PreparedStatement preparedStatement15 = connection.prepareStatement("SELECT customer_code FROM cc_contract_addl_appl_dtls where contract_number=?"
+						+ " and customer_type='CO'"
+						+ "");
+				//preparedStatement15.setString(1, letterModel.getContractNumber());
+				ResultSet resultSet15 = preparedStatement15.executeQuery();
+				while (resultSet15.next()) {
+					customerCodeList.add(resultSet15.getString(1));
+				}
+				List<String> applicantNameList = new ArrayList<>();
+				customerCodeList.stream().forEach(code->{
+					try {
+						preparedStatement11.setString(1, code);
+						ResultSet resultSet16 = preparedStatement11.executeQuery();
+						while (resultSet16.next()) {
+							applicantNameList.add(resultSet16.getString(3));
+						}
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+				});
+				if(!applicantNameList.isEmpty()) {
+					getCoApplicantNames(applicantNameList,letterModel);
+				}
 				PreparedStatement preparedStatement12 = connection.prepareStatement("Select Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
 						+ "   Trim (A.Obm_Address_Info.Column6_L)"
 						+ "     ),"
@@ -1601,35 +1627,50 @@ public class DynamicTemplateService {
 		return letterModelList;
 	}
 
+	private void getCoApplicantNames(List<String> applicantNameList, LetterReportModel letterModel) {
+ 		int size = applicantNameList.size();
+		
+		if(size>0 && Objects.nonNull(applicantNameList.get(0))) {
+			letterModel.setCoApplicant1(applicantNameList.get(0));
+		}
+		if(size>1 && Objects.nonNull(applicantNameList.get(1))) {
+			letterModel.setCoApplicant2(applicantNameList.get(1));
+		}
+		if(size>2 && Objects.nonNull(applicantNameList.get(2))) {
+			letterModel.setCoApplicant3(applicantNameList.get(2));
+		}
+		
+	}
+
 	private String appendCustomerName(ResultSet resultSet) throws SQLException {
 		String customerName = "";
 		if(Objects.nonNull(resultSet.getString(1))) {
 			customerName = resultSet.getString(1);
 		}
-		if(Objects.nonNull(resultSet.getString(2))) {
-			customerName = customerName + "."+resultSet.getString(2);
-		}
 		if(Objects.nonNull(resultSet.getString(3))) {
-			if(Objects.isNull(resultSet.getString(2))) {
-				customerName = customerName + "."+resultSet.getString(3);
-			}else {
-				customerName = customerName + " "+resultSet.getString(3);
-			}
+			customerName = customerName + "."+resultSet.getString(3);
 		}
-		if(Objects.nonNull(resultSet.getString(4))) {
-			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))) {
-				customerName = customerName + "."+resultSet.getString(4);
-			}else {
-				customerName = customerName + " "+resultSet.getString(4);
-			}
-		}
-		if(Objects.nonNull(resultSet.getString(5))) {
-			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))&& Objects.isNull(resultSet.getString(4))) {
-				customerName = customerName + "."+resultSet.getString(5);
-			}else {
-				customerName = customerName + " "+resultSet.getString(5);
-			}
-		}
+//		if(Objects.nonNull(resultSet.getString(3))) {
+//			if(Objects.isNull(resultSet.getString(2))) {
+//				customerName = customerName + "."+resultSet.getString(3);
+//			}else {
+//				customerName = customerName + " "+resultSet.getString(3);
+//			}
+//		}
+//		if(Objects.nonNull(resultSet.getString(4))) {
+//			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))) {
+//				customerName = customerName + "."+resultSet.getString(4);
+//			}else {
+//				customerName = customerName + " "+resultSet.getString(4);
+//			}
+//		}
+//		if(Objects.nonNull(resultSet.getString(5))) {
+//			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))&& Objects.isNull(resultSet.getString(4))) {
+//				customerName = customerName + "."+resultSet.getString(5);
+//			}else {
+//				customerName = customerName + " "+resultSet.getString(5);
+//			}
+//		}
 		return customerName;
 	}
 
@@ -1726,26 +1767,11 @@ public class DynamicTemplateService {
 		Date date = new Date();
 		SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy");
 
-		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		Map<String, String> dataMap = new HashMap<>();
+		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		try {
-		// Get Los Customer Data
-		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
-			dataMap.put("applicationNum", model.getApplicationNumber());
-			Map<String, Object> returnResponse = webClient.post()
-					.uri(stlapServerUrl + "/losCustomer/getCustomerDataByAppNum")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-					.bodyToMono(Map.class).block();
-			returnResponseList.add(returnResponse);
-		}else {
-			Map<String, String> filesMap = new HashMap();
-			filesMap.put("sanctiondate", model.getSanctionDate());
-			returnResponseList = webClient.post()
-					.uri(stlapServerUrl + "/losCustomer/getBySanctionDate")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(filesMap).retrieve()
-					.bodyToMono(List.class).block();
-		}
-
+			// Get Los Customer Data
+			returnResponseList  = getcustomerDataFromLos(model);
 		returnResponseList.stream().forEach(returnResponse->{
 			LetterReportModel letterModel = new LetterReportModel();
 			letterModel.setApplicationNumber(String.valueOf(returnResponse.get("applicationNum")));
@@ -1753,11 +1779,8 @@ public class DynamicTemplateService {
 			letterModel.setCustomerName(String.valueOf(returnResponse.get("customerName")));
 			letterModel.setCurrentDate(formatter.format(date));
 			letterModel.setBranchCode(String.valueOf(returnResponse.get("branchCode")));
-			int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
-			int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));	
 			letterModel.setAmountFinanced(convertRoundedValue(String.valueOf(returnResponse.get("loanAmt"))));
 			letterModel.setTerm(Integer.parseInt(String.valueOf(returnResponse.get("tenure"))));
-			BigDecimal netRate1 = BigDecimal.valueOf(Double.parseDouble(String.valueOf(returnResponse.get("rateOfInterest"))));
 			String netRate = convertDecimalValue(String.valueOf(returnResponse.get("rateOfInterest")));
 			letterModel.setNetRate(netRate);
 			BranchAddress branchAddress = fetchBranchAddressForMsSQL(letterModel.getBranchCode());
@@ -1776,13 +1799,9 @@ public class DynamicTemplateService {
 			//get processingfee
 			int processingFeeData =  getFeeDataForLetterGeneration(dataMap);
 			letterModel.setProcessingFee(String.valueOf(processingFeeData));
-		
-
 				ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
 						.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
 						.toEntity(Map.class).block();
-
-
 				List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
 				AtomicInteger documentationCharges = new AtomicInteger();
 				feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
@@ -1846,6 +1865,69 @@ public class DynamicTemplateService {
 		return letterModelList;
 	}
 
+
+	
+
+	private List<Map<String, Object>> getcustomerDataFromLos(GenerateTemplateModel model) throws ParseException {
+		List<Map<String, Object>> returnResponseList = new ArrayList<>();
+		String sql = "";
+		String value = "";
+		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
+			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE application_num = ?";
+			value = model.getApplicationNumber();
+		}else if(model.getSanctionDate()!=null){
+			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE effective_date = ?";
+	        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+	        LocalDate date = LocalDate.parse(model.getSanctionDate(), inputFormatter);
+	        LocalDateTime dateTime = date.atStartOfDay();
+	        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSS");
+	        value =  dateTime.format(outputFormatter);
+		}
+		if(sql.isEmpty()) {
+			return returnResponseList;
+		}
+			
+		try (Connection connection = dataSource.getConnection()) {
+			try (PreparedStatement statement = connection.prepareStatement(sql)) {
+				statement.setString(1, value);
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						Map<String, Object> responseMap = new HashMap<>();
+						responseMap.put("applicationNum", resultSet.getString(1));
+						responseMap.put("customerId", resultSet.getString(2));
+						responseMap.put("customerName", resultSet.getString(3));
+						responseMap.put("branchCode", resultSet.getString(4));
+						responseMap.put("loanAmt", resultSet.getFloat(5));
+						responseMap.put("sanctionAmt", resultSet.getFloat(6));
+						responseMap.put("tenure", resultSet.getInt(7));
+						responseMap.put("rateOfInterest", resultSet.getFloat(8));
+						returnResponseList.add(responseMap);
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return returnResponseList;
+	}
+
+	private List<String> getLosApplicationNumber(String applicationNumber) {
+		List<String> responseMapList = new ArrayList<>();
+		String query = "SELECT application_num FROM ST_TB_LOS_CUSTOMER WHERE los_status = ?";
+		try (Connection connection = dataSource.getConnection()) {
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, applicationNumber);
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						responseMapList.add(resultSet.getString(1));
+					}
+				}
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return responseMapList;
+	}
 
 	private String convertDecimalValue(String value) {
 		DecimalFormat format = new DecimalFormat("0.00");

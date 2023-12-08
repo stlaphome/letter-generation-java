@@ -35,6 +35,10 @@ public class LetterReportModel {
 	private String customerAddress;
 	private String accountNo;
 	private String applicationNumber;
+	private String applicant;
+	private String coApplicant1;
+	private String coApplicant2;
+	private String coApplicant3;
 	//mitc
 	private String product;
 	private String balancePayable;
