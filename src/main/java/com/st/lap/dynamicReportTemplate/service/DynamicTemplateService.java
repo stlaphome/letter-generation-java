@@ -463,7 +463,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Balance_Payable~~", String.valueOf((int) Math.round(balancePayable)));
 		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(documentationCharges.get()));
 		variablesValueMap.put("~~CERSAI_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Appraisal_Charges~~", "Nil"); //
+		variablesValueMap.put("~~Appraisal_Charges~~", "Not Applicable"); //
 		variablesValueMap.put("~~Switch_Fee~~", "Nil"); //its static in sanction letter
 		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");//
 		variablesValueMap.put("~~Conversion_Charges~~", "Nil");
@@ -871,7 +871,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Balance_Payable~~", sanctionModel.getBalancePayable());
 		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
 		variablesValueMap.put("~~CERSAI_Charges~~", "100");
-		variablesValueMap.put("~~Appraisal_Charges~~", "ranges from Rs.3000/- to Rs.10000/- + GST"); //
+		variablesValueMap.put("~~Appraisal_Charges~~", "Not Applicable"); //
 		variablesValueMap.put("~~Switch_Fee~~", "0");  //Not Applicable
 		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");
 		variablesValueMap.put("~~Conversion_Charges~~", "Not Applicable");
@@ -1385,8 +1385,9 @@ public class DynamicTemplateService {
 				letterModel.setBranchCode(resultSet.getString(2));
 				letterModel.setCustomerCode(resultSet.getString(3));
 				letterModel.setAmountFinanced(convertRoundedValue(resultSet.getString(4)));
-				letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
+				//letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
 				letterModel.setApplicationNumber(resultSet.getString(6));
+				
 				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,RATE_TYPE,PRINCIPAL_OS FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
 				preparedStatement1.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet1 = preparedStatement1.executeQuery();
@@ -1416,6 +1417,12 @@ public class DynamicTemplateService {
 				ResultSet resultSet4 = preparedStatement4.executeQuery();
 				while (resultSet4.next()) {
 					letterModel.setBaseFileNumber(resultSet4.getString(1));
+				}
+				PreparedStatement preparedStatement23 = connection.prepareStatement("Select purpose_of_loan from hfs_file_auto_topup_details where base_file_number=?");
+				preparedStatement23.setString(1, letterModel.getBaseFileNumber());
+				ResultSet resultSet23 = preparedStatement23.executeQuery();
+				while (resultSet23.next()) {
+					letterModel.setPurposeOfLoan(resultSet23.getString(1));
 				}
 				PreparedStatement preparedStatement17 = connection.prepareStatement("SELECT NACH_BANK_ACC_NUM FROM Hfs_File_Auto_Topup_details where base_file_number=?");
 				preparedStatement17.setString(1, letterModel.getBaseFileNumber());
