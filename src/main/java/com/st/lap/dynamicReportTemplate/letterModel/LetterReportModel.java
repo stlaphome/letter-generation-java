@@ -39,6 +39,12 @@ public class LetterReportModel {
 	private String coApplicant1;
 	private String coApplicant2;
 	private String coApplicant3;
+	private String divisionCode;
+	private String schemeCode;
+	private String productCode;
+	private String borrower;
+	private String endUseOfLoanCode;
+	private String reference;
 	//mitc
 	private String product;
 	private String balancePayable;
@@ -46,6 +52,9 @@ public class LetterReportModel {
 	private String prePaymentCharges;
 	private List<CashHandlingChargesModel> cashHandlingCharges;
 	private String chequeReturnCharges;
+	private String flatFee;
+	private String flatRate;
+	private String denomination;
 	//motd
 	private String landAreaSft; 
 	private String titleHolderName; 
