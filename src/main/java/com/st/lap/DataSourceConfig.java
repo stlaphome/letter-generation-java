@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 @Configuration
-@PropertySource(value = {"file:${STLAP_LMS}/lms_application.properties"})
+//@PropertySource(value = {"file:${STLAP_LMS}/lms_application.properties"})
 public class DataSourceConfig {
 	
 	@Value("${spring.datasource.driver-class-name}")
