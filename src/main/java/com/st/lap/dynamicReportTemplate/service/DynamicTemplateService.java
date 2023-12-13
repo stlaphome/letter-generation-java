@@ -1384,7 +1384,16 @@ public class DynamicTemplateService {
 			}else {
 				if(model.getSanctionDate()!=null) {
 					sql = query2;
-					value = convertDateFormat(new Date(model.getSanctionDate()));
+					SimpleDateFormat inputFormater = new SimpleDateFormat("dd/MM/YYYY");
+					SimpleDateFormat outputFormater = new SimpleDateFormat("dd-MM-yy");
+					String outputDateStr ="";
+					try {
+						Date dates = inputFormater.parse(model.getSanctionDate());
+						 outputDateStr = outputFormater.format(dates);		
+					} catch (ParseException e) {
+						e.printStackTrace();
+					}
+					value = outputDateStr;
 				}
 			}
 			if(sql.isEmpty()) {
@@ -1653,16 +1662,16 @@ public class DynamicTemplateService {
 						+ "   And"
 						+ "   E.Bucket_Key =C.Bucket_Key And E.Branch_Code=?)");
 				
-				String effectiveDate = convertDateFormat(new Date());
+				String effectiveDate = convertDateFormat((letterModel.getApplicationDate()));
 				preparedStatement24.setInt(1,letterModel.getTerm() );
 				preparedStatement24.setInt(2, letterModel.getAmountFinanced());
 				preparedStatement24.setString(3, effectiveDate);
+				preparedStatement24.setString(4, letterModel.getBranchCode());
 				ResultSet resultSet24 = preparedStatement24.executeQuery();
 				while (resultSet24.next()) {
 					letterModel.setFlatFee(resultSet24.getString(1));
 					letterModel.setFlatRate(resultSet24.getString(2));
 				}
-				String dateValue = convertDateFormat(new Date(letterModel.getApplicationDate()));
 				setDocumentChargesValue(letterModel);
 				PreparedStatement preparedStatement25 = connection.prepareStatement("Select A.Division_Code,A.Product_Code,A.Scheme_Code,B.Rate_Type"
 						+ "    From Cc_Contract_Master A,"
@@ -1768,11 +1777,12 @@ public class DynamicTemplateService {
 						+ "  AND ? BETWEEN A.Minimum_Loan_Amount AND A.Maximum_Loan_Amount");
 				preparedStatement31.setString(1,letterModel.getSchemeCode() );
 				preparedStatement31.setString(2, letterModel.getDivisionCode());
-				preparedStatement31.setString(3, dateValue);
-				preparedStatement31.setInt(4, letterModel.getTerm());
-				preparedStatement31.setInt(5, letterModel.getAmountFinanced());
-				preparedStatement31.setInt(6, letterModel.getTerm());
-				preparedStatement31.setInt(7, letterModel.getAmountFinanced());
+				preparedStatement31.setString(3, effectiveDate);
+				preparedStatement31.setString(4, effectiveDate);
+				preparedStatement31.setInt(5, letterModel.getTerm());
+				preparedStatement31.setInt(6, letterModel.getAmountFinanced());
+				preparedStatement31.setInt(7, letterModel.getTerm());
+				preparedStatement31.setInt(8, letterModel.getAmountFinanced());
 				ResultSet resultSet31 = preparedStatement31.executeQuery();
 				while (resultSet31.next()) {
 					letterModel.setChequeReturnCharges(resultSet31.getString(1));
@@ -1785,7 +1795,7 @@ public class DynamicTemplateService {
 						+ "      AND A.Effective_Date ="
 						+ "        (SELECT MAX (Effective_Date) FROM Sa_Cash_Hand_Charges B"
 						+ "        )");
-				preparedStatement32.setString(1,"");
+				preparedStatement32.setInt(1,letterModel.getAmountFinanced());
 				ResultSet resultSet32 = preparedStatement32.executeQuery();
 				List<CashHandlingChargesModel> cashHandlingList = new ArrayList<>();
 				while (resultSet32.next()) { 
@@ -1872,12 +1882,12 @@ public class DynamicTemplateService {
 		return letterModelList;
 	}
 
-	private String convertDateFormat(Date dateValue) {
-		SimpleDateFormat inputFormater = new SimpleDateFormat("dd/MM/YYYY");
+	private String convertDateFormat(String dateValue) {
+		SimpleDateFormat inputFormater = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss",Locale.ENGLISH);
 		SimpleDateFormat outputFormater = new SimpleDateFormat("dd-MM-yy");
 		String outputDateStr ="";
 		try {
-			Date dates = inputFormater.parse(dateValue.toString());
+			Date dates = inputFormater.parse(dateValue);
 			 outputDateStr = outputFormater.format(dates);		
 		} catch (ParseException e) {
 			e.printStackTrace();
