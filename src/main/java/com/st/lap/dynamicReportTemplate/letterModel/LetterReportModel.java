@@ -55,6 +55,8 @@ public class LetterReportModel {
 	private String flatFee;
 	private String flatRate;
 	private String denomination;
+	private String lifeInsurance;
+	private int moratoriumPeriod;
 	//motd
 	private String landAreaSft; 
 	private String titleHolderName; 

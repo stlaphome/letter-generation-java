@@ -688,7 +688,8 @@ public class DynamicTemplateService {
 				"//~~Net_Rate~~//","//~~EMI~~//","//~~Account_No~~//","//~~End_Use_of_Loan~~//","//~~Purpose_of_Loan~~//",
 				"//~~Header_Company_Name~~//","//~~Current_Date~~//","//~~Branch_Address~~//","//~~To_Address~~//",
 				"//~~TelePhone_No~~//","//~~Header_Mail~~//",
-				"//~~Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//");
+				"//~~Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//","//~~Moratorium_Period~~//"
+						);
 	}
 	public String replaceValues(String content, String applicationNumber) {
 		Map<String, String> valuesMap = returnVariablesDataMapForMITC(applicationNumber);
@@ -891,6 +892,9 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
 		variablesValueMap.put("~~Penal_Interest~~","0"); //Not Applicable
 		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "0"); //Not Applicable
+		variablesValueMap.put("~~Life_Insurance~~", nullCheckStringField(sanctionModel.getLifeInsurance())); 
+		variablesValueMap.put("~~Moratorium_Period~~", sanctionModel.getMoratoriumPeriod()); 
+		
 		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
 		StringBuilder cashHandlingChargesTables = new StringBuilder(
 				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
@@ -1383,8 +1387,8 @@ public class DynamicTemplateService {
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		try (Connection connection = currentDataSource.getConnection();
 				) {
-			String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE FROM cc_contract_master where application_number=?";
-			String query2 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE FROM cc_contract_master where application_date=?";
+			String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE,PREMIUM_AMT,MORATORIUM_PERIOD FROM cc_contract_master where application_number=?";
+			String query2 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE,PREMIUM_AMT,MORATORIUM_PERIOD FROM cc_contract_master where application_date=?";
 			String sql = "";
 			String value = "";
 			if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
@@ -1420,9 +1424,17 @@ public class DynamicTemplateService {
 				letterModel.setBranchCode(resultSet.getString(2));
 				letterModel.setCustomerCode(resultSet.getString(3));
 				letterModel.setAmountFinanced(convertRoundedValue(resultSet.getString(4)));
-				//letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
+				letterModel.setPurposeOfLoan(String.valueOf(resultSet.getInt(5)));
 				letterModel.setApplicationNumber(resultSet.getString(6));
 				letterModel.setApplicationDate(resultSet.getString(7));
+				letterModel.setApplicationDate(resultSet.getString(7));
+				letterModel.setLifeInsurance(resultSet.getString(8));
+				String period = resultSet.getString(9);
+				if(Objects.nonNull(period)) {
+					letterModel.setMoratoriumPeriod(0);
+				}else {
+					letterModel.setMoratoriumPeriod(Integer.parseInt(period));
+				}
 
 				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,PRINCIPAL_OS FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
 				preparedStatement1.setString(1, letterModel.getContractNumber());
