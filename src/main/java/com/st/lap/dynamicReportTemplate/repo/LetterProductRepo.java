@@ -16,4 +16,6 @@ public interface LetterProductRepo extends JpaRepository<LetterProduct, Integer>
 
 	List<LetterProduct> findByProductCodeIn(List<String> productList);
 
+	List<LetterProduct> findByProductCodeAndTemplateType(String productCode, String templateType);
+
 }

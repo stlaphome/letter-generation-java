@@ -48,13 +48,13 @@ public class DynamicTemplateController {
 	}
 	
 	@GetMapping("/getTemplateNameList")
-	public ResponseEntity<List<String>> getTemplateNameList(@RequestParam String productCode ) {
-		return dynamicTemplateService.getTemplateNameList(productCode);
+	public ResponseEntity<List<String>> getTemplateNameList(@RequestParam String productCode,@RequestParam String templateCode) {
+		return dynamicTemplateService.getTemplateNameList(productCode,templateCode);
 	}
 	
 	@GetMapping("/getAllApplicationNumbers")
-	public ResponseEntity<List<String>> getAllApplicationNumbers(@RequestParam String productCode) {
-		return dynamicTemplateService.getAllApplicationNumbers(productCode);
+	public ResponseEntity<List<String>> getAllApplicationNumbers(@RequestParam String productCode,@RequestParam String templateCode) {
+		return dynamicTemplateService.getAllApplicationNumbers(productCode,templateCode);
 	}
 	
 	@PostMapping("/getTemplateForView")
@@ -84,6 +84,11 @@ public class DynamicTemplateController {
 	@PostMapping("/getProductTypeList")
 	public ResponseEntity<List<Map<String,Object>>> getProductTypeList(){
 		return dynamicTemplateService.getProductTypeList();
+		
+	}
+	@GetMapping("/getTemplateTypeList")
+	public ResponseEntity<List<Map<String,Object>>> getTemplateTypeList(@RequestParam String productCode){
+		return dynamicTemplateService.getTemplateTypeList(productCode);
 		
 	}
 	

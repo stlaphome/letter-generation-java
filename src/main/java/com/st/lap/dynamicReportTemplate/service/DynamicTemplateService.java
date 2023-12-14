@@ -39,6 +39,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.sql.DataSource;
 import javax.sql.rowset.serial.SerialBlob;
@@ -266,8 +267,8 @@ public class DynamicTemplateService {
 		return ResponseEntity.ok(returnVariablesList());
 	}
 
-	public ResponseEntity<List<String>> getTemplateNameList(String productType) {
-		List<LetterProduct> letterproductAllData = letterProductRepo.findByProductCode(productType);
+	public ResponseEntity<List<String>> getTemplateNameList(String productType, String templateCode) {
+		List<LetterProduct> letterproductAllData = letterProductRepo.findByProductCodeAndTemplateType(productType,templateCode);
 		Set<String> templateNameSet = new HashSet<>();
 		List<String> templateNameList = new ArrayList<>();
 		letterproductAllData.stream().forEach(item -> {
@@ -702,20 +703,18 @@ public class DynamicTemplateService {
 		return returnValue.toString();
 	}
 
-	public ResponseEntity<List<String>> getAllApplicationNumbers(String productCode) {
+	public ResponseEntity<List<String>> getAllApplicationNumbers(String productCode, String templateType) {
 		String dataBase = "MSSQL";
-		List<LetterProduct> letterproductAllData = letterProductRepo.findByProductCode(productCode);
-		if(!letterproductAllData.isEmpty()) {
-			dataBase = letterproductAllData.stream().findFirst().get().getDataBase();
-		}
-		return fetchApplicationNumber(dataBase);
+		List<LetterProduct> letterproductDataList = letterProductRepo.findByProductCodeAndTemplateType(productCode,templateType);
+		return fetchApplicationNumber(letterproductDataList);
 
 	}
 
-	private ResponseEntity<List<String>> fetchApplicationNumber(String dataBase) {
+	private ResponseEntity<List<String>> fetchApplicationNumber(List<LetterProduct> letterproductData) {
 		List<String> returnResponseList = new ArrayList<>();
+		String dataBase = letterproductData.stream().findFirst().get().getDataBase();
 		if(dataBase.equals("ORACLE")) {
-			returnResponseList = getOracleApplicationNumber();
+			returnResponseList = getOracleApplicationNumber(letterproductData);
 		}else {
 			returnResponseList = getLosApplicationNumber("Sanctioned");
 		}
@@ -752,8 +751,8 @@ public class DynamicTemplateService {
 				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
 				canvas.beginText()
 				.setFontAndSize(pdf.getDefaultFont(), 6)
-				.moveText(36, 20) // Adjust the coordinates for the position of the page number
-				.showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
+				.moveText(300, 20) // Adjust the coordinates for the position of the page number
+				.showText("" + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
 				.endText();
 			});
 			HtmlConverter.convertToPdf(htmlContent, pdf, new ConverterProperties());
@@ -1107,8 +1106,8 @@ public class DynamicTemplateService {
 				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
 				canvas.beginText()
 				.setFontAndSize(pdf.getDefaultFont(), 6)
-				.moveText(36, 20) // Adjust the coordinates for the position of the page number
-				.showText("Page " + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
+				.moveText(300, 20) // Adjust the coordinates for the position of the page number
+				.showText("" + ((PdfDocumentEvent) event).getDocument().getPageNumber(((PdfDocumentEvent) event).getPage()))
 				.endText();
 			});
 			HtmlConverter.convertToPdf(s, pdf, new ConverterProperties());
@@ -1215,6 +1214,16 @@ public class DynamicTemplateService {
 		return ResponseEntity.ok(productCodeList);
 	}
 
+	public ResponseEntity<List<Map<String, Object>>> getTemplateTypeList(String productCode) {
+		List<LetterProduct> letterproductAllData = letterProductRepo.findByProductCode(productCode);
+		List<Map<String, Object>> templateTypeList = letterproductAllData.stream().filter(distinctByKey(data->data.getTemplateType())).map(datas->{
+			Map<String,Object> templateData = new HashMap<>();
+			templateData.put("value",datas.getTemplateId());
+			templateData.put("text",datas.getTemplateType());
+			return templateData;
+		}).distinct().collect(Collectors.toList());
+		return ResponseEntity.ok(templateTypeList);
+	}
 	public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
 		if (keyExtractor != null) {
 			Map<Object, Boolean> seen = new ConcurrentHashMap<>();
@@ -1787,8 +1796,7 @@ public class DynamicTemplateService {
 				while (resultSet31.next()) {
 					letterModel.setChequeReturnCharges(resultSet31.getString(1));
 				}
-//				PreparedStatement preparedStatement3 = connection.prepareStatement("Select Rate_Type, Rate_Type_Desc From Sa_Rate_Type_Dir; where Rate_Type=?");
-				PreparedStatement preparedStatement32 = connection.prepareStatement("SELECT Cash_Hand_Charges,\r\n"
+				PreparedStatement preparedStatement32 = connection.prepareStatement("SELECT Cash_Hand_Charges,"
 						+ "        Denomination"
 						+ "      FROM Sa_Cash_Hand_Charges A"
 						+ "      WHERE ? BETWEEN From_Receipt_Amount AND To_Receipt_Amount"
@@ -1810,63 +1818,63 @@ public class DynamicTemplateService {
 				}
 				letterModel.setCashHandlingCharges(cashHandlingList);
 //				PreparedStatement preparedStatement3 = connection.prepareStatement("Select Rate_Type, Rate_Type_Desc From Sa_Rate_Type_Dir; where Rate_Type=?");
-				//				preparedStatement3.setString(1, letterModel.getRateType());
-				//				ResultSet resultSet3 = preparedStatement3.executeQuery();
-				//				while (resultSet3.next()) {
-				//					letterModel.setRateTypeString(resultSet2.getString(2));
-				//				}
-				//				PreparedStatement preparedStatement13 = connection.prepareStatement("Select Land_Area_Sq_Ft From Sa_Customer_Property_Dtls Where Customer_Code = ?");
-				//				preparedStatement13.setString(1, letterModel.getCustomerCode());
-				//				ResultSet resultSet13 = preparedStatement13.executeQuery();
-				//				while (resultSet13.next()) {
-				//					letterModel.setLandAreaSft(resultSet13.getString(1));
-				//				}
-				//				PreparedStatement preparedStatement14 = connection.prepareStatement("Select Title_Holder_Name Title_Holder_Name From Sa_Customer_Property_Share Where Customer_Code =?");
-				//				preparedStatement14.setString(1, letterModel.getCustomerCode());
-				//				ResultSet resultSet14 = preparedStatement14.executeQuery();
-				//				while (resultSet14.next()) {
-				//					letterModel.setTitleHolderName(resultSet14.getString(1));
-				//				}
-				//				PreparedStatement preparedStatement15 = connection.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
-				//				preparedStatement15.setString(1, letterModel.getCustomerCode());
-				//				ResultSet resultSet15 = preparedStatement15.executeQuery();
-				//				while (resultSet15.next()) {
-				//					letterModel.setDateOfBirth(resultSet15.getString(1));
-				//				}
-				//				PreparedStatement preparedStatement16 = connection.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
-				//						+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
-				//						+ "	A.Property_Address.Column4_L,A.Property_Address.Column5_L,"
-				//						+ "	A.Property_Address.Column6_L,A.Property_Address.Column7_L,"
-				//						+ "	A.Property_Address.Column8_L,A.Property_Address.Column9_L,"
-				//						+ "	A.Property_Address.Column10_L,A.Property_Address.Pin_Zip_Code_L,"
-				//						+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
-				//						+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
-				//						+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
-				//						+ "	A.Property_Address.Email"
-				//						+ "	From Sa_Customer_Property_Dtls");
-				//				preparedStatement16.setString(1, letterModel.getCustomerCode());
-				//				ResultSet resultSet16 = preparedStatement16.executeQuery();
-				//				while (resultSet16.next()) {
-				//					
-				//				}
-				//				//schedule a
-				//				//boundries & measurements
-				//				PreparedStatement preparedStatement18 = connection.prepareStatement("Select North_By,South_By,East_By,West_By,"
-				//						+ "North_By_Measurements,South_By_Measurements,"
-				//						+ "East_By_Measurements,West_By_Measurements "
-				//						+ "From Cc_Technical_Valuation_Report where contract_number=?");
-				//				preparedStatement18.setString(1, letterModel.getContractNumber());
-				//				ResultSet resultSet18 = preparedStatement18.executeQuery();
-				//				while (resultSet18.next()) {
-				//					letterModel.setNorthBoundry(resultSet16.getString(1));
-				//					letterModel.setSouthBoundry(resultSet16.getString(2));
-				//					letterModel.setEastBoundry(resultSet16.getString(3));
-				//					letterModel.setWestBoundry(resultSet16.getString(4));
-				//					letterModel.setNorthMeasurement(resultSet16.getString(5));
-				//					letterModel.setSouthMeasurement(resultSet16.getString(6));
-				//					letterModel.setEastMeasurement(resultSet16.getString(7));
-				//					letterModel.setWestMeasurement(resultSet16.getString(8));
-				//				}
+//								preparedStatement3.setString(1, letterModel.getRateType());
+//								ResultSet resultSet3 = preparedStatement3.executeQuery();
+//								while (resultSet3.next()) {
+//									letterModel.setRateTypeString(resultSet2.getString(2));
+//								}
+//								PreparedStatement preparedStatement13 = connection.prepareStatement("Select Land_Area_Sq_Ft From Sa_Customer_Property_Dtls Where Customer_Code = ?");
+//								preparedStatement13.setString(1, letterModel.getCustomerCode());
+//								ResultSet resultSet13 = preparedStatement13.executeQuery();
+//								while (resultSet13.next()) {
+//									letterModel.setLandAreaSft(resultSet13.getString(1));
+//								}
+//								PreparedStatement preparedStatement14 = connection.prepareStatement("Select Title_Holder_Name Title_Holder_Name From Sa_Customer_Property_Share Where Customer_Code =?");
+//								preparedStatement14.setString(1, letterModel.getCustomerCode());
+//								ResultSet resultSet14 = preparedStatement14.executeQuery();
+//								while (resultSet14.next()) {
+//									letterModel.setTitleHolderName(resultSet14.getString(1));
+//								}
+//								PreparedStatement preparedStatement33 = connection.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
+//								preparedStatement33.setString(1, letterModel.getCustomerCode());
+//								ResultSet resultSet33 = preparedStatement33.executeQuery();
+//								while (resultSet33.next()) {
+//									letterModel.setDateOfBirth(resultSet33.getString(1));
+//								}
+//								PreparedStatement preparedStatement16 = connection.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
+//										+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
+//										+ "	A.Property_Address.Column4_L,A.Property_Address.Column5_L,"
+//										+ "	A.Property_Address.Column6_L,A.Property_Address.Column7_L,"
+//										+ "	A.Property_Address.Column8_L,A.Property_Address.Column9_L,"
+//										+ "	A.Property_Address.Column10_L,A.Property_Address.Pin_Zip_Code_L,"
+//										+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
+//										+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
+//										+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
+//										+ "	A.Property_Address.Email"
+//										+ "	From Sa_Customer_Property_Dtls");
+//								preparedStatement16.setString(1, letterModel.getCustomerCode());
+//								ResultSet resultSet16 = preparedStatement16.executeQuery();
+//								while (resultSet16.next()) {
+//									
+//								}
+//								//schedule a
+//								//boundries & measurements
+//								PreparedStatement preparedStatement34 = connection.prepareStatement("Select North_By,South_By,East_By,West_By,"
+//										+ "North_By_Measurements,South_By_Measurements,"
+//										+ "East_By_Measurements,West_By_Measurements "
+//										+ "From Cc_Technical_Valuation_Report where contract_number=?");
+//								preparedStatement34.setString(1, letterModel.getContractNumber());
+//								ResultSet resultSet34 = preparedStatement34.executeQuery();
+//								while (resultSet34.next()) {
+//									letterModel.setNorthBoundry(resultSet16.getString(1));
+//									letterModel.setSouthBoundry(resultSet16.getString(2));
+//									letterModel.setEastBoundry(resultSet16.getString(3));
+//									letterModel.setWestBoundry(resultSet16.getString(4));
+//									letterModel.setNorthMeasurement(resultSet16.getString(5));
+//									letterModel.setSouthMeasurement(resultSet16.getString(6));
+//									letterModel.setEastMeasurement(resultSet16.getString(7));
+//									letterModel.setWestMeasurement(resultSet16.getString(8));
+//								}
 
 
 				Date date = new Date();
@@ -2015,12 +2023,16 @@ public class DynamicTemplateService {
 		return brnachAddressString;
 	}
 
-	public List<String> getOracleApplicationNumber() {
+	public List<String> getOracleApplicationNumber(List<LetterProduct> letterproductData) {
+		String templateType = letterproductData.stream().findFirst().get().getTemplateType();
 		// Your condition to switch to Oracle database
 		List<String> applicationNumberList = new ArrayList<>();
 		dynamicDataSourceService.switchToOracleDataSource();
+		String query1="SELECT CONTRACT_NUMBER FROM CC_CONTRACT_MASTER WHERE CONTRACT_STATUS=1 AND CONTRACT_NUMBER IS NOT NULL";
+		if(templateType.equals("SANCTION")) {
+			query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null";
+		}
 		// Use the current datasource to fetch data
-		String query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null";
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		try (Connection connection = currentDataSource.getConnection();
 				) {
@@ -2337,8 +2349,10 @@ public class DynamicTemplateService {
 		productList.add("STLAP");
 		List<LetterProduct> entityList = letterProductRepo.findByProductCodeIn(productList);
 		if(entityList.isEmpty()) {
-			LetterProduct entity1 = new LetterProduct(1,"HOMEFIN",null,"ORACLE",null);
-			LetterProduct entity2 = new LetterProduct(1,"STLAP",null,"MSSQL",null);
+			LetterProduct entity1 = new LetterProduct(1,"HOMEFIN","1","SANCTION",null,"ORACLE",null);
+			LetterProduct entity2 = new LetterProduct(2,"HOMEFIN","2","MITC",null,"ORACLE",null);
+			LetterProduct entity3 = new LetterProduct(3,"STLAP","2","MITC",null,"MSSQL",null);
+			entityList.add(entity3);
 			entityList.add(entity2);
 			entityList.add(entity1);
 			letterProductRepo.saveAll(entityList);
@@ -2492,6 +2506,8 @@ public class DynamicTemplateService {
 		private String branch;
 
 	}
+
+	
 
 
 
