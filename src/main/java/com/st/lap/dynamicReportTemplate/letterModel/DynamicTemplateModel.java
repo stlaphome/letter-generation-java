@@ -7,6 +7,8 @@ public class DynamicTemplateModel {
 	
 	private int templateHeaderKey;
 	private String productCode;
+	private String templateId;
+	private String templateType;
 	private String templateName;
 	private String templateKey;
 	private String content;
