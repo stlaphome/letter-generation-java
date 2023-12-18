@@ -29,11 +29,6 @@ public class LetterProduct {
 	@Column(name = "product_code")
 	private String productCode;
 	
-	@Column(name = "template_id")
-	private String templateId;
-	@Column(name = "template_type")
-	private String templateType;
-	
 	@Column(name = "letter_name")
 	private String letterName;
 	

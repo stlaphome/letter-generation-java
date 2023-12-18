@@ -15,7 +15,6 @@ public class GenerateTemplateModel {
 	private String templateName;
 	private String sanctionDate;
 	private String applicationNumber;
-	private String templateType;
 	
 	
 }
