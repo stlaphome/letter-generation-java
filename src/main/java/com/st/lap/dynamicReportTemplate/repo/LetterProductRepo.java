@@ -16,4 +16,5 @@ public interface LetterProductRepo extends JpaRepository<LetterProduct, Integer>
 
 	List<LetterProduct> findByProductCodeIn(List<String> productList);
 
+
 }

@@ -1,10 +1,8 @@
 package com.st.lap.dynamicReportTemplate.letterModel;
 
-import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
-import com.google.type.Decimal;
-import com.st.lap.dynamicReportTemplate.service.DynamicTemplateService.CashHandlingChargesModel;
 
 import lombok.Data;
 
@@ -39,6 +37,12 @@ public class LetterReportModel {
 	private String coApplicant1;
 	private String coApplicant2;
 	private String coApplicant3;
+	private String divisionCode;
+	private String schemeCode;
+	private String productCode;
+	private String borrower;
+	private String endUseOfLoanCode;
+	private String reference;
 	//mitc
 	private String product;
 	private String balancePayable;
@@ -46,22 +50,27 @@ public class LetterReportModel {
 	private String prePaymentCharges;
 	private List<CashHandlingChargesModel> cashHandlingCharges;
 	private String chequeReturnCharges;
+	private String flatFee;
+	private String flatRate;
+	private String denomination;
+	private String lifeInsurance;
+	private int moratoriumPeriod;
 	//motd
-	private String landAreaSft; 
-	private String titleHolderName; 
+	private List<String> aadharNo;
+	private List<String> titleHolderName; 
+	private List<String> titleHolderGuardianName; 
 	private String dateOfBirth; 
+	private List<Integer> age; 
 	private int principalOutstanding;
+	private String SRO; 
 	private String rateType;
 	private String rateTypeString;
-	private String northBoundry;
-	private String southBoundry;
-	private String eastBoundry;
-	private String westBoundry;
-	private String northMeasurement;
-	private String southMeasurement;
-	private String westMeasurement;
-	private String eastMeasurement;
-	
+	private Map<String,List<ScheduleA>> scheduleA;
+	private List<ScheduleB> schedleB;
+	private List<Measurement> measurement;
+	private List<Boundries> boundries;
+	private List<PropertyAddress> propertyAddressList;
+	private List<String> customerAddressList;
 	
 	
 	

@@ -48,7 +48,7 @@ public class DynamicTemplateController {
 	}
 	
 	@GetMapping("/getTemplateNameList")
-	public ResponseEntity<List<String>> getTemplateNameList(@RequestParam String productCode ) {
+	public ResponseEntity<List<String>> getTemplateNameList(@RequestParam String productCode) {
 		return dynamicTemplateService.getTemplateNameList(productCode);
 	}
 	
@@ -86,7 +86,6 @@ public class DynamicTemplateController {
 		return dynamicTemplateService.getProductTypeList();
 		
 	}
-	
 	@PostMapping("/fetchDataBasedOnDB")
 	public ResponseEntity<Map<String, Object>> fetchDataBasedOnDB(@RequestBody GenerateTemplateModel model){
 		return dynamicTemplateService.fetchDataBasedOnDB(model);
