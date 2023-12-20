@@ -15,6 +15,7 @@ public class LetterReportModel {
 	private String branchCode;
 	private String currentDate;
 	private String customerCode;
+	private List<String> customerShareCode;
 	private int amountFinanced;
 	private String purposeOfLoan;
 	private String netRate;
@@ -56,21 +57,33 @@ public class LetterReportModel {
 	private String lifeInsurance;
 	private int moratoriumPeriod;
 	//motd
-	private List<String> aadharNo;
-	private List<String> titleHolderName; 
-	private List<String> titleHolderGuardianName; 
+	private String aadharNo;
+	private String titleHolderName; 
+	private String titleHolderGuardianName; 
 	private String dateOfBirth; 
-	private List<Integer> age; 
+	private Integer age; 
+	private String aadharNo1;
+	private String titleHolderName1; 
+	private String titleHolderGuardianName1; 
+	private String dateOfBirth1; 
+	private Integer age1; 
 	private int principalOutstanding;
 	private String SRO; 
 	private String rateType;
 	private String rateTypeString;
 	private Map<String,List<ScheduleA>> scheduleA;
-	private List<ScheduleB> schedleB;
-	private List<Measurement> measurement;
-	private List<Boundries> boundries;
-	private List<PropertyAddress> propertyAddressList;
-	private List<String> customerAddressList;
+	private ScheduleB schedleB;
+	private ScheduleB schedleB1;
+	private Measurement measurement;
+	private Measurement measurement1;
+	private Boundries boundries;
+	private Boundries boundries1;
+	private PropertyAddress propertyAddress;
+	private PropertyAddress propertyAddress1;
+	private String titleHolderAddress;
+	private String titleHolderAddress1;
+	private int propertyNumber;
+	private String otdNumber;
 	
 	
 	
