@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -292,7 +293,7 @@ public class DynamicTemplateService {
 		Date date = new Date();
 		SimpleDateFormat formatter1 = new SimpleDateFormat("MM/dd/yyyy");
 
-		Map<String, String> dataMap = new HashMap<>();
+		Map<String, Object> dataMap = new HashMap<>();
 		dataMap.put("applicationNum", applicationNumber);
 		dataMap.put("type", "accrual");
 
@@ -549,8 +550,8 @@ public class DynamicTemplateService {
 		return variablesValueMap;
 	}
 
-	public int getFeeDataForLetterGeneration(Map<String, String> dataMap) {
-		String applicationNumber = getString(dataMap.get("applicationNum"));
+	public int getFeeDataForLetterGeneration(Map<String, Object> dataMap) {
+		String applicationNumber = getString(String.valueOf(dataMap.get("applicationNum")));
 		List<MemorandumHeader> memorandumSavedData = new ArrayList<>();
 		try (Connection connection = dataSource.getConnection()) {
 			String query = "SELECT memo_code_desc,txn_indicator,txn_amt FROM ST_TB_LMS_MEMO_HDR where application_num=?";
@@ -582,15 +583,15 @@ public class DynamicTemplateService {
 		return processingFee.get();
 	}
 
-	private PrepaymentChargesModel getDataFromPrepaymentCharges(Map<String, String> dataMap) {
+	private PrepaymentChargesModel getDataFromPrepaymentCharges(Map<String, Object> dataMap) {
 		PrepaymentChargesModel chargesResponse = new PrepaymentChargesModel();
 		AtomicInteger rowId = new AtomicInteger(0);
 		try (Connection connection = dataSource.getConnection()) {
 			String query = "SELECT product,rate_type,rate,customer_type,prepayment_reason FROM ST_TB_LMS_PREPAYMENT_CHARGE_MSTR where prepayment_reason=? AND effective_date=(SELECT MAX(effective_date) FROM ST_TB_LMS_PREPAYMENT_CHARGE_MSTR where prepayment_reason=?)";
 
 			try (PreparedStatement statement = connection.prepareStatement(query)) {
-				statement.setString(1, dataMap.get("prepayment_reason"));
-				statement.setString(2, dataMap.get("prepayment_reason"));
+				statement.setString(1, String.valueOf(dataMap.get("prepayment_reason")));
+				statement.setString(2, String.valueOf(dataMap.get("prepayment_reason")));
 				try (ResultSet resultSet = statement.executeQuery()) {
 					while (resultSet.next()) {
 						chargesResponse.setId(rowId.get());
@@ -902,21 +903,21 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Life_Insurance~~", nullCheckStringField(sanctionModel.getLifeInsurance())); 
 		variablesValueMap.put("~~Moratorium_Period~~", sanctionModel.getMoratoriumPeriod()); 
 
-//		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
-//		StringBuilder cashHandlingChargesTables = new StringBuilder(
-//				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
-//		cashHandlingChargesList.stream().forEach(item -> {
-//			cashHandlingChargesTables.append(
-//					"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-//			cashHandlingChargesTables
-//			.append("Rs." + item.getFromReceiptAmt() + "/- to Rs." + item.getToReceiptAmt() + "/-");
-//			cashHandlingChargesTables.append(
-//					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-//			cashHandlingChargesTables.append("Rs." + item.getCashHandlingCharges() + "/- + GST Per Receipt");
-//			cashHandlingChargesTables.append("</td></tr>");
-//		});
-//		cashHandlingChargesTables.append("</tbody></table>");
-//		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
+		//		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
+		//		StringBuilder cashHandlingChargesTables = new StringBuilder(
+		//				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
+		//		cashHandlingChargesList.stream().forEach(item -> {
+		//			cashHandlingChargesTables.append(
+		//					"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+		//			cashHandlingChargesTables
+		//			.append("Rs." + item.getFromReceiptAmt() + "/- to Rs." + item.getToReceiptAmt() + "/-");
+		//			cashHandlingChargesTables.append(
+		//					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+		//			cashHandlingChargesTables.append("Rs." + item.getCashHandlingCharges() + "/- + GST Per Receipt");
+		//			cashHandlingChargesTables.append("</td></tr>");
+		//		});
+		//		cashHandlingChargesTables.append("</tbody></table>");
+		//		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
 		return variablesValueMap;
 	}
 
@@ -2130,7 +2131,7 @@ public class DynamicTemplateService {
 					letterModel.setAge(age);
 				}
 			}
-			
+
 			PreparedStatement preparedStatement5 = connection.prepareStatement("SELECT OTD_CATG_CODE FROM Dc_Legal_Document_Hdr WHERE Contract_Number = ?");
 			preparedStatement5.setString(1, shareCodeList.get(0));
 			ResultSet resultSet5 = preparedStatement5.executeQuery();
@@ -2171,7 +2172,7 @@ public class DynamicTemplateService {
 				boundries.setEastBoundry(resultSet3.getString(4));
 				boundries.setWestBoundry(resultSet3.getString(5));
 				letterModel.setBoundries(boundries);
-				
+
 				scheduleB.setSurveyNo(resultSet3.getString(6));
 				scheduleB.setPlotNo(resultSet3.getString(7));
 				scheduleB.setDoorNo(resultSet3.getString(8));
@@ -2185,7 +2186,7 @@ public class DynamicTemplateService {
 				scheduleB.setCityCode(resultSet3.getString(15));
 				letterModel.setSRO(resultSet3.getString(15));
 			}
-			
+
 			PreparedStatement preparedStatement16 = connection.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
 					+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
 					+ "	A.Property_Address.Column4_L,A.Property_Address.Column5_L,"
@@ -2266,7 +2267,7 @@ public class DynamicTemplateService {
 				scheduleA.setDocumentId(resultSet11.getString(2));
 				scheduleA.setCollectionDate(resultSet11.getString(3));
 				scheduleA.setDocuemntNumber(resultSet11.getString(4));
-				scheduleA.setTitleHolderName(resultSet11.getString(5));
+				scheduleA.setTitleHolderName(Objects.nonNull(resultSet11.getString(5))?resultSet11.getString(5):"");
 				scheduleA.setDocmentType(resultSet11.getString(6));
 				scheduleA.setDocumentDate(resultSet11.getString(7));
 
@@ -2276,10 +2277,10 @@ public class DynamicTemplateService {
 				ResultSet resultSet12 = preparedStatement12.executeQuery();
 				while (resultSet12.next()) {
 					scheduleA.setDocumentName(resultSet12.getString(2));
-					scheduleAList.add(scheduleA);
 				}
+				scheduleAList.add(scheduleA);
 			}
-			 Map<String, List<ScheduleA>> scheduleMap = scheduleAList.stream().collect(Collectors.groupingBy(ScheduleA::getTitleHolderName)); 
+			Map<String, List<ScheduleA>> scheduleMap = scheduleAList.stream().collect(Collectors.groupingBy(ScheduleA::getTitleHolderName)); 
 			letterModel.setScheduleA(scheduleMap);
 
 			PreparedStatement preparedStatement34 = connection.prepareStatement("Select North_By,South_By,East_By,West_By,"
@@ -2607,7 +2608,7 @@ public class DynamicTemplateService {
 		Date date = new Date();
 		SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy");
 
-		Map<String, String> dataMap = new HashMap<>();
+		Map<String, Object> dataMap = new HashMap<>();
 		List<Map<String, Object>> returnResponseList = new ArrayList<>();
 		try {
 			// Get Los Customer Data
@@ -2633,53 +2634,59 @@ public class DynamicTemplateService {
 				//purpose of loan from los
 				letterModel = getLosApplicationSQL(letterModel.getApplicationNumber(),letterModel);
 
-				//feeData
 				dataMap.put("applicationNum",letterModel.getApplicationNumber());
 				dataMap.put("type", "accrual");
 				//get processingfee
 				int processingFeeData =  getFeeDataForLetterGeneration(dataMap);
 				letterModel.setProcessingFee(String.valueOf(processingFeeData));
-				
+
 				//documentation charges
-//				ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
-//						.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-//						.toEntity(Map.class).block();
-//				List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
-//				AtomicInteger documentationCharges = new AtomicInteger();
-//				feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
-//				.forEach(item -> {
-//					int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
-//					documentationCharges.set(tempValue);
-//				});
-//				letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
+				//				ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
+				//						.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+				//						.toEntity(Map.class).block();
+				//				List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
+				//				AtomicInteger documentationCharges = new AtomicInteger();
+				//				feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
+				//				.forEach(item -> {
+				//					int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
+				//					documentationCharges.set(tempValue);
+				//				});
+				//				letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
+				try {
 
-				// Amort Calculation for Balance Payable
-				Calendar calendar = Calendar.getInstance();
-				Date currentDate = getDate(calendar.getTime());
-				calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
-				Date dueStartDate = getDate(calendar.getTime());
-				Double balancePayable = 0.0;
+					// Amort Calculation for Balance Payable
+					Calendar calendar = Calendar.getInstance();
+					Date currentDate = getDate(calendar.getTime());
+					calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
+					DateFormat dateFormatforReqDate = new SimpleDateFormat("MM/dd/yyyy");
+					Date dates = new Date();
+					String dateValue = dateFormatforReqDate.format(dates);
+					Double balancePayable = 0.0;
+					Date dueStartDate = getDate(calendar.getTime());
+					dataMap.put("requestedDate", dateValue);
 
-				ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
-						.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
-						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
-						.block();
-				if(Objects.nonNull(amortDataResponse)) {
-					List<Amort> amortData = amortDataResponse.getBody();
-					if(Objects.nonNull(amortData)) {
-						balancePayable = amortData.stream().filter(amort -> (amort.getDueStartDate().after(dueStartDate)
-								|| amort.getDueStartDate().compareTo(dueStartDate) == 0)).mapToDouble(Amort::getEmiDue).sum();
-						letterModel.setBalancePayable(String.valueOf(balancePayable));
+					ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
+							.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
+							.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
+							.block();
+					if(Objects.nonNull(amortDataResponse)) {
+						List<Amort> amortData = amortDataResponse.getBody();
+						if(Objects.nonNull(amortData) && !amortData.isEmpty()) {
+							balancePayable = amortData.stream().mapToDouble(Amort::getEmiDue).sum();
+							letterModel.setBalancePayable(String.valueOf(balancePayable));
+						}
 					}
+				}catch (Exception e) {
+					e.printStackTrace();
 				}
 
 				// Cash Handling Charges Calculation
-//				ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
-//						.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
-//						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-//						.toEntityList(CashHandlingChargesModel.class).block();
-//				List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
-//				letterModel.setCashHandlingCharges(cashHandlingChargesList);
+				//				ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
+				//						.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
+				//						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+				//						.toEntityList(CashHandlingChargesModel.class).block();
+				//				List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
+				//				letterModel.setCashHandlingCharges(cashHandlingChargesList);
 
 				// Prepayment Charges Calculation
 				dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
@@ -2687,21 +2694,21 @@ public class DynamicTemplateService {
 				String prepaymentCharge = "";
 				if(prepaymentModel!=null ) {
 					prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
+					letterModel.setProduct(prepaymentModel.getProduct());
 				}
 				letterModel.setPrePaymentCharges(prepaymentCharge);
-				letterModel.setProduct(prepaymentModel.getProduct());
 
 				// ChequeReturnCharges Calculation
-//				dataMap.put("parameterName", "ChequeReturnCharges");
-//				Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
-//						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-//						.bodyToMono(Map.class).block();
-//				String todayDate = formatter.format(currentDate);
-//				String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
-//						&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
-//						? parameterResponse.get("paramValue").toString()
-//								: "0";
-//				letterModel.setChequeReturnCharges(chequeReturnCharges);
+				//				dataMap.put("parameterName", "ChequeReturnCharges");
+				//				Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
+				//						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
+				//						.bodyToMono(Map.class).block();
+				//				String todayDate = formatter.format(currentDate);
+				//				String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
+				//						&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
+				//						? parameterResponse.get("paramValue").toString()
+				//								: "0";
+				//				letterModel.setChequeReturnCharges(chequeReturnCharges);
 				letterModelList.add(letterModel);
 			});
 		}catch(Exception e) {
