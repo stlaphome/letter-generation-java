@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
-public class customerAddress {
+public class CustomerAddress {
 	private String street;
 	private String address1;
 	private String address2;
