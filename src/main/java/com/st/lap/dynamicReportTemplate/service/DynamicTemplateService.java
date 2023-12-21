@@ -76,8 +76,12 @@ import com.st.lap.dynamicReportTemplate.letterModel.LetterReportModel;
 import com.st.lap.dynamicReportTemplate.letterModel.Measurement;
 import com.st.lap.dynamicReportTemplate.letterModel.MemorandumHeader;
 import com.st.lap.dynamicReportTemplate.letterModel.PropertyAddress;
+import com.st.lap.dynamicReportTemplate.letterModel.PropertyDetailModel;
+import com.st.lap.dynamicReportTemplate.letterModel.PropertyNumberModel;
+import com.st.lap.dynamicReportTemplate.letterModel.PropertyDetailModel;
 import com.st.lap.dynamicReportTemplate.letterModel.ScheduleA;
 import com.st.lap.dynamicReportTemplate.letterModel.ScheduleB;
+import com.st.lap.dynamicReportTemplate.letterModel.TitleHolderDetail;
 import com.st.lap.dynamicReportTemplate.model.DynamicReportContainer;
 import com.st.lap.dynamicReportTemplate.model.DynamicTemplate;
 import com.st.lap.dynamicReportTemplate.model.LetterProduct;
@@ -550,7 +554,7 @@ public class DynamicTemplateService {
 		return variablesValueMap;
 	}
 
-	public int getFeeDataForLetterGeneration(Map<String, Object> dataMap) {
+	public void getFeeDataForLetterGeneration(Map<String, Object> dataMap, LetterReportModel letterModel) {
 		String applicationNumber = getString(String.valueOf(dataMap.get("applicationNum")));
 		List<MemorandumHeader> memorandumSavedData = new ArrayList<>();
 		try (Connection connection = dataSource.getConnection()) {
@@ -571,6 +575,7 @@ public class DynamicTemplateService {
 			e.printStackTrace();
 		}
 		AtomicInteger processingFee = new AtomicInteger(0);
+		AtomicInteger documentationCharges = new AtomicInteger(0);
 		memorandumSavedData.stream().forEach(action -> {
 			if (action.getMemoCode().equalsIgnoreCase("PROCESSING FEE")) {
 				if (action.getTxnIndicator().equals("accrual")) {
@@ -579,8 +584,19 @@ public class DynamicTemplateService {
 					processingFee.set(processingFee.get() - action.getTxnAmt());
 				}
 			} 
+			
+			 if (action.getMemoCode().equalsIgnoreCase("DOCUMENTATION CHARGES")
+						|| action.getMemoCode().equalsIgnoreCase("DOCUMENTATION FEE")) {
+					if (action.getTxnIndicator().equals("accrual")) {
+						documentationCharges.set(documentationCharges.get() + action.getTxnAmt());
+					} else {
+						documentationCharges.set(documentationCharges.get() - action.getTxnAmt());
+					}
+				}
 		});
-		return processingFee.get();
+		letterModel.setProcessingFee(String.valueOf(processingFee.get()));
+		letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
+		
 	}
 
 	private PrepaymentChargesModel getDataFromPrepaymentCharges(Map<String, Object> dataMap) {
@@ -659,7 +675,7 @@ public class DynamicTemplateService {
 	}
 
 	public List<String> returnVariablesList() {
-		return Arrays.asList("//~~Branch_Address~~//", "//~~Date~~//", "//~~To_Address~~//","//~~SRO~~//",
+		return Arrays.asList("//~~Branch_Address~~//", "//~~Date~~//", "//~~To_Address~~//",
 				"//~~Application_Number~~//", "//~~Loan_Amount~~//", "//~~Loan_Amount_In_Words~~//", "//~~Product~~//",
 				"//~~Purpose_of_Loan~~//", "//~~Term~~//", "//~~ROI~~//", "//~~EMI~~//",
 				"//~~Upfront_Processing_Fee~~//", "//~~Balance_Payable~~//", "//~~Documentation_Charges~~//",
@@ -672,11 +688,12 @@ public class DynamicTemplateService {
 				"//~~Bureau_Charges_Non_Individual_Customer~~//", "//~~Prepayment_Charges~~//",
 				"//~~Penal_Interest~~//", "//~~Cheque_Dishonour_Charges~~//", "//~~Cash_Handling_Charges_Table~~//",
 				"//~~MOTD_Title_Execution~~//", "//~~MOTD_Run_Day~~//", "//~~MOTD_Run_Month_Year~~//","//~~MOTD_Title~~//",
-				"//~~MOTD_Title_Holder_Name~~//", "//~~MOTD_Title_Holder_Aadhaar~~//", "//~~MOTD_Title_Holder_Age~~//",
-				"//~~MOTD_Title_Holder_Guardian~~//", "//~~MOTD_Title_Holder_Address~~//",
-				"//~~MOTD_Title_Holder_Name_1~~//", "//~~MOTD_Title_Holder_Aadhaar_1~~//", "//~~MOTD_Title_Holder_Age_1~~//",
-				"//~~MOTD_Title_Holder_Guardian_1~~//", "//~~MOTD_Title_Holder_Address_1~~//","//~~MOTD_OTD_Number~~//","//~~MOTD_Loan_details_table~~//",
-				"//~~MOTD_Registered_Date~~//", "//~~MOTD_Registered_Doc_no~~//", "//~~MOTD_Registered_Office~~//",
+
+				"//~~MOTD_Title~~//","//~~MOTD_Title_Holder_Name~~//", "//~~MOTD_Title_Holder_Aadhaar~~//", "//~~MOTD_Title_Holder_Age~~//",
+				"//~~MOTD_Title_Holder_Guardian~~//", "//~~MOTD_Title_Holder_Address~~//","//~~MOTD_OTD_Number~~//",
+				"//~~MOTD_Title_1~~//","//~~MOTD_Title_Holder_Name_1~~//", "//~~MOTD_Title_Holder_Aadhaar_1~~//", "//~~MOTD_Title_Holder_Age_1~~//",
+				"//~~MOTD_Title_Holder_Guardian_1~~//", "//~~MOTD_Title_Holder_Address_1~~//","//~~MOTD_OTD_Number_1~~//","//~~MOTD_Loan_details_table~~//",
+				"//~~Schedule_A_Table~~//","//~~MOTD_Registered_Date~~//", "//~~MOTD_Registered_Doc_no~~//", "//~~MOTD_Registered_Office~~//",
 				"//~~MOTD_Registered_Sub_Office~~//", "//~~MOTD_Clearance_Date~~//", "//~~MOTD_Favour_Of~~//",
 				"//~~MOTD_Sanction_Amount~~//", "//~~MOTD_Sanction_Amount_Words~~//", "//~~MOTD_Mortgage_Type~~//","//~~Schedule_Detail_Table~~//",
 				"//~~MOTD_SRO_District~~//","//~~MOTD_SRO~~//", "//~~MOTD_SRO_Place~~//", "//~~MOTD_District~~//", "//~~MOTD_Taluk~~//",
@@ -918,7 +935,7 @@ public class DynamicTemplateService {
 		});
 		cashHandlingChargesTables.append("</tbody></table>");
 		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
-		
+
 		return variablesValueMap;
 	}
 
@@ -1295,18 +1312,21 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~GST_Karnataka~~","1550"); 
 		variablesValueMap.put("~~GST_Tamilnadu~~", "1200");  
 		variablesValueMap.put("~~GST_Others~~", "2500"); 
-		getDataForMOTD(variablesValueMap,sanctionModel);
+		//getDataForMOTD(variablesValueMap,sanctionModel);
 		return variablesValueMap;
 	}
 
 	private void getDataForMOTD(Map<String, Object> variablesValueMap, LetterReportModel sanctionModel) {
 
 
+		variablesValueMap.put("~~MOTD_Title~~", sanctionModel.getTitle());
 		variablesValueMap.put("~~MOTD_Title_Holder_Name~~", sanctionModel.getTitleHolderName());
 		variablesValueMap.put("~~MOTD_Title_Holder_Aadhaar~~", sanctionModel.getAadharNo());
 		variablesValueMap.put("~~MOTD_Title_Holder_Age~~", sanctionModel.getAge());
 		variablesValueMap.put("~~MOTD_Title_Holder_Guardian~~", sanctionModel.getTitleHolderGuardianName());
 		variablesValueMap.put("~~MOTD_Title_Holder_Address~~", sanctionModel.getTitleHolderAddress());
+		variablesValueMap.put("~~MOTD_Title_Holder_Address~~", sanctionModel.getTitleHolderAddress());
+		variablesValueMap.put("~~MOTD_OTD_Number~~", sanctionModel.getOtdNumber());
 
 		variablesValueMap.put("~~MOTD_Title_Holder_Name_1~~", sanctionModel.getTitleHolderName1());
 		variablesValueMap.put("~~MOTD_Title_Holder_Aadhaar_1~~", sanctionModel.getAadharNo1());
@@ -1314,7 +1334,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~MOTD_Title_Holder_Guardian_1~~", sanctionModel.getTitleHolderGuardianName1());
 		variablesValueMap.put("~~MOTD_Title_Holder_Address_1~~", sanctionModel.getTitleHolderAddress1());
 		StringBuilder loanDetailsTable = new StringBuilder(
-				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">File Number</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Loan Amount (in Rs.)</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Rate (in %)</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Type</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Tenor</td></tr>");
+				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">File Number</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Loan Amount (in Rs.)</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Rate (in %)</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Type</td><td style=\\\\\\\\\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\\\\\\\\\" valign=\\\\\\\\\\\\\\\"top\\\\\\\\\\\\\\\" width=\\\\\\\\\\\\\\\"200\\\\\\\\\\\\\\\">Tenor</td></tr>");
 		loanDetailsTable.append(
 				"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
 		loanDetailsTable
@@ -1327,57 +1347,60 @@ public class DynamicTemplateService {
 		loanDetailsTable.append(sanctionModel.getNetRate());
 		loanDetailsTable.append(
 				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+		loanDetailsTable.append(sanctionModel.getRateTypeString());
+		loanDetailsTable.append(
+				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
 		loanDetailsTable.append(sanctionModel.getTerm());
 		loanDetailsTable.append("</td></tr>");
 		loanDetailsTable.append("</tbody></table>");
 		variablesValueMap.put("~~MOTD_Loan_details_table~~", loanDetailsTable.toString());
-		Map<String, List<ScheduleA>> scheduleAListMap = sanctionModel.getScheduleA();
-		if(scheduleAListMap.containsKey(sanctionModel.getTitleHolderName())) {
-			List<ScheduleA> scheduleAList = scheduleAListMap.get(sanctionModel.getTitleHolderName());
-			StringBuilder scheduleATable = new StringBuilder(
-					"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Date</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Title Holder</td></tr>");
-			scheduleAList.stream().forEach(item -> {
-				scheduleATable.append(
-						"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable
-				.append(item.getDocumentName());
-				scheduleATable.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable.append(item.getDocuemntNumber());
-				scheduleATable.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable.append(item.getDocumentDate());
-				scheduleATable.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable.append(item.getTitleHolderName());
-				scheduleATable.append("</td></tr>");
-			});
-			scheduleATable.append("</tbody></table>");
-			variablesValueMap.put("~~Schedule_A_Table~~", scheduleATable.toString());
-		}
-		if(scheduleAListMap.containsKey(sanctionModel.getTitleHolderName1())) {
-			List<ScheduleA> scheduleAList = scheduleAListMap.get(sanctionModel.getTitleHolderName1());
-			StringBuilder scheduleATable = new StringBuilder(
-					"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Date</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Title Holder</td></tr>");
-			scheduleAList.stream().forEach(item -> {
-				scheduleATable.append(
-						"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable
-				.append(item.getDocumentName());
-				scheduleATable.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable.append(item.getDocuemntNumber());
-				scheduleATable.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable.append(item.getDocumentDate());
-				scheduleATable.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				scheduleATable.append(item.getTitleHolderName());
-				scheduleATable.append("</td></tr>");
-			});
-			scheduleATable.append("</tbody></table>");
-			variablesValueMap.put("~~Schedule_A_Table_1~~", scheduleATable.toString());
-
+		List<ScheduleA> scheduleAListMap = sanctionModel.getScheduleA();
+		//if(scheduleAListMap.containsKey(sanctionModel.getTitleHolderName())) {
+		//List<ScheduleA> scheduleAList = scheduleAListMap.get(sanctionModel.getTitleHolderName());
+		StringBuilder scheduleATable = new StringBuilder(
+				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
+		scheduleAListMap.stream().forEach(item -> {
+			scheduleATable.append(
+					"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+			scheduleATable
+			.append(item.getDocumentName());
+			scheduleATable.append(
+					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+			scheduleATable.append(item.getDocuemntNumber());
+			scheduleATable.append(
+					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+			scheduleATable.append(item.getDocumentDate());
+			scheduleATable.append(
+					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+			scheduleATable.append(item.getTitleHolderName());
+			scheduleATable.append("</td></tr>");
+		});
+		scheduleATable.append("</tbody></table>");
+		variablesValueMap.put("~~Schedule_A_Table~~", scheduleATable.toString());
+		//}
+//		if(scheduleAListMap.containsKey(sanctionModel.getTitleHolderName1())) {
+			//List<ScheduleA> scheduleA1List = scheduleAListMap.get(sanctionModel.getTitleHolderName1());
+//			StringBuilder scheduleA1Table = new StringBuilder(
+//					"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Date</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\">Title Holder</td></tr>");
+//			scheduleAListMap.stream().forEach(item -> {
+//				scheduleA1Table.append(
+//						"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+//				scheduleA1Table
+//				.append(item.getDocumentName());
+//				scheduleA1Table.append(
+//						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+//				scheduleA1Table.append(item.getDocuemntNumber());
+//				scheduleA1Table.append(
+//						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+//				scheduleA1Table.append(item.getDocumentDate());
+//				scheduleA1Table.append(
+//						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+//				scheduleA1Table.append(item.getTitleHolderName());
+//				scheduleA1Table.append("</td></tr>");
+//			});
+//			scheduleA1Table.append("</tbody></table>");
+//			variablesValueMap.put("~~Schedule_A_Table_1~~", scheduleA1Table.toString());
+//		}
 			String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 			String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 			String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -1386,72 +1409,72 @@ public class DynamicTemplateService {
 			ScheduleB scheduleB = sanctionModel.getSchedleB();
 			Boundries boundries = sanctionModel.getBoundries();
 			Measurement measurement = sanctionModel.getMeasurement();
-			PropertyAddress propertyAddress = scheduleB.getPropertyAddress();
+		//	PropertyAddress propertyAddress = scheduleB.getPropertyAddress();
 
 
-			variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
-			variablesValueMap.put("~~MOTD_SRO_District~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat(scheduleB.getSroDistrict())); //
-			variablesValueMap.put("~~MOTD_SRO_Place~~", space30.concat(space30).concat(space5).concat(""));
-			variablesValueMap.put("~~MOTD_District~~", space30.concat(space30).concat("&nbsp;").concat(scheduleB.getDistrict()));
-			variablesValueMap.put("~~MOTD_Taluk~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB.getTaluk()));
-			variablesValueMap.put("~~MOTD_Village~~",  space30.concat(space30).concat("&nbsp;").concat(scheduleB.getVillage()));
-			variablesValueMap.put("~~MOTD_Survey_Additional_Survey~~",space20.concat("&nbsp;&nbsp;").concat(scheduleB.getSurveyNo()));
-			variablesValueMap.put("~~MOTD_Plot_No~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat(scheduleB.getPlotNo()));
-			variablesValueMap.put("~~MOTD_Door_No~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB.getDoorNo()));
-			variablesValueMap.put("~~MOTD_Project_Name~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-			variablesValueMap.put("~~MOTD_Flat_No~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-			variablesValueMap.put("~~MOTD_Floor~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(scheduleB.getFloorNo()));
-			variablesValueMap.put("~~MOTD_Block_No~~", space30.concat(space5).concat(scheduleB.getBlockNo()));
-			variablesValueMap.put("~~MOTD_Address_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(propertyAddress.getStreet()));
-			variablesValueMap.put("~~MOTD_Address_2~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-			variablesValueMap.put("~~MOTD_Address_3~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-			variablesValueMap.put("~~MOTD_Pin_Code~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress.getPinCode()));
-			variablesValueMap.put("~~MOTD_Land_Extent~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress.getLandExtent()));
-			variablesValueMap.put("~~MOTD_North_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getNorthBoundry()));
-			variablesValueMap.put("~~MOTD_South_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getSouthBoundry()));
-			variablesValueMap.put("~~MOTD_East_Boundary~~", space30.concat(space30).concat("&nbsp;").concat(boundries.getEastBoundry()));
-			variablesValueMap.put("~~MOTD_West_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getWestBoundry()));
-			variablesValueMap.put("~~MOTD_North_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getNorthMeasurement()));
-			variablesValueMap.put("~~MOTD_South_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getSouthMeasurement()));
-			variablesValueMap.put("~~MOTD_East_Measurement~~", space30.concat(space30).concat("&nbsp;").concat(measurement.getEastMeasurement()));
-			variablesValueMap.put("~~MOTD_West_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getSouthMeasurement()));
-
-			if(Objects.nonNull(sanctionModel.getSchedleB1())) {
-
-				ScheduleB scheduleB1 = sanctionModel.getSchedleB1();
-				Boundries boundries1 = sanctionModel.getBoundries1();
-				Measurement measurement1 = sanctionModel.getMeasurement1();
-				PropertyAddress propertyAddress1 = scheduleB1.getPropertyAddress();
-
-				variablesValueMap.put("~~MOTD_SRO_District_1~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat(scheduleB1.getSroDistrict())); //
-				variablesValueMap.put("~~MOTD_SRO_Place_1~~", space30.concat(space30).concat(space5).concat(""));
-				variablesValueMap.put("~~MOTD_District_1~~", space30.concat(space30).concat("&nbsp;").concat(scheduleB1.getDistrict()));
-				variablesValueMap.put("~~MOTD_Taluk_1~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB1.getTaluk()));
-				variablesValueMap.put("~~MOTD_Village_1~~",  space30.concat(space30).concat("&nbsp;").concat(scheduleB1.getVillage()));
-				variablesValueMap.put("~~MOTD_Survey_Additional_Survey_1~~",space20.concat("&nbsp;&nbsp;").concat(scheduleB1.getSurveyNo()));
-				variablesValueMap.put("~~MOTD_Plot_No_1~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat(scheduleB1.getPlotNo()));
-				variablesValueMap.put("~~MOTD_Door_No_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB1.getDoorNo()));
-				variablesValueMap.put("~~MOTD_Project_Name_1~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-				variablesValueMap.put("~~MOTD_Flat_No_1~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-				variablesValueMap.put("~~MOTD_Floor_1~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(scheduleB1.getFloorNo()));
-				variablesValueMap.put("~~MOTD_Block_No_1~~", space30.concat(space5).concat(scheduleB1.getBlockNo()));
-				variablesValueMap.put("~~MOTD_Address_1_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(propertyAddress1.getStreet()));
-				variablesValueMap.put("~~MOTD_Address_2_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-				variablesValueMap.put("~~MOTD_Address_3_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-				variablesValueMap.put("~~MOTD_Pin_Code_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress1.getPinCode()));
-				variablesValueMap.put("~~MOTD_Land_Extent_1~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress1.getLandExtent()));
-				variablesValueMap.put("~~MOTD_North_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getNorthBoundry()));
-				variablesValueMap.put("~~MOTD_South_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getSouthBoundry()));
-				variablesValueMap.put("~~MOTD_East_Boundary_1~~", space30.concat(space30).concat("&nbsp;").concat(boundries1.getEastBoundry()));
-				variablesValueMap.put("~~MOTD_West_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getWestBoundry()));
-				variablesValueMap.put("~~MOTD_North_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getNorthMeasurement()));
-				variablesValueMap.put("~~MOTD_South_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getSouthMeasurement()));
-				variablesValueMap.put("~~MOTD_East_Measurement_1~~", space30.concat(space30).concat("&nbsp;").concat(measurement1.getEastMeasurement()));
-				variablesValueMap.put("~~MOTD_West_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getSouthMeasurement()));
-
-			}
-
-		}
+//			variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
+//			variablesValueMap.put("~~MOTD_SRO_District~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat(scheduleB.getSroDistrict())); //
+//			variablesValueMap.put("~~MOTD_SRO_Place~~", space30.concat(space30).concat(space5).concat(""));
+//			variablesValueMap.put("~~MOTD_District~~", space30.concat(space30).concat("&nbsp;").concat(scheduleB.getDistrict()));
+//			variablesValueMap.put("~~MOTD_Taluk~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB.getTaluk()));
+//			variablesValueMap.put("~~MOTD_Village~~",  space30.concat(space30).concat("&nbsp;").concat(scheduleB.getVillage()));
+//			variablesValueMap.put("~~MOTD_Survey_Additional_Survey~~",space20.concat("&nbsp;&nbsp;").concat(scheduleB.getSurveyNo()));
+//			variablesValueMap.put("~~MOTD_Plot_No~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat(scheduleB.getPlotNo()));
+//			variablesValueMap.put("~~MOTD_Door_No~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB.getDoorNo()));
+//			variablesValueMap.put("~~MOTD_Project_Name~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
+//			variablesValueMap.put("~~MOTD_Flat_No~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
+//			variablesValueMap.put("~~MOTD_Floor~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(scheduleB.getFloorNo()));
+//			variablesValueMap.put("~~MOTD_Block_No~~", space30.concat(space5).concat(scheduleB.getBlockNo()));
+//		//	variablesValueMap.put("~~MOTD_Address_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(propertyAddress.getStreet()));
+//			variablesValueMap.put("~~MOTD_Address_2~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
+//			variablesValueMap.put("~~MOTD_Address_3~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
+//		//	variablesValueMap.put("~~MOTD_Pin_Code~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress.getPinCode()));
+//		//	variablesValueMap.put("~~MOTD_Land_Extent~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress.getLandExtent()));
+//			variablesValueMap.put("~~MOTD_North_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getNorthBoundry()));
+//			variablesValueMap.put("~~MOTD_South_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getSouthBoundry()));
+//			variablesValueMap.put("~~MOTD_East_Boundary~~", space30.concat(space30).concat("&nbsp;").concat(boundries.getEastBoundry()));
+//			variablesValueMap.put("~~MOTD_West_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getWestBoundry()));
+//			variablesValueMap.put("~~MOTD_North_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getNorthMeasurement()));
+//			variablesValueMap.put("~~MOTD_South_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getSouthMeasurement()));
+//			variablesValueMap.put("~~MOTD_East_Measurement~~", space30.concat(space30).concat("&nbsp;").concat(measurement.getEastMeasurement()));
+//			variablesValueMap.put("~~MOTD_West_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getSouthMeasurement()));
+//
+//			if(Objects.nonNull(sanctionModel.getSchedleB1())) {
+//
+//				ScheduleB scheduleB1 = sanctionModel.getSchedleB1();
+//				Boundries boundries1 = sanctionModel.getBoundries1();
+//				Measurement measurement1 = sanctionModel.getMeasurement1();
+//				PropertyAddress propertyAddress1 = scheduleB1.getPropertyAddress();
+//
+//				variablesValueMap.put("~~MOTD_SRO_District_1~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat(scheduleB1.getSroDistrict())); //
+//				variablesValueMap.put("~~MOTD_SRO_Place_1~~", space30.concat(space30).concat(space5).concat(""));
+//				variablesValueMap.put("~~MOTD_District_1~~", space30.concat(space30).concat("&nbsp;").concat(scheduleB1.getDistrict()));
+//				variablesValueMap.put("~~MOTD_Taluk_1~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB1.getTaluk()));
+//				variablesValueMap.put("~~MOTD_Village_1~~",  space30.concat(space30).concat("&nbsp;").concat(scheduleB1.getVillage()));
+//				variablesValueMap.put("~~MOTD_Survey_Additional_Survey_1~~",space20.concat("&nbsp;&nbsp;").concat(scheduleB1.getSurveyNo()));
+//				variablesValueMap.put("~~MOTD_Plot_No_1~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat(scheduleB1.getPlotNo()));
+//				variablesValueMap.put("~~MOTD_Door_No_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB1.getDoorNo()));
+//				variablesValueMap.put("~~MOTD_Project_Name_1~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
+//				variablesValueMap.put("~~MOTD_Flat_No_1~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
+//				variablesValueMap.put("~~MOTD_Floor_1~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(scheduleB1.getFloorNo()));
+//				variablesValueMap.put("~~MOTD_Block_No_1~~", space30.concat(space5).concat(scheduleB1.getBlockNo()));
+//				variablesValueMap.put("~~MOTD_Address_1_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(propertyAddress1.getStreet()));
+//				variablesValueMap.put("~~MOTD_Address_2_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
+//				variablesValueMap.put("~~MOTD_Address_3_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
+//				variablesValueMap.put("~~MOTD_Pin_Code_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress1.getPinCode()));
+//				variablesValueMap.put("~~MOTD_Land_Extent_1~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress1.getLandExtent()));
+//				variablesValueMap.put("~~MOTD_North_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getNorthBoundry()));
+//				variablesValueMap.put("~~MOTD_South_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getSouthBoundry()));
+//				variablesValueMap.put("~~MOTD_East_Boundary_1~~", space30.concat(space30).concat("&nbsp;").concat(boundries1.getEastBoundry()));
+//				variablesValueMap.put("~~MOTD_West_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getWestBoundry()));
+//				variablesValueMap.put("~~MOTD_North_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getNorthMeasurement()));
+//				variablesValueMap.put("~~MOTD_South_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getSouthMeasurement()));
+//				variablesValueMap.put("~~MOTD_East_Measurement_1~~", space30.concat(space30).concat("&nbsp;").concat(measurement1.getEastMeasurement()));
+//				variablesValueMap.put("~~MOTD_West_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getSouthMeasurement()));
+//
+//			
+//
+//		}
 
 	}
 
@@ -1898,141 +1921,141 @@ public class DynamicTemplateService {
 			}
 			setDocumentChargesValue(letterModel);
 
-//			PreparedStatement preparedStatement25 = connection.prepareStatement("Select A.Division_Code,A.Product_Code,A.Scheme_Code,B.Rate_Type"
-//					+ "    From Cc_Contract_Master A,"
-//					+ "      Cc_Contract_Rate_Details B"
-//					+ "    Where A.Contract_Number = B.Contract_Number"
-//					+ "    And B.Occurance_Number  ="
-//					+ "      (Select Max(C.Occurance_Number)"
-//					+ "      From Cc_Contract_Rate_Details C"
-//					+ "      Where C.Contract_Number = A.Contract_Number)"
-//					+ "    And A.Contract_Number = ?");
-//			preparedStatement25.setString(1,letterModel.getApplicationNumber());
-//			ResultSet resultSet25 = preparedStatement25.executeQuery();
-//			while (resultSet25.next()) {
-//				letterModel.setDivisionCode(resultSet25.getString(1));
-//				letterModel.setProductCode(resultSet25.getString(2));
-//				letterModel.setSchemeCode(resultSet25.getString(3));
-//				letterModel.setRateType(resultSet25.getString(4));
-//			}
-//			PreparedStatement preparedStatement26 = connection.prepareStatement("Select Decode(A.Product_Type,'I',1,'C',2)"
-//					+ " From Sa_Division_Master A"
-//					+ "  Where Product_Code = ?"
-//					+ "  And Division_Code  = ?");
-//			preparedStatement26.setString(1,letterModel.getProductCode());
-//			preparedStatement26.setString(2, letterModel.getDivisionCode());
-//			ResultSet resultSet26 = preparedStatement26.executeQuery();
-//			while (resultSet26.next()) {
-//				letterModel.setBorrower(resultSet26.getString(1));
-//			}
-//			PreparedStatement preparedStatement27 = connection.prepareStatement("Select Distinct Usage_Of_Loan_Code"
-//					+ "  From Hfs_Tb_End_Of_Usage_Loan"
-//					+ "  Where File_Number = ?");
-//			preparedStatement27.setString(1,letterModel.getContractNumber());
-//			ResultSet resultSet27 = preparedStatement27.executeQuery();
-//			List<Integer> codeList = new ArrayList<>();
-//			while (resultSet27.next()) {
-//				int code = resultSet27.getInt(1);
-//				codeList.add(code);
-//			}
-//			if(codeList.size()>1) {
-//				letterModel.setEndUseOfLoanCode("1");
-//			}else {
-//				letterModel.setEndUseOfLoanCode(null);
-//			}
-//			PreparedStatement preparedStatement28 = connection.prepareStatement("Select REFERENCE"
-//					+ " From Cc_Contract_Master"
-//					+ " Where CONTRACT_NUMBER = ?");
-//			preparedStatement28.setString(1,letterModel.getContractNumber());
-//			ResultSet resultSet28 = preparedStatement28.executeQuery();
-//			while (resultSet28.next()) {
-//				letterModel.setReference(resultSet28.getString(1));
-//			}
-//			if(letterModel.getReference().equals("T")&&Objects.isNull(letterModel.getEndUseOfLoanCode())) {
-//				PreparedStatement preparedStatement29 = connection.prepareStatement("Select Distinct Usage_Of_Loan_Code"
-//						+ "  From Hfs_Tb_End_Of_Usage_Loan"
-//						+ "  Where File_Number = (Select Acct_No From CC_Contract_Master Where Contract_number = ?)");
-//				preparedStatement29.setString(1,letterModel.getContractNumber());
-//				ResultSet resultSet29 = preparedStatement29.executeQuery();
-//				codeList.clear();
-//				while (resultSet29.next()) {
-//					int code = resultSet29.getInt(1);
-//					codeList.add(code);
-//				}
-//				if(codeList.size()>1) {
-//					letterModel.setEndUseOfLoanCode("1");
-//				}else {
-//					letterModel.setEndUseOfLoanCode(null);
-//				}
-//			}
-//			PreparedStatement preparedStatement30 = connection.prepareStatement("Select Prepayment_Percentage"
-//					+ "  From Hfs_Prepayment_Charge_Master A"
-//					+ "  Where A.Borrower_Type         = ?"
-//					+ "  And A.Business_Type           = ?"
-//					+ "  And A.Rate_Type               = ?"
-//					+ "  And A.Usage_Of_Loan           = ?"
-//					+ "  And A.Prepayment_Chrge_Reason = ?"
-//					+ "  And Effective_Date="
-//					+ " (Select Max(Effective_Date)"
-//					+ "  From Hfs_Prepayment_Charge_Master B"
-//					+ "  Where A.Borrower_Type         = B.Borrower_Type"
-//					+ "  And A.Business_Type           = B.Business_Type"
-//					+ "  And A.Rate_Type               = B.Rate_Type"
-//					+ "  And A.Usage_Of_Loan           = B.Usage_Of_Loan"
-//					+ "  And A.Prepayment_Chrge_Reason = B.Prepayment_Chrge_Reason)");
-//			preparedStatement30.setString(1,letterModel.getBorrower());
-//			preparedStatement30.setString(2, letterModel.getProductCode());
-//			preparedStatement30.setString(3, letterModel.getRateType());
-//			preparedStatement30.setString(4, letterModel.getEndUseOfLoanCode());
-//			preparedStatement30.setString(5, "");
-//			ResultSet resultSet30 = preparedStatement30.executeQuery();
-//			while (resultSet30.next()) {
-//				letterModel.setPrePaymentCharges(resultSet30.getString(1));
-//			}
-//			letterModel.setPrePaymentCharges("0");
-//			PreparedStatement preparedStatement31 = connection.prepareStatement("SELECT A.CHEQUE_BOUNCE_CHARGES FROM Sa_Product_Scheme_Dtls A ,Sa_Product_Scheme_Master_Hdr B"
-//					+ " WHERE A.Scheme_Code  =? AND A.Division_Code=?"
-//					+ "	AND A.Header_Key=B.Header_Key AND A.Effective_Date<=?"
-//					+ " AND A.Effective_Date ="
-//					+ "(SELECT MAX(Effective_Date) FROM Sa_Product_Scheme_Dtls"
-//					+ "  WHERE A.Header_Key =Header_Key AND Effective_Date<=?"
-//					+ "  AND ? BETWEEN Minimum_Term AND Maximum_Term"
-//					+ "  AND ? BETWEEN Minimum_Loan_Amount AND Maximum_Loan_Amount)"
-//					+ "  AND ? BETWEEN A.Minimum_Term AND A.Maximum_Term"
-//					+ "  AND ? BETWEEN A.Minimum_Loan_Amount AND A.Maximum_Loan_Amount");
-//			preparedStatement31.setString(1,letterModel.getSchemeCode() );
-//			preparedStatement31.setString(2, letterModel.getDivisionCode());
-//			preparedStatement31.setString(3, effectiveDate);
-//			preparedStatement31.setString(4, effectiveDate);
-//			preparedStatement31.setInt(5, letterModel.getTerm());
-//			preparedStatement31.setInt(6, letterModel.getAmountFinanced());
-//			preparedStatement31.setInt(7, letterModel.getTerm());
-//			preparedStatement31.setInt(8, letterModel.getAmountFinanced());
-//			ResultSet resultSet31 = preparedStatement31.executeQuery();
-//			while (resultSet31.next()) {
-//				letterModel.setChequeReturnCharges(resultSet31.getString(1));
-//			}
-//			PreparedStatement	preparedStatement32 = connection.prepareStatement("SELECT Cash_Hand_Charges,"
-//					+ "        Denomination"
-//					+ "      FROM Sa_Cash_Hand_Charges A"
-//					+ "      WHERE ? BETWEEN From_Receipt_Amount AND To_Receipt_Amount"
-//					+ "      AND A.Effective_Date ="
-//					+ "        (SELECT MAX (Effective_Date) FROM Sa_Cash_Hand_Charges B"
-//					+ "        )");
-//			preparedStatement32.setInt(1,letterModel.getAmountFinanced());
-//			ResultSet resultSet32 = preparedStatement32.executeQuery();
-//			List<CashHandlingChargesModel> cashHandlingList = new ArrayList<>();
-//			while (resultSet32.next()) { 
-//				CashHandlingChargesModel cashHandlingChargesModel = new CashHandlingChargesModel();
-//				String denomination = resultSet32.getString(2);
-//				if(denomination.equals("L")) {
-//					cashHandlingChargesModel.setCashHandlingCharges(0);
-//				}else if(denomination.equals("R")) {
-//					cashHandlingChargesModel.setCashHandlingCharges(resultSet32.getInt(1));
-//				}
-//				cashHandlingList.add(cashHandlingChargesModel);
-//			}
-//			letterModel.setCashHandlingCharges(cashHandlingList);
+			//			PreparedStatement preparedStatement25 = connection.prepareStatement("Select A.Division_Code,A.Product_Code,A.Scheme_Code,B.Rate_Type"
+			//					+ "    From Cc_Contract_Master A,"
+			//					+ "      Cc_Contract_Rate_Details B"
+			//					+ "    Where A.Contract_Number = B.Contract_Number"
+			//					+ "    And B.Occurance_Number  ="
+			//					+ "      (Select Max(C.Occurance_Number)"
+			//					+ "      From Cc_Contract_Rate_Details C"
+			//					+ "      Where C.Contract_Number = A.Contract_Number)"
+			//					+ "    And A.Contract_Number = ?");
+			//			preparedStatement25.setString(1,letterModel.getApplicationNumber());
+			//			ResultSet resultSet25 = preparedStatement25.executeQuery();
+			//			while (resultSet25.next()) {
+			//				letterModel.setDivisionCode(resultSet25.getString(1));
+			//				letterModel.setProductCode(resultSet25.getString(2));
+			//				letterModel.setSchemeCode(resultSet25.getString(3));
+			//				letterModel.setRateType(resultSet25.getString(4));
+			//			}
+			//			PreparedStatement preparedStatement26 = connection.prepareStatement("Select Decode(A.Product_Type,'I',1,'C',2)"
+			//					+ " From Sa_Division_Master A"
+			//					+ "  Where Product_Code = ?"
+			//					+ "  And Division_Code  = ?");
+			//			preparedStatement26.setString(1,letterModel.getProductCode());
+			//			preparedStatement26.setString(2, letterModel.getDivisionCode());
+			//			ResultSet resultSet26 = preparedStatement26.executeQuery();
+			//			while (resultSet26.next()) {
+			//				letterModel.setBorrower(resultSet26.getString(1));
+			//			}
+			//			PreparedStatement preparedStatement27 = connection.prepareStatement("Select Distinct Usage_Of_Loan_Code"
+			//					+ "  From Hfs_Tb_End_Of_Usage_Loan"
+			//					+ "  Where File_Number = ?");
+			//			preparedStatement27.setString(1,letterModel.getContractNumber());
+			//			ResultSet resultSet27 = preparedStatement27.executeQuery();
+			//			List<Integer> codeList = new ArrayList<>();
+			//			while (resultSet27.next()) {
+			//				int code = resultSet27.getInt(1);
+			//				codeList.add(code);
+			//			}
+			//			if(codeList.size()>1) {
+			//				letterModel.setEndUseOfLoanCode("1");
+			//			}else {
+			//				letterModel.setEndUseOfLoanCode(null);
+			//			}
+			//			PreparedStatement preparedStatement28 = connection.prepareStatement("Select REFERENCE"
+			//					+ " From Cc_Contract_Master"
+			//					+ " Where CONTRACT_NUMBER = ?");
+			//			preparedStatement28.setString(1,letterModel.getContractNumber());
+			//			ResultSet resultSet28 = preparedStatement28.executeQuery();
+			//			while (resultSet28.next()) {
+			//				letterModel.setReference(resultSet28.getString(1));
+			//			}
+			//			if(letterModel.getReference().equals("T")&&Objects.isNull(letterModel.getEndUseOfLoanCode())) {
+			//				PreparedStatement preparedStatement29 = connection.prepareStatement("Select Distinct Usage_Of_Loan_Code"
+			//						+ "  From Hfs_Tb_End_Of_Usage_Loan"
+			//						+ "  Where File_Number = (Select Acct_No From CC_Contract_Master Where Contract_number = ?)");
+			//				preparedStatement29.setString(1,letterModel.getContractNumber());
+			//				ResultSet resultSet29 = preparedStatement29.executeQuery();
+			//				codeList.clear();
+			//				while (resultSet29.next()) {
+			//					int code = resultSet29.getInt(1);
+			//					codeList.add(code);
+			//				}
+			//				if(codeList.size()>1) {
+			//					letterModel.setEndUseOfLoanCode("1");
+			//				}else {
+			//					letterModel.setEndUseOfLoanCode(null);
+			//				}
+			//			}
+			//			PreparedStatement preparedStatement30 = connection.prepareStatement("Select Prepayment_Percentage"
+			//					+ "  From Hfs_Prepayment_Charge_Master A"
+			//					+ "  Where A.Borrower_Type         = ?"
+			//					+ "  And A.Business_Type           = ?"
+			//					+ "  And A.Rate_Type               = ?"
+			//					+ "  And A.Usage_Of_Loan           = ?"
+			//					+ "  And A.Prepayment_Chrge_Reason = ?"
+			//					+ "  And Effective_Date="
+			//					+ " (Select Max(Effective_Date)"
+			//					+ "  From Hfs_Prepayment_Charge_Master B"
+			//					+ "  Where A.Borrower_Type         = B.Borrower_Type"
+			//					+ "  And A.Business_Type           = B.Business_Type"
+			//					+ "  And A.Rate_Type               = B.Rate_Type"
+			//					+ "  And A.Usage_Of_Loan           = B.Usage_Of_Loan"
+			//					+ "  And A.Prepayment_Chrge_Reason = B.Prepayment_Chrge_Reason)");
+			//			preparedStatement30.setString(1,letterModel.getBorrower());
+			//			preparedStatement30.setString(2, letterModel.getProductCode());
+			//			preparedStatement30.setString(3, letterModel.getRateType());
+			//			preparedStatement30.setString(4, letterModel.getEndUseOfLoanCode());
+			//			preparedStatement30.setString(5, "");
+			//			ResultSet resultSet30 = preparedStatement30.executeQuery();
+			//			while (resultSet30.next()) {
+			//				letterModel.setPrePaymentCharges(resultSet30.getString(1));
+			//			}
+			//			letterModel.setPrePaymentCharges("0");
+			//			PreparedStatement preparedStatement31 = connection.prepareStatement("SELECT A.CHEQUE_BOUNCE_CHARGES FROM Sa_Product_Scheme_Dtls A ,Sa_Product_Scheme_Master_Hdr B"
+			//					+ " WHERE A.Scheme_Code  =? AND A.Division_Code=?"
+			//					+ "	AND A.Header_Key=B.Header_Key AND A.Effective_Date<=?"
+			//					+ " AND A.Effective_Date ="
+			//					+ "(SELECT MAX(Effective_Date) FROM Sa_Product_Scheme_Dtls"
+			//					+ "  WHERE A.Header_Key =Header_Key AND Effective_Date<=?"
+			//					+ "  AND ? BETWEEN Minimum_Term AND Maximum_Term"
+			//					+ "  AND ? BETWEEN Minimum_Loan_Amount AND Maximum_Loan_Amount)"
+			//					+ "  AND ? BETWEEN A.Minimum_Term AND A.Maximum_Term"
+			//					+ "  AND ? BETWEEN A.Minimum_Loan_Amount AND A.Maximum_Loan_Amount");
+			//			preparedStatement31.setString(1,letterModel.getSchemeCode() );
+			//			preparedStatement31.setString(2, letterModel.getDivisionCode());
+			//			preparedStatement31.setString(3, effectiveDate);
+			//			preparedStatement31.setString(4, effectiveDate);
+			//			preparedStatement31.setInt(5, letterModel.getTerm());
+			//			preparedStatement31.setInt(6, letterModel.getAmountFinanced());
+			//			preparedStatement31.setInt(7, letterModel.getTerm());
+			//			preparedStatement31.setInt(8, letterModel.getAmountFinanced());
+			//			ResultSet resultSet31 = preparedStatement31.executeQuery();
+			//			while (resultSet31.next()) {
+			//				letterModel.setChequeReturnCharges(resultSet31.getString(1));
+			//			}
+			//			PreparedStatement	preparedStatement32 = connection.prepareStatement("SELECT Cash_Hand_Charges,"
+			//					+ "        Denomination"
+			//					+ "      FROM Sa_Cash_Hand_Charges A"
+			//					+ "      WHERE ? BETWEEN From_Receipt_Amount AND To_Receipt_Amount"
+			//					+ "      AND A.Effective_Date ="
+			//					+ "        (SELECT MAX (Effective_Date) FROM Sa_Cash_Hand_Charges B"
+			//					+ "        )");
+			//			preparedStatement32.setInt(1,letterModel.getAmountFinanced());
+			//			ResultSet resultSet32 = preparedStatement32.executeQuery();
+			//			List<CashHandlingChargesModel> cashHandlingList = new ArrayList<>();
+			//			while (resultSet32.next()) { 
+			//				CashHandlingChargesModel cashHandlingChargesModel = new CashHandlingChargesModel();
+			//				String denomination = resultSet32.getString(2);
+			//				if(denomination.equals("L")) {
+			//					cashHandlingChargesModel.setCashHandlingCharges(0);
+			//				}else if(denomination.equals("R")) {
+			//					cashHandlingChargesModel.setCashHandlingCharges(resultSet32.getInt(1));
+			//				}
+			//				cashHandlingList.add(cashHandlingChargesModel);
+			//			}
+			//			letterModel.setCashHandlingCharges(cashHandlingList);
 
 		}catch (Exception e) {
 			e.printStackTrace();
@@ -2055,139 +2078,120 @@ public class DynamicTemplateService {
 		List<Boundries> boundriesList = new ArrayList<>();
 		List<Measurement> measureList = new ArrayList<>();
 		List<ScheduleB> scheduleBList = new ArrayList<>();
+		
+		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
 		try {
 			connection = currentDataSource.getConnection();
 			if(Objects.nonNull(letterModel.getRateType())) {
-				PreparedStatement preparedStatement1 = connection.prepareStatement("Select Rate_Type, Rate_Type_Desc From Sa_Rate_Type_Dir; where Rate_Type=?");
+				PreparedStatement preparedStatement1 = connection.prepareStatement("Select Rate_Type, Rate_Type_Desc From Sa_Rate_Type_Dir where Rate_Type=?");
 				preparedStatement1.setString(1, letterModel.getRateType());
 				ResultSet resultSet1 = preparedStatement1.executeQuery();
 				while (resultSet1.next()) {
 					letterModel.setRateTypeString(resultSet1.getString(2));
 				}
 			}
-			List<Map<String,String>> titleHolderNameList = new ArrayList<>();
-			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT share_customer_code, Title_Holder_Name, Customer_Code, property_number FROM Sa_Customer_Property_Share WHERE customer_code = ? AND share_customer_code IN ( SELECT share_customer_code FROM Sa_Customer_Property_Share WHERE customer_code = ? GROUP BY share_customer_code HAVING COUNT(DISTINCT property_number) = 1 )");
-			preparedStatement2.setString(1, letterModel.getCustomerCode());
-			preparedStatement2.setString(2, letterModel.getCustomerCode());
-			ResultSet resultSet14 = preparedStatement2.executeQuery();
-			List<String> shareCodeList = new ArrayList<>();
-			while (resultSet14.next()) {
-				Map<String,String> customerData = new HashMap<>();
-				customerData.put("shareCustomerCode", resultSet14.getString(1));
-				customerData.put("titleHolderName", resultSet14.getString(2));
-				customerData.put("customerCode", resultSet14.getString(3));
-				customerData.put("propertyNumber", resultSet14.getString(4));
-				titleHolderNameList.add(customerData);
-				shareCodeList.add(resultSet14.getString(1));
-				letterModel.setPropertyNumber(resultSet14.getInt(4));
+			//property main
+			List<PropertyNumberModel> propertyNumberModelList = new ArrayList<>();
+			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=?");
+			preparedStatement2.setString(1, letterModel.getContractNumber());
+			ResultSet resultSet2 = preparedStatement2.executeQuery();
+			while (resultSet2.next()) {
+				PropertyNumberModel propertyNumberModel = new PropertyNumberModel();
+				propertyNumberModel.setPropertyCustomerCode(resultSet2.getString(1));
+				propertyNumberModel.setPropertyNumber(resultSet2.getInt(2));
+				propertyNumberModelList.add(propertyNumberModel);
 			}
-			getTitlHolderName(titleHolderNameList,letterModel);
-			letterModel.setCustomerShareCode(shareCodeList);
-			PreparedStatement preparedStatement3 = connection.prepareStatement("SELECT CUM_AADHAR_NO FROM sa_customer_master where cum_customer_code=?");
-			if(shareCodeList.size()>1) {
-				//aadharNo
-				preparedStatement3.setString(1, shareCodeList.get(0));
-				ResultSet resultSet2 = preparedStatement3.executeQuery();
-				while (resultSet2.next()) {
-					letterModel.setAadharNo(resultSet2.getString(1));
+			propertyDetailModel.setPropertyNumberModelList(propertyNumberModelList);
+			//share detail
+			List<TitleHolderDetail> titleHolderList = new ArrayList<>();
+			propertyNumberModelList.stream().forEach(propertyNumberModel->{
+				PreparedStatement preparedStatement3;
+				try {
+					 Connection connection1 = currentDataSource.getConnection();
+					preparedStatement3 = connection1.prepareStatement("Select share_customer_code ,Title_Holder_Name, Customer_Code,property_number"
+							+ " From Sa_Customer_Property_Share where customer_code=? and property_number =1");
+				
+				preparedStatement3.setString(1, propertyNumberModel.getPropertyCustomerCode());
+				preparedStatement3.setInt(2, propertyNumberModel.getPropertyNumber());
+				ResultSet resultSet3 = preparedStatement3.executeQuery();
+				while (resultSet3.next()) {
+					TitleHolderDetail titleHolderDetail = new TitleHolderDetail();
+					titleHolderDetail.setCustomerShareCode(resultSet3.getString(1));
+					titleHolderDetail.setTitleHolderName(resultSet3.getString(2));
+					titleHolderDetail.setCustomerCode(resultSet3.getString(3));
+					//title
+					PreparedStatement preparedStatement4 = connection1.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L"
+							+ " FROM Sa_Customer_Master A Where CUM_Customer_Code = ?");
+					preparedStatement4.setString(1, titleHolderDetail.getCustomerShareCode());
+					ResultSet resultSet4 = preparedStatement4.executeQuery();
+					while (resultSet4.next()) {
+						titleHolderDetail.setTitle(resultSet4.getString(1));
+					}
+					//aadhar
+					PreparedStatement preparedStatement5 = connection1.prepareStatement("SELECT CUM_AADHAR_NO FROM sa_customer_master where cum_customer_code=?");
+					preparedStatement5.setString(1, titleHolderDetail.getCustomerShareCode());
+					ResultSet resultSet5 = preparedStatement5.executeQuery();
+					while (resultSet5.next()) {
+						titleHolderDetail.setTitleAadharNo(resultSet5.getString(1));
+					}
+					//age
+					PreparedStatement preparedStatement6 = connection1.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
+					preparedStatement6.setString(1, titleHolderDetail.getCustomerShareCode());
+					ResultSet resultSet6 = preparedStatement6.executeQuery();
+					while (resultSet6.next()) {
+						titleHolderDetail.setDateOfBirth(resultSet6.getString(1));
+						int age =getAgeFromDate(letterModel);
+						titleHolderDetail.setAge(age);
+					}
+					//address
+					PreparedStatement preparedStatement7 = (PreparedStatement) prepareStatementList.get("preparedStatement18");
+					preparedStatement7.setString(1, titleHolderDetail.getCustomerShareCode());
+					ResultSet resultSet7 = preparedStatement7.executeQuery();
+					setOtherAddress(resultSet7,prepareStatementList,titleHolderDetail);
+					titleHolderList.add(titleHolderDetail);
 				}
-				//aadharNo1
-				preparedStatement3.setString(1, shareCodeList.get(1));
-				resultSet2 = preparedStatement3.executeQuery();
-				while (resultSet2.next()) {
-					letterModel.setAadharNo1(resultSet2.getString(1));
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-			}else if(shareCodeList.size()==1) {
-				//aadharNo
-				preparedStatement3.setString(1, shareCodeList.get(0));
-				ResultSet resultSet2 = preparedStatement3.executeQuery();
-				while (resultSet2.next()) {
-					letterModel.setAadharNo(resultSet2.getString(1));
-				}
-			}
-
-
-			PreparedStatement preparedStatement4 = connection.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
-			if(shareCodeList.size()>1) {
-				//age
-				preparedStatement4.setString(1, shareCodeList.get(0));
-				ResultSet resultSet4 = preparedStatement4.executeQuery();
-				while (resultSet4.next()) {
-					letterModel.setDateOfBirth(resultSet4.getString(1));
-					int age =getAgeFromDate(letterModel);
-					letterModel.setAge(age);
-
-				}
-				preparedStatement4.setString(1, shareCodeList.get(1));
-				resultSet4 = preparedStatement4.executeQuery();
-				while (resultSet4.next()) {
-					letterModel.setDateOfBirth(resultSet4.getString(1));
-					int age = getAgeFromDate(letterModel);
-					letterModel.setAge1(age);
-				}
-			}else if(shareCodeList.size()==1) {
-				preparedStatement4.setString(1, shareCodeList.get(0));
-				ResultSet resultSet4 = preparedStatement4.executeQuery();
-				while (resultSet4.next()) {
-					letterModel.setDateOfBirth(resultSet4.getString(1));
-					int age = getAgeFromDate(letterModel);
-					letterModel.setAge(age);
-				}
-			}
-
-			PreparedStatement preparedStatement5 = connection.prepareStatement("SELECT OTD_CATG_CODE FROM Dc_Legal_Document_Hdr WHERE Contract_Number = ?");
-			preparedStatement5.setString(1, shareCodeList.get(0));
-			ResultSet resultSet5 = preparedStatement5.executeQuery();
-			while (resultSet5.next()) {
-				letterModel.setOtdNumber(resultSet5.getString(1));
-			}
-			PreparedStatement preparedStatement18 = (PreparedStatement) prepareStatementList.get("preparedStatement18");
-			ResultSet resultSet18 = null;
-			ResultSet resultSet18_1 = null;
-			if(shareCodeList.size()>1) {
-				preparedStatement18.setString(1, shareCodeList.get(0));
-				resultSet18 = preparedStatement18.executeQuery();
-				setOtherAddress(resultSet18,prepareStatementList,letterModel);
-
-				preparedStatement18.setString(1, shareCodeList.get(1));
-				resultSet18_1 = preparedStatement18.executeQuery();
-				setOtherAddress(resultSet18_1,prepareStatementList,letterModel);
-
-			}else if(shareCodeList.size()==1) {
-				preparedStatement18.setString(1, shareCodeList.get(0));
-				resultSet18 = preparedStatement18.executeQuery();
-				setOtherAddress(resultSet18,prepareStatementList,letterModel);
-
+			});
+			propertyDetailModel.setTitleHolderDetailList(titleHolderList);
+			
+			PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT OTD_CATG_CODE FROM Dc_Legal_Document_Hdr WHERE Contract_Number = ? and property_number=? and customer_Code=?");
+			preparedStatement6.setString(1, letterModel.getContractNumber());
+			ResultSet resultSet6 = preparedStatement6.executeQuery();
+			while (resultSet6.next()) {
+				letterModel.setOtdNumber(resultSet6.getString(1));
 			}
 
 			//
-			PreparedStatement preparedStatement6 = connection.prepareStatement("Select Contract_Number,Bounded_North,"
+			PreparedStatement preparedStatement7 = connection.prepareStatement("Select Contract_Number,Bounded_North,"
 					+ " Bounded_South, Bounded_East, Bounded_West ,"
 					+ " Survey, Plot, Door_No, Building_Society_Name, State_Name, District, Taluk_Tehsil,"
 					+ " Town, Village, Sro, City_Code From cc_property_category_dtls_auth where contract_number=?");
-			preparedStatement6.setString(1, letterModel.getContractNumber());
-			ResultSet resultSet3 = preparedStatement6.executeQuery();
+			preparedStatement7.setString(1, letterModel.getContractNumber());
+			ResultSet resultSet7 = preparedStatement7.executeQuery();
 			ScheduleB scheduleB = new ScheduleB();
-			while (resultSet3.next()) {
+			while (resultSet7.next()) {
 				Boundries boundries = new Boundries();
-				boundries.setNorthBoundry(resultSet3.getString(2));
-				boundries.setSouthBoundry(resultSet3.getString(3));
-				boundries.setEastBoundry(resultSet3.getString(4));
-				boundries.setWestBoundry(resultSet3.getString(5));
+				boundries.setNorthBoundry(resultSet7.getString(2));
+				boundries.setSouthBoundry(resultSet7.getString(3));
+				boundries.setEastBoundry(resultSet7.getString(4));
+				boundries.setWestBoundry(resultSet7.getString(5));
 				letterModel.setBoundries(boundries);
 
-				scheduleB.setSurveyNo(resultSet3.getString(6));
-				scheduleB.setPlotNo(resultSet3.getString(7));
-				scheduleB.setDoorNo(resultSet3.getString(8));
-				scheduleB.setBuildingSocietyName(resultSet3.getString(9));
-				scheduleB.setStateName(resultSet3.getString(10));
-				scheduleB.setDistrict(resultSet3.getString(11));
-				scheduleB.setTaluk(resultSet3.getString(12));
-				scheduleB.setTown(resultSet3.getString(13));
-				scheduleB.setVillage(resultSet3.getString(14));
-				scheduleB.setSro(resultSet3.getString(15));
-				scheduleB.setCityCode(resultSet3.getString(15));
-				letterModel.setSRO(resultSet3.getString(15));
+				scheduleB.setSurveyNo(resultSet7.getString(6));
+				scheduleB.setPlotNo(resultSet7.getString(7));
+				scheduleB.setDoorNo(resultSet7.getString(8));
+				scheduleB.setBuildingSocietyName(resultSet7.getString(9));
+				scheduleB.setStateName(resultSet7.getString(10));
+				scheduleB.setDistrict(resultSet7.getString(11));
+				scheduleB.setTaluk(resultSet7.getString(12));
+				scheduleB.setTown(resultSet7.getString(13));
+				scheduleB.setVillage(resultSet7.getString(14));
+				scheduleB.setSro(resultSet7.getString(15));
+				scheduleB.setCityCode(resultSet7.getString(15));
+				letterModel.setSRO(resultSet7.getString(15));
 			}
 
 			PreparedStatement preparedStatement16 = connection.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
@@ -2259,32 +2263,38 @@ public class DynamicTemplateService {
 			}
 
 			List<ScheduleA> scheduleAList = new ArrayList<>();
-			PreparedStatement preparedStatement11 = connection.prepareStatement("Select Contract_Number, Document_Id Doc_Id,"
-					+ " Collection_Date,  Document_Number, Title_Holder_Name, "
-					+ " Document_Type, Document_Date"
-					+ " From Dc_Document_Processing where Contract_Number=?");
+			PreparedStatement preparedStatement11 = connection.prepareStatement("SELECT CONTRACT_NUMBER, DOCUMENT_ID DOC_ID,"
+					+ " COLLECTION_DATE, ORIGINAL_DOCUMENT, DOCUMENT_NUMBER, TITLE_HOLDER_NAME, DOCUMENT_TYPE, DOCUMENT_DATE"
+					+ " FROM DC_DOCUMENT_PROCESSING WHERE CONTRACT_NUMBER=?");
 			preparedStatement11.setString(1, letterModel.getContractNumber());
 			ResultSet resultSet11 = preparedStatement11.executeQuery();
 			while (resultSet11.next()) {
-				ScheduleA scheduleA = new ScheduleA();
-				scheduleA.setDocumentId(resultSet11.getString(2));
-				scheduleA.setCollectionDate(resultSet11.getString(3));
-				scheduleA.setDocuemntNumber(resultSet11.getString(4));
-				scheduleA.setTitleHolderName(Objects.nonNull(resultSet11.getString(5))?resultSet11.getString(5):"");
-				scheduleA.setDocmentType(resultSet11.getString(6));
-				scheduleA.setDocumentDate(resultSet11.getString(7));
+				List<String> documentIdList = scheduleAList.stream().map(sch->{
+					return sch.getDocumentId();
+				}).collect(Collectors.toList());
+				if(!documentIdList.contains(resultSet11.getString(2))) {
 
-				PreparedStatement preparedStatement12 = connection.prepareStatement("Select Dty_Document_Id Doc_Id, Dty_Document_Desc Document_Name "
-						+ "From Sa_Document_Type_Master where Dty_Document_Id=?");
-				preparedStatement12.setString(1, scheduleA.getDocumentId());
-				ResultSet resultSet12 = preparedStatement12.executeQuery();
-				while (resultSet12.next()) {
-					scheduleA.setDocumentName(resultSet12.getString(2));
+					ScheduleA scheduleA = new ScheduleA();
+					scheduleA.setDocumentId(resultSet11.getString(2));
+					scheduleA.setCollectionDate(resultSet11.getString(3));
+					scheduleA.setOriginalDocument(resultSet11.getString(4));
+					scheduleA.setDocuemntNumber(resultSet11.getString(5));
+					scheduleA.setTitleHolderName(Objects.nonNull(resultSet11.getString(6))?resultSet11.getString(6):"");
+					scheduleA.setDocmentType(resultSet11.getString(7));
+					scheduleA.setDocumentDate(resultSet11.getString(8));
+
+					PreparedStatement preparedStatement12 = connection.prepareStatement("Select Dty_Document_Id Doc_Id, Dty_Document_Desc Document_Name "
+							+ "From Sa_Document_Type_Master where Dty_Document_Id=?");
+					preparedStatement12.setString(1, scheduleA.getDocumentId());
+					ResultSet resultSet12 = preparedStatement12.executeQuery();
+					while (resultSet12.next()) {
+						scheduleA.setDocumentName(resultSet12.getString(2));
+					}
+					scheduleAList.add(scheduleA);
 				}
-				scheduleAList.add(scheduleA);
 			}
-			Map<String, List<ScheduleA>> scheduleMap = scheduleAList.stream().collect(Collectors.groupingBy(ScheduleA::getTitleHolderName)); 
-			letterModel.setScheduleA(scheduleMap);
+			//Map<String, List<ScheduleA>> scheduleMap = scheduleAList.stream().collect(Collectors.groupingBy(ScheduleA::getTitleHolderName)); 
+			letterModel.setScheduleA(scheduleAList);
 
 			PreparedStatement preparedStatement34 = connection.prepareStatement("Select North_By,South_By,East_By,West_By,"
 					+ "North_By_Measurements,South_By_Measurements,"
@@ -2315,18 +2325,13 @@ public class DynamicTemplateService {
 
 	}
 
-	private void setOtherAddress(ResultSet resultSet18,  Map<String, Object> prepareStatementList, LetterReportModel letterModel) {
+	private void setOtherAddress(ResultSet resultSet18,  Map<String, Object> prepareStatementList, TitleHolderDetail titleHolderDetail) {
 		CustomerAddress customerAddress = new CustomerAddress();
-		dynamicDataSourceService.switchToOracleDataSource();
-		// Use the current datasource to fetch data
-		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
-		Connection connection = null;
 		PreparedStatement preparedStatement19 = (PreparedStatement) prepareStatementList.get("preparedStatement19");
 		PreparedStatement preparedStatement20 = (PreparedStatement) prepareStatementList.get("preparedStatement20");
 		PreparedStatement preparedStatement21 = (PreparedStatement) prepareStatementList.get("preparedStatement21");
 		PreparedStatement preparedStatement22 = (PreparedStatement) prepareStatementList.get("preparedStatement22");
 		try {
-			connection = currentDataSource.getConnection();
 			while (resultSet18.next()) {
 				customerAddress.setStreet(resultSet18.getString(1));
 				customerAddress.setAddress1(resultSet18.getString(2));
@@ -2367,27 +2372,17 @@ public class DynamicTemplateService {
 			while (resultSet22.next()) {
 				customerAddress.setCountry(resultSet22.getString(1));
 			}
-			appendTitleHolderAddress(customerAddress,letterModel);
+			appendTitleHolderAddress(customerAddress,titleHolderDetail);
 		}catch (Exception e) {
 			// TODO: handle exception
-		}finally {
-			try {
-				if(connection!=null) {
-
-					connection.close();
-				}
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
 
 	}
 
-	private void appendTitleHolderAddress(CustomerAddress customerAddress, LetterReportModel letterModel) {
+	private void appendTitleHolderAddress(CustomerAddress customerAddress, TitleHolderDetail titleHolderDetail) {
 		String customerAddressString=	customerAddress.getStreet()+customerAddress.getAddress1()+customerAddress.getAddress7()+customerAddress.getLocation()+
 				customerAddress.getCity()+"-"+customerAddress.getZipCode()+customerAddress.getState()+customerAddress.getCountry();
-		letterModel.setCustomerAddress(customerAddressString);
+		titleHolderDetail.setTitleHolderAddress(customerAddressString);
 	}
 
 	private void getTitlHolderName(List<Map<String, String>> titleHolderNameList, LetterReportModel letterModel) {
@@ -2639,24 +2634,10 @@ public class DynamicTemplateService {
 
 				dataMap.put("applicationNum",letterModel.getApplicationNumber());
 				dataMap.put("type", "accrual");
-				//get processingfee
-				int processingFeeData =  getFeeDataForLetterGeneration(dataMap);
-				letterModel.setProcessingFee(String.valueOf(processingFeeData));
+				//get processingfee & documentation charges
+				 getFeeDataForLetterGeneration(dataMap,letterModel);
 
-				//documentation charges
-				ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
-						.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-						.toEntity(Map.class).block();
-				List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
-				AtomicInteger documentationCharges = new AtomicInteger();
-				feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
-				.forEach(item -> {
-					int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
-					documentationCharges.set(tempValue);
-				});
-				letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
 				try {
-
 					// Amort Calculation for Balance Payable
 					Calendar calendar = Calendar.getInstance();
 					Date currentDate = getDate(calendar.getTime());
@@ -2692,14 +2673,14 @@ public class DynamicTemplateService {
 				letterModel.setCashHandlingCharges(cashHandlingChargesList);
 
 				// Prepayment Charges Calculation
-				dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
-				PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
-				String prepaymentCharge = "";
-				if(prepaymentModel!=null ) {
-					prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
-					letterModel.setProduct(prepaymentModel.getProduct());
-				}
-				letterModel.setPrePaymentCharges(prepaymentCharge);
+//				dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
+//				PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
+//				String prepaymentCharge = "";
+//				if(prepaymentModel!=null ) {
+//					prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
+//					letterModel.setProduct(prepaymentModel.getProduct());
+//				}
+//				letterModel.setPrePaymentCharges(prepaymentCharge);
 
 				// ChequeReturnCharges Calculation
 				//				dataMap.put("parameterName", "ChequeReturnCharges");

@@ -57,11 +57,13 @@ public class LetterReportModel {
 	private String lifeInsurance;
 	private int moratoriumPeriod;
 	//motd
+	private String title; 
 	private String aadharNo;
 	private String titleHolderName; 
 	private String titleHolderGuardianName; 
 	private String dateOfBirth; 
 	private Integer age; 
+	private String title1; 
 	private String aadharNo1;
 	private String titleHolderName1; 
 	private String titleHolderGuardianName1; 
@@ -71,7 +73,7 @@ public class LetterReportModel {
 	private String SRO; 
 	private String rateType;
 	private String rateTypeString;
-	private Map<String,List<ScheduleA>> scheduleA;
+	private List<ScheduleA> scheduleA;
 	private ScheduleB schedleB;
 	private ScheduleB schedleB1;
 	private Measurement measurement;
