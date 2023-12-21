@@ -2119,6 +2119,7 @@ public class DynamicTemplateService {
 					titleHolderDetail.setCustomerShareCode(resultSet3.getString(1));
 					titleHolderDetail.setTitleHolderName(resultSet3.getString(2));
 					titleHolderDetail.setCustomerCode(resultSet3.getString(3));
+					titleHolderDetail.setPropertyNumber(resultSet3.getInt(4));
 					//title
 					PreparedStatement preparedStatement4 = connection1.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L"
 							+ " FROM Sa_Customer_Master A Where CUM_Customer_Code = ?");
@@ -2149,6 +2150,7 @@ public class DynamicTemplateService {
 					ResultSet resultSet7 = preparedStatement7.executeQuery();
 					setOtherAddress(resultSet7,prepareStatementList,titleHolderDetail);
 					titleHolderList.add(titleHolderDetail);
+					
 				}
 				} catch (SQLException e) {
 					// TODO Auto-generated catch block
@@ -2156,13 +2158,24 @@ public class DynamicTemplateService {
 				}
 			});
 			propertyDetailModel.setTitleHolderDetailList(titleHolderList);
-			
-			PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT OTD_CATG_CODE FROM Dc_Legal_Document_Hdr WHERE Contract_Number = ? and property_number=? and customer_Code=?");
-			preparedStatement6.setString(1, letterModel.getContractNumber());
-			ResultSet resultSet6 = preparedStatement6.executeQuery();
-			while (resultSet6.next()) {
-				letterModel.setOtdNumber(resultSet6.getString(1));
-			}
+			titleHolderList.stream().forEach(titleHolderDetail->{
+				//otd Number
+				PreparedStatement preparedStatement8;
+				try {
+					Connection connection2 = currentDataSource.getConnection();
+					preparedStatement8 = connection2.prepareStatement("SELECT OTD_CATG_CODE FROM Dc_Legal_Document_Hdr WHERE Contract_Number = ? and property_number=? and customer_Code=?");
+					preparedStatement8.setString(1, letterModel.getContractNumber());
+					preparedStatement8.setInt(2, titleHolderDetail.getPropertyNumber());
+					preparedStatement8.setString(3, titleHolderDetail.getCustomerShareCode());
+					ResultSet resultSet8 = preparedStatement8.executeQuery();
+					while (resultSet8.next()) {
+						letterModel.setOtdNumber(resultSet8.getString(1));
+					}
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			});
 
 			//
 			PreparedStatement preparedStatement7 = connection.prepareStatement("Select Contract_Number,Bounded_North,"
@@ -2637,32 +2650,32 @@ public class DynamicTemplateService {
 				//get processingfee & documentation charges
 				 getFeeDataForLetterGeneration(dataMap,letterModel);
 
-				try {
-					// Amort Calculation for Balance Payable
-					Calendar calendar = Calendar.getInstance();
-					Date currentDate = getDate(calendar.getTime());
-					calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
-					DateFormat dateFormatforReqDate = new SimpleDateFormat("MM/dd/yyyy");
-					Date dates = new Date();
-					String dateValue = dateFormatforReqDate.format(dates);
-					Double balancePayable = 0.0;
-					Date dueStartDate = getDate(calendar.getTime());
-					dataMap.put("requestedDate", dateValue);
-
-					ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
-							.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
-							.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
-							.block();
-					if(Objects.nonNull(amortDataResponse)) {
-						List<Amort> amortData = amortDataResponse.getBody();
-						if(Objects.nonNull(amortData) && !amortData.isEmpty()) {
-							balancePayable = amortData.stream().mapToDouble(Amort::getEmiDue).sum();
-							letterModel.setBalancePayable(String.valueOf(balancePayable));
-						}
-					}
-				}catch (Exception e) {
-					e.printStackTrace();
-				}
+//				try {
+//					// Amort Calculation for Balance Payable
+//					Calendar calendar = Calendar.getInstance();
+//					Date currentDate = getDate(calendar.getTime());
+//					calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
+//					DateFormat dateFormatforReqDate = new SimpleDateFormat("MM/dd/yyyy");
+//					Date dates = new Date();
+//					String dateValue = dateFormatforReqDate.format(dates);
+//					Double balancePayable = 0.0;
+//					Date dueStartDate = getDate(calendar.getTime());
+//					dataMap.put("requestedDate", dateValue);
+//
+//					ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
+//							.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
+//							.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
+//							.block();
+//					if(Objects.nonNull(amortDataResponse)) {
+//						List<Amort> amortData = amortDataResponse.getBody();
+//						if(Objects.nonNull(amortData) && !amortData.isEmpty()) {
+//							balancePayable = amortData.stream().mapToDouble(Amort::getEmiDue).sum();
+//							letterModel.setBalancePayable(String.valueOf(balancePayable));
+//						}
+//					}
+//				}catch (Exception e) {
+//					e.printStackTrace();
+//				}
 
 				//Cash Handling Charges Calculation
 				ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
