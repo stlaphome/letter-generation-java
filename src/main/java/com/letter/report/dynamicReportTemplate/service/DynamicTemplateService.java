@@ -1366,33 +1366,40 @@ public class DynamicTemplateService {
 					+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 					//scheduleA
-					List<ScheduleA> scheduleAList = scheduleAListMap.get(titleHolderDetail.getCustomerShareCode());
-					int index = getIndexValue(scheduleAListMap,titleHolderDetail.getCustomerShareCode());
-					StringBuilder scheduleATable = new StringBuilder("Document details for item No."+index+ "of Schedule -A");
-					scheduleATable.append("<br>+<br>");
-					scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
-					scheduleAList.stream().forEach(scheduleA -> {
-						scheduleATable.append(
-								"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-						scheduleATable
-						.append(scheduleA.getDocumentName());
-						scheduleATable.append(
-								"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-						scheduleATable.append(scheduleA.getDocuemntNumber());
-						scheduleATable.append(
-								"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-						scheduleATable.append(scheduleA.getDocumentDate());
-						scheduleATable.append(
-								"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-						scheduleATable.append(scheduleA.getTitleHolderName());
-						scheduleATable.append("</td></tr>");
-					});
-					scheduleATable.append("</tbody></table>");
-					scheduleATableList.add(scheduleATable.toString());
+					if(Objects.nonNull(scheduleAListMap)) {
+						List<ScheduleA> scheduleAList = scheduleAListMap.get(titleHolderDetail.getCustomerShareCode());
+						int scheduleAIndex = getIndexValue(scheduleAListMap,titleHolderDetail.getCustomerShareCode());
+						StringBuilder scheduleATable = new StringBuilder("Document details for item No."+scheduleAIndex+ "of Schedule -A");
+						scheduleATable.append("<br>+<br>");
+						scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
+					if(Objects.nonNull(scheduleAList)) {
+						
+						scheduleAList.stream().forEach(scheduleA -> {
+							scheduleATable.append(
+									"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+							scheduleATable
+							.append(scheduleA.getDocumentName());
+							scheduleATable.append(
+									"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+							scheduleATable.append(scheduleA.getDocuemntNumber());
+							scheduleATable.append(
+									"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+							scheduleATable.append(scheduleA.getDocumentDate());
+							scheduleATable.append(
+									"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+							scheduleATable.append(scheduleA.getTitleHolderName());
+							scheduleATable.append("</td></tr>");
+						});
+					}
+						scheduleATable.append("</tbody></table>");
+						scheduleATableList.add(scheduleATable.toString());
+					}
 					//scheduleB
-					 ScheduleB scheduleB = scheduleBMap.get(titleHolderDetail.getCustomerShareCode());
+					if(Objects.nonNull(scheduleBMap)) {
+						int scheduleBIndex = getIndexValue(scheduleBMap,titleHolderDetail.getCustomerShareCode());
+						ScheduleB scheduleB = scheduleBMap.get(titleHolderDetail.getCustomerShareCode());
 						PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
-						StringBuilder scheduleBBuilder = new StringBuilder("Item"+index+"<br>"+"<br>");
+						StringBuilder scheduleBBuilder = new StringBuilder("Item"+scheduleBIndex+"<br>"+"<br>");
 						scheduleBBuilder.append("SRO District "+scheduleB.getSroDistrict());
 						scheduleBBuilder.append("<br>");
 						scheduleBBuilder.append("SRO "+scheduleB.getSro());
@@ -1419,20 +1426,22 @@ public class DynamicTemplateService {
 						scheduleBBuilder.append("<br>");
 						scheduleBBuilder.append("Block No (if Available) "+"");//block
 						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Address 1 "+proeprtyAddress.getStreet());
+						scheduleBBuilder.append("Address 1 "+ proeprtyAddress!=null?proeprtyAddress.getStreet():"");
 						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Address 2 "+proeprtyAddress.getAddress1());
+						scheduleBBuilder.append("Address 2 "+proeprtyAddress!=null?proeprtyAddress.getAddress1():"");
 						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Address 3 "+proeprtyAddress.getAddress7());
+						scheduleBBuilder.append("Address 3 "+proeprtyAddress!=null?proeprtyAddress.getAddress7():"");
 						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Pin Code "+proeprtyAddress.getPinCode());
+						scheduleBBuilder.append("Pin Code "+proeprtyAddress!=null?proeprtyAddress.getPinCode():"");
 						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Land Extent "+proeprtyAddress.getLandExtent());
+						scheduleBBuilder.append("Land Extent "+proeprtyAddress!=null?proeprtyAddress.getLandExtent():"");
 						scheduleBBuilder.append("<br>");
 						scheduleBBuilder.append("<br>");
 						scheduleBList.add(scheduleBBuilder.toString());
+					}
 						
 						//boundries
+					if(Objects.nonNull(boundriesMap)) {
 						Boundries boundries = boundriesMap.get(titleHolderDetail.getCustomerCode());
 						StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
 						boundroesBuilder.append("<br>");
@@ -1445,8 +1454,10 @@ public class DynamicTemplateService {
 						boundroesBuilder.append("West By "+boundries.getWestBoundry());
 						boundroesBuilder.append("<br>");
 						boundriesList.add(boundroesBuilder.toString());
+					}
 						
 						//measurement
+					if(Objects.nonNull(measurementMap)) {
 						Measurement measurerments = measurementMap.get(titleHolderDetail.getCustomerCode());
 						StringBuilder measurementBuilder = new StringBuilder("Measurement");
 						measurementBuilder.append("<br>");
@@ -1459,6 +1470,7 @@ public class DynamicTemplateService {
 						measurementBuilder.append("West By "+measurerments.getWestMeasurement());
 						measurementBuilder.append("<br>");
 						measurementList.add(measurementBuilder.toString());
+					}
 				});
 			}
 		}
