@@ -26,12 +26,14 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1335,15 +1337,15 @@ public class DynamicTemplateService {
 
 	private void getDataForMOTD(Map<String, Object> variablesValueMap, LetterReportModel sanctionModel) {
 		PropertyDetailModel propertyDetailModel = sanctionModel.getPropertyDetailModel();
-		List<String> firstMortagetitleHolderDetailList = new ArrayList<>();
+		Set<String> firstMortagetitleHolderDetailList = new LinkedHashSet<>();
 		List<String> firstMortagetitleNameDetailList = new ArrayList<>();
-		List<String> scheduleATableList = new ArrayList<>();
-		List<String> scheduleBList = new ArrayList<>();
+		Set<String> scheduleATableList = new LinkedHashSet<>();
+		Set<String> scheduleBList = new LinkedHashSet<>();
 		List<String> boundriesList = new ArrayList<>();
 		List<String> measurementList = new ArrayList<>();
 		if(Objects.nonNull(propertyDetailModel)) {
-			List<TitleHolderDetail> titleHolderDetailList = propertyDetailModel.getTitleHolderDetailList();
-			Map<String, List<ScheduleA>> scheduleAListMap = propertyDetailModel.getScheduleListMap();
+			Set<TitleHolderDetail> titleHolderDetailList = propertyDetailModel.getTitleHolderDetailList();
+			Map<String, Set<ScheduleA>> scheduleAListMap = propertyDetailModel.getScheduleListMap();
 			Map<String, ScheduleB> scheduleBMap = propertyDetailModel.getScheduleBListMap();
 			Map<String, Boundries> boundriesMap = propertyDetailModel.getBoundriesListMap();
 			Map<String, Measurement> measurementMap = propertyDetailModel.getMeasurementListMap();
@@ -1367,80 +1369,96 @@ public class DynamicTemplateService {
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
-						List<ScheduleA> scheduleAList = scheduleAListMap.get(titleHolderDetail.getCustomerShareCode());
+						Set<ScheduleA> scheduleAList = scheduleAListMap.get(titleHolderDetail.getCustomerShareCode());
 						int scheduleAIndex = getIndexValue(scheduleAListMap,titleHolderDetail.getCustomerShareCode());
-						StringBuilder scheduleATable = new StringBuilder("Document details for item No."+scheduleAIndex+ "of Schedule -A");
-						scheduleATable.append("<br>+<br>");
-						scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
-					if(Objects.nonNull(scheduleAList)) {
-						
-						scheduleAList.stream().forEach(scheduleA -> {
-							scheduleATable.append(
-									"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-							scheduleATable
-							.append(scheduleA.getDocumentName());
-							scheduleATable.append(
-									"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-							scheduleATable.append(scheduleA.getDocuemntNumber());
-							scheduleATable.append(
-									"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-							scheduleATable.append(scheduleA.getDocumentDate());
-							scheduleATable.append(
-									"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-							scheduleATable.append(scheduleA.getTitleHolderName());
-							scheduleATable.append("</td></tr>");
-						});
-					}
-						scheduleATable.append("</tbody></table>");
-						scheduleATableList.add(scheduleATable.toString());
+						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
+							StringBuilder scheduleATable = new StringBuilder("Document details for item No."+scheduleAIndex+ "of Schedule -A");
+							scheduleATable.append("<br>");
+							scheduleATable.append("<br>");
+							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
+							scheduleAList.stream().forEach(scheduleA -> {
+								scheduleATable.append(
+										"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+								scheduleATable
+								.append(scheduleA.getDocumentName());
+								scheduleATable.append(
+										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+								scheduleATable.append(scheduleA.getDocuemntNumber());
+								scheduleATable.append(
+										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+								scheduleATable.append(scheduleA.getDocumentDate());
+								scheduleATable.append(
+										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+								scheduleATable.append(scheduleA.getTitleHolderName());
+								scheduleATable.append("</td></tr>");
+							});
+							scheduleATable.append("</tbody></table>");
+							scheduleATableList.add(scheduleATable.toString());
+						}
 					}
 					//scheduleB
 					if(Objects.nonNull(scheduleBMap)) {
 						int scheduleBIndex = getIndexValue(scheduleBMap,titleHolderDetail.getCustomerShareCode());
 						ScheduleB scheduleB = scheduleBMap.get(titleHolderDetail.getCustomerShareCode());
-						PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
-						StringBuilder scheduleBBuilder = new StringBuilder("Item"+scheduleBIndex+"<br>"+"<br>");
-						scheduleBBuilder.append("SRO District "+scheduleB.getSroDistrict());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("SRO "+scheduleB.getSro());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("District "+scheduleB.getDistrict());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Taluk "+scheduleB.getTaluk());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Taluk "+scheduleB.getTaluk());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Village "+scheduleB.getVillage());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Survey No And Addl Survey No "+scheduleB.getSurveyNo());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Plot No "+scheduleB.getPlotNo());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Door No "+scheduleB.getDoorNo());
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Project Name(If Available) "+"");//projectName
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Flat No (if Available) "+"");//flatno
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Floor (if Available) "+"");//floor
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Block No (if Available) "+"");//block
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Address 1 "+ proeprtyAddress!=null?proeprtyAddress.getStreet():"");
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Address 2 "+proeprtyAddress!=null?proeprtyAddress.getAddress1():"");
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Address 3 "+proeprtyAddress!=null?proeprtyAddress.getAddress7():"");
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Pin Code "+proeprtyAddress!=null?proeprtyAddress.getPinCode():"");
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("Land Extent "+proeprtyAddress!=null?proeprtyAddress.getLandExtent():"");
-						scheduleBBuilder.append("<br>");
-						scheduleBBuilder.append("<br>");
-						scheduleBList.add(scheduleBBuilder.toString());
+						if(Objects.nonNull(scheduleB)) {
+							
+							PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
+							StringBuilder scheduleBBuilder = new StringBuilder("Item"+scheduleBIndex+"<br>"+"<br>");
+							scheduleBBuilder.append("SRO District "+scheduleB.getSroDistrict());
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("SRO "+scheduleB.getSro());
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Survey No And Addl Survey No "+scheduleB.getSurveyNo());
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Plot No "+scheduleB.getPlotNo());
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Door No "+scheduleB.getDoorNo());
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Project Name(If Available) "+"");//projectName
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Flat No (if Available) "+"");//flatno
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Floor (if Available) "+"");//floor
+							scheduleBBuilder.append("<br>");
+							scheduleBBuilder.append("Block No (if Available) "+"");//block
+							scheduleBBuilder.append("<br>");
+							if(Objects.nonNull(proeprtyAddress)) {
+								scheduleBBuilder.append("Address 1 "+  proeprtyAddress.getStreet());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Address 2 "+  proeprtyAddress.getAddress1());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Address 3 "+ proeprtyAddress.getAddress7());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Pin Code "+  proeprtyAddress.getPinCode());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Land Extent "+ proeprtyAddress.getLandExtent());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("District "+scheduleB.getDistrict());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Taluk "+scheduleB.getTaluk());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Village "+scheduleB.getVillage());
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("<br>");
+							}else {
+								scheduleBBuilder.append("Address 1 "+ "");
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Address 2 "+ "");
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Address 3 "+ "");
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Pin Code "+ "");
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("Land Extent "+ "");
+								scheduleBBuilder.append("<br>");
+								scheduleBBuilder.append("<br>");
+							}
+							scheduleBList.add(scheduleBBuilder.toString());
+						}
 					}
-						
-						//boundries
+
+					//boundries
 					if(Objects.nonNull(boundriesMap)) {
 						Boundries boundries = boundriesMap.get(titleHolderDetail.getCustomerCode());
 						StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
@@ -1455,8 +1473,8 @@ public class DynamicTemplateService {
 						boundroesBuilder.append("<br>");
 						boundriesList.add(boundroesBuilder.toString());
 					}
-						
-						//measurement
+
+					//measurement
 					if(Objects.nonNull(measurementMap)) {
 						Measurement measurerments = measurementMap.get(titleHolderDetail.getCustomerCode());
 						StringBuilder measurementBuilder = new StringBuilder("Measurement");
@@ -1476,18 +1494,19 @@ public class DynamicTemplateService {
 		}
 
 		variablesValueMap.put("~~MOTD_First_Mortage_Title_Holder_Detail~~", firstMortagetitleHolderDetailList.toString());
-		variablesValueMap.put("~~MOTD_First_Mortage_Title_Name_Detail~~", firstMortagetitleHolderDetailList.toString());
+		variablesValueMap.put("~~MOTD_First_Mortage_Title_Name_Detail~~", firstMortagetitleNameDetailList.toString());
 		variablesValueMap.put("~~Schedule_A_Table~~", scheduleATableList.toString());
 		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBList.toString());
 		variablesValueMap.put("~~Boundries_Detail~~", boundriesList.toString());
 		variablesValueMap.put("~~Measurement_Detail~~", measurementList.toString());
+		variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
 
 		StringBuilder loanDetailsTable = new StringBuilder(
 				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">File Number</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Loan Amount (in Rs.)</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Rate (in %)</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Type</td><td style=\\\\\\\\\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\\\\\\\\\" valign=\\\\\\\\\\\\\\\"top\\\\\\\\\\\\\\\" width=\\\\\\\\\\\\\\\"200\\\\\\\\\\\\\\\">Tenor</td></tr>");
 		loanDetailsTable.append(
 				"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
 		loanDetailsTable
-		.append(sanctionModel.getBaseFileNumber());
+		.append(sanctionModel.getContractNumber());
 		loanDetailsTable.append(
 				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
 		loanDetailsTable.append(sanctionModel.getAmountFinanced());
@@ -1508,76 +1527,13 @@ public class DynamicTemplateService {
 		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		//	PropertyAddress propertyAddress = scheduleB.getPropertyAddress();
 
 
-		//			variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
-		//			variablesValueMap.put("~~MOTD_SRO_District~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat(scheduleB.getSroDistrict())); //
-		//			variablesValueMap.put("~~MOTD_SRO_Place~~", space30.concat(space30).concat(space5).concat(""));
-		//			variablesValueMap.put("~~MOTD_District~~", space30.concat(space30).concat("&nbsp;").concat(scheduleB.getDistrict()));
-		//			variablesValueMap.put("~~MOTD_Taluk~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB.getTaluk()));
-		//			variablesValueMap.put("~~MOTD_Village~~",  space30.concat(space30).concat("&nbsp;").concat(scheduleB.getVillage()));
-		//			variablesValueMap.put("~~MOTD_Survey_Additional_Survey~~",space20.concat("&nbsp;&nbsp;").concat(scheduleB.getSurveyNo()));
-		//			variablesValueMap.put("~~MOTD_Plot_No~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat(scheduleB.getPlotNo()));
-		//			variablesValueMap.put("~~MOTD_Door_No~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB.getDoorNo()));
-		//			variablesValueMap.put("~~MOTD_Project_Name~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-		//			variablesValueMap.put("~~MOTD_Flat_No~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-		//			variablesValueMap.put("~~MOTD_Floor~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(scheduleB.getFloorNo()));
-		//			variablesValueMap.put("~~MOTD_Block_No~~", space30.concat(space5).concat(scheduleB.getBlockNo()));
-		//		//	variablesValueMap.put("~~MOTD_Address_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(propertyAddress.getStreet()));
-		//			variablesValueMap.put("~~MOTD_Address_2~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-		//			variablesValueMap.put("~~MOTD_Address_3~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-		//		//	variablesValueMap.put("~~MOTD_Pin_Code~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress.getPinCode()));
-		//		//	variablesValueMap.put("~~MOTD_Land_Extent~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress.getLandExtent()));
-		//			variablesValueMap.put("~~MOTD_North_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getNorthBoundry()));
-		//			variablesValueMap.put("~~MOTD_South_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getSouthBoundry()));
-		//			variablesValueMap.put("~~MOTD_East_Boundary~~", space30.concat(space30).concat("&nbsp;").concat(boundries.getEastBoundry()));
-		//			variablesValueMap.put("~~MOTD_West_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries.getWestBoundry()));
-		//			variablesValueMap.put("~~MOTD_North_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getNorthMeasurement()));
-		//			variablesValueMap.put("~~MOTD_South_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getSouthMeasurement()));
-		//			variablesValueMap.put("~~MOTD_East_Measurement~~", space30.concat(space30).concat("&nbsp;").concat(measurement.getEastMeasurement()));
-		//			variablesValueMap.put("~~MOTD_West_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement.getSouthMeasurement()));
-		//
-		//			if(Objects.nonNull(sanctionModel.getSchedleB1())) {
-		//
-		//				ScheduleB scheduleB1 = sanctionModel.getSchedleB1();
-		//				Boundries boundries1 = sanctionModel.getBoundries1();
-		//				Measurement measurement1 = sanctionModel.getMeasurement1();
-		//				PropertyAddress propertyAddress1 = scheduleB1.getPropertyAddress();
-		//
-		//				variablesValueMap.put("~~MOTD_SRO_District_1~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat(scheduleB1.getSroDistrict())); //
-		//				variablesValueMap.put("~~MOTD_SRO_Place_1~~", space30.concat(space30).concat(space5).concat(""));
-		//				variablesValueMap.put("~~MOTD_District_1~~", space30.concat(space30).concat("&nbsp;").concat(scheduleB1.getDistrict()));
-		//				variablesValueMap.put("~~MOTD_Taluk_1~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB1.getTaluk()));
-		//				variablesValueMap.put("~~MOTD_Village_1~~",  space30.concat(space30).concat("&nbsp;").concat(scheduleB1.getVillage()));
-		//				variablesValueMap.put("~~MOTD_Survey_Additional_Survey_1~~",space20.concat("&nbsp;&nbsp;").concat(scheduleB1.getSurveyNo()));
-		//				variablesValueMap.put("~~MOTD_Plot_No_1~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat(scheduleB1.getPlotNo()));
-		//				variablesValueMap.put("~~MOTD_Door_No_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(scheduleB1.getDoorNo()));
-		//				variablesValueMap.put("~~MOTD_Project_Name_1~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-		//				variablesValueMap.put("~~MOTD_Flat_No_1~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-		//				variablesValueMap.put("~~MOTD_Floor_1~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(scheduleB1.getFloorNo()));
-		//				variablesValueMap.put("~~MOTD_Block_No_1~~", space30.concat(space5).concat(scheduleB1.getBlockNo()));
-		//				variablesValueMap.put("~~MOTD_Address_1_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(propertyAddress1.getStreet()));
-		//				variablesValueMap.put("~~MOTD_Address_2_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-		//				variablesValueMap.put("~~MOTD_Address_3_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-		//				variablesValueMap.put("~~MOTD_Pin_Code_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress1.getPinCode()));
-		//				variablesValueMap.put("~~MOTD_Land_Extent_1~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(propertyAddress1.getLandExtent()));
-		//				variablesValueMap.put("~~MOTD_North_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getNorthBoundry()));
-		//				variablesValueMap.put("~~MOTD_South_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getSouthBoundry()));
-		//				variablesValueMap.put("~~MOTD_East_Boundary_1~~", space30.concat(space30).concat("&nbsp;").concat(boundries1.getEastBoundry()));
-		//				variablesValueMap.put("~~MOTD_West_Boundary_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(boundries1.getWestBoundry()));
-		//				variablesValueMap.put("~~MOTD_North_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getNorthMeasurement()));
-		//				variablesValueMap.put("~~MOTD_South_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getSouthMeasurement()));
-		//				variablesValueMap.put("~~MOTD_East_Measurement_1~~", space30.concat(space30).concat("&nbsp;").concat(measurement1.getEastMeasurement()));
-		//				variablesValueMap.put("~~MOTD_West_Measurement_1~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(measurement1.getSouthMeasurement()));
-		//
-		//			
-		//
-		//		}
+					
 
 	}
 	public <K, V> int getIndexValue(Map<K, V> input, String targetKey) { 
-		int index = 0;
+		int index = 1;
 		for (K key : input.keySet()) { 
 			if (key.equals(targetKey)) { 
 				return index;
@@ -2187,13 +2143,13 @@ public class DynamicTemplateService {
 		// Use the current datasource to fetch data
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
-		List<PropertyNumberModel> propertyNumberModelList = new ArrayList<>();
-		List<TitleHolderDetail> titleHolderList = new ArrayList<>();
-		Map<String,List<ScheduleA>> scheduleListMap = new HashMap<>();
-		Map<String,ScheduleB> scheduleBListMap= new HashMap<>();
-		Map<String,Boundries> boundriesListMap= new HashMap<>();
-		Map<String,Measurement> measurementListMap= new HashMap<>();
-		List<ScheduleA> scheduleAList = new ArrayList<>();
+		Set<PropertyNumberModel> propertyNumberModelList = new HashSet<>();
+		Set<TitleHolderDetail> titleHolderList = new HashSet<>();
+		TreeMap<String,Set<ScheduleA>> scheduleListMap = new TreeMap<>();
+		TreeMap<String,ScheduleB> scheduleBListMap= new TreeMap<>();
+		TreeMap<String,Boundries> boundriesListMap= new TreeMap<>();
+		TreeMap<String,Measurement> measurementListMap= new TreeMap<>();
+		Set<ScheduleA> scheduleAList = new HashSet<>();
 		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
 		try {
 			connection = currentDataSource.getConnection();
@@ -2236,34 +2192,22 @@ public class DynamicTemplateService {
 						titleHolderDetail.setCustomerCode(resultSet3.getString(3));
 						titleHolderDetail.setPropertyNumber(resultSet3.getInt(4));
 						//title
-						PreparedStatement preparedStatement4 = connection1.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L"
-								+ " FROM Sa_Customer_Master A Where CUM_Customer_Code = ?");
-						preparedStatement4.setString(1, titleHolderDetail.getCustomerShareCode());
-						ResultSet resultSet4 = preparedStatement4.executeQuery();
-						while (resultSet4.next()) {
-							titleHolderDetail.setTitle(resultSet4.getString(1));
-						}
+						getTitleInfo(titleHolderDetail);
+
 						//aadhar
-						PreparedStatement preparedStatement5 = connection1.prepareStatement("SELECT CUM_AADHAR_NO FROM sa_customer_master where cum_customer_code=?");
-						preparedStatement5.setString(1, titleHolderDetail.getCustomerShareCode());
-						ResultSet resultSet5 = preparedStatement5.executeQuery();
-						while (resultSet5.next()) {
-							titleHolderDetail.setTitleAadharNo(resultSet5.getString(1));
-						}
+						getAadharForTitle(titleHolderDetail);
 						//age
-						PreparedStatement preparedStatement6 = connection1.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
-						preparedStatement6.setString(1, titleHolderDetail.getCustomerShareCode());
-						ResultSet resultSet6 = preparedStatement6.executeQuery();
-						while (resultSet6.next()) {
-							titleHolderDetail.setDateOfBirth(resultSet6.getString(1));
-							int age =getAgeFromDate(titleHolderDetail);
-							titleHolderDetail.setAge(age);
-						}
+						getAgeForTitle(titleHolderDetail);
+
 						//address
-						PreparedStatement preparedStatement7 = (PreparedStatement) prepareStatementList.get("preparedStatement18");
-						preparedStatement7.setString(1, titleHolderDetail.getCustomerShareCode());
-						ResultSet resultSet7 = preparedStatement7.executeQuery();
-						setOtherAddress(resultSet7,prepareStatementList,titleHolderDetail);
+						getAddressForTitle(titleHolderDetail,prepareStatementList);
+
+						//getScheduleA
+						getScheduleADetail(letterModel,propertyDetailModel,titleHolderDetail,scheduleListMap);
+
+						//schedule B &boundries&measurement
+						getschedulBAndBoundriyMeasurment(letterModel,titleHolderDetail,boundriesListMap,measurementListMap,scheduleBListMap);
+
 						titleHolderList.add(titleHolderDetail);
 
 					}
@@ -2272,177 +2216,261 @@ public class DynamicTemplateService {
 					e.printStackTrace();
 				}
 			});
-
 			propertyDetailModel.setTitleHolderDetailList(titleHolderList);
-			//schedule A
-			titleHolderList.stream().forEach(titleHolderDetail->{
-				try {
-					Connection connection2 = currentDataSource.getConnection();
-					//schedule A
-					PreparedStatement preparedStatement8 = connection2.prepareStatement("SELECT Contract_Number, Document_Id Doc_Id, Collection_Date, Original_Document, Document_Number, Title_Holder_Name, Document_Type, Document_Date FROM Dc_Document_Processing where "
-							+ "Contract_Number=? and entity_code=? and asset_number=?");
-					preparedStatement8.setString(1, letterModel.getContractNumber());
-					preparedStatement8.setString(2, titleHolderDetail.getCustomerShareCode());
-					preparedStatement8.setInt(3, titleHolderDetail.getPropertyNumber());
-					ResultSet resultSet8 = preparedStatement8.executeQuery();
-					while(resultSet8.next()) {
-						ScheduleA scheduleA = new ScheduleA();
-						scheduleA.setDocumentId(resultSet8.getString(2));
-						scheduleA.setCollectionDate(resultSet8.getString(3));
-						scheduleA.setOriginalDocument(resultSet8.getString(4));
-						scheduleA.setDocuemntNumber(resultSet8.getString(5));
-						scheduleA.setTitleHolderName(getStringFromObject(resultSet8.getString(6)));
-						scheduleA.setDocmentType(resultSet8.getString(7));
-						scheduleA.setDocumentDate(resultSet8.getString(8));
-						PreparedStatement preparedStatement9 = connection2.prepareStatement("Select Dty_Document_Id Doc_Id, Dty_Document_Desc Document_Name "
-								+ "From Sa_Document_Type_Master where Dty_Document_Id=?");
-						preparedStatement9.setString(1, scheduleA.getDocumentId());
-						ResultSet resultSet12 = preparedStatement9.executeQuery();
-						while (resultSet12.next()) {
-							scheduleA.setDocumentName(resultSet12.getString(2));
-						}
-						scheduleAList.add(scheduleA);
-					}
-					scheduleListMap.put(titleHolderDetail.getCustomerShareCode(), scheduleAList);
-
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			});
 			propertyDetailModel.setScheduleListMap(scheduleListMap);
-			//schedule B &boundries&measurement
-			titleHolderList.stream().forEach(titleHolderDetail->{
-				try {
-					Boundries boundries = new Boundries();
-					Measurement measurement = new Measurement();
-					ScheduleB scheduleB = new ScheduleB();
-					PropertyAddress propertyAddress = new PropertyAddress();
-					Connection connection3 = currentDataSource.getConnection();
-					PreparedStatement preparedStatement10 = connection3.prepareStatement("Select Contract_Number,Bounded_North,"
-							+ " Bounded_South, Bounded_East, Bounded_West ,"
-							+ " Survey, Plot, Door_No, Building_Society_Name, State_Name, District, Taluk_Tehsil,"
-							+ " Town, Village, Sro, City_Code From cc_property_category_dtls_auth where contract_number=?"
-							+ " and customer_code=? and property_number=?");
-					preparedStatement10.setString(1, letterModel.getContractNumber());
-					preparedStatement10.setString(2, titleHolderDetail.getCustomerShareCode());
-					preparedStatement10.setInt(3, titleHolderDetail.getPropertyNumber());
-					ResultSet resultSet10 = preparedStatement10.executeQuery();
-					while (resultSet10.next()) {
-						boundries.setNorthBoundry(resultSet10.getString(2));
-						boundries.setSouthBoundry(resultSet10.getString(3));
-						boundries.setEastBoundry(resultSet10.getString(4));
-						boundries.setWestBoundry(resultSet10.getString(5));
-						//
-						scheduleB.setSurveyNo(resultSet10.getString(6));
-						scheduleB.setPlotNo(resultSet10.getString(7));
-						scheduleB.setDoorNo(resultSet10.getString(8));
-						scheduleB.setBuildingSocietyName(resultSet10.getString(9));
-						scheduleB.setStateName(resultSet10.getString(10));
-						scheduleB.setDistrict(resultSet10.getString(11));
-						scheduleB.setTaluk(resultSet10.getString(12));
-						scheduleB.setTown(resultSet10.getString(13));
-						scheduleB.setVillage(resultSet10.getString(14));
-						scheduleB.setSro(resultSet10.getString(15));
-						scheduleB.setCityCode(resultSet10.getString(15));
-						letterModel.setSRO(resultSet10.getString(15));
-
-						//propertyAddress
-						PreparedStatement preparedStatement11 = connection3.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
-								+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
-								+ "	A.Property_Address.Column4_L,A.Property_Address.Column5_L,"
-								+ "	A.Property_Address.Column6_L,A.Property_Address.Column7_L,"
-								+ "	A.Property_Address.Column8_L,A.Property_Address.Column9_L,"
-								+ "	A.Property_Address.Column10_L,A.Property_Address.Pin_Zip_Code_L,"
-								+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
-								+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
-								+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
-								+ "	A.Property_Address.Email,A.Land_Area_Sq_Ft"
-								+ "	From Sa_Customer_Property_Dtls A where customer_code=? and property_number=?");
-						preparedStatement11.setString(1, titleHolderDetail.getCustomerShareCode());
-						preparedStatement11.setInt(2, titleHolderDetail.getPropertyNumber());
-						ResultSet resultSet11 = preparedStatement11.executeQuery();
-						
-						while (resultSet11.next()) {
-							propertyAddress.setStreet(resultSet11.getString(1));
-							propertyAddress.setAddress1(resultSet11.getString(2));
-							propertyAddress.setAddress2(resultSet11.getString(3));
-							propertyAddress.setAddress3(resultSet11.getString(4));
-							propertyAddress.setAddress4(resultSet11.getString(5));
-							propertyAddress.setAddress5(resultSet11.getString(6));
-							propertyAddress.setAddress6(resultSet11.getString(7));
-							propertyAddress.setAddress7(resultSet11.getString(8));
-							propertyAddress.setAddress8(resultSet11.getString(9));
-							propertyAddress.setAddress9(resultSet11.getString(10));
-							propertyAddress.setAddress10(resultSet11.getString(11));
-							propertyAddress.setPinCode(resultSet11.getString(12));
-							propertyAddress.setOfficePhoneNo(resultSet11.getString(13));
-							propertyAddress.setResidencePhoneNo(resultSet11.getString(14));
-							propertyAddress.setOfficeFaxNo(resultSet11.getString(15));
-							propertyAddress.setResidenceFaxNo(resultSet11.getString(16));
-							propertyAddress.setMobileNo(resultSet11.getString(17));
-							propertyAddress.setPagerNo(resultSet11.getString(18));
-							propertyAddress.setEmail(resultSet11.getString(19));
-							propertyAddress.setLandExtent(resultSet11.getString(20));
-
-							PreparedStatement preparedStatement12 = connection3.prepareStatement("Select City_Name"
-									+ "   From Hfs_Vw_City"
-									+ "   Where City_Code = ?"
-									+ "   And State_Record_Id ="
-									+ "   (Select Record_Id"
-									+ "   From Hfs_Vw_State"
-									+ "   Where State_Code = ?"
-									+ "   And Country_Code = ?)");
-							preparedStatement12.setString(1, propertyAddress.getAddress4());
-							preparedStatement12.setString(2, propertyAddress.getAddress3());
-							preparedStatement12.setString(3, propertyAddress.getAddress2());
-							ResultSet resultSet12 = preparedStatement12.executeQuery();
-							while (resultSet12.next()) {
-								propertyAddress.setCityName(resultSet12.getString(1));
-							}
-							PreparedStatement preparedStatement13 = connection3.prepareStatement("Select Location_Name"
-									+ "   From Hfs_Vw_Postal_Code"
-									+ "   Where Location_Code =?"
-									+ "   And City_Code = ?"
-									+ "   And State_Code = ?"
-									+ "   And Country_Code = ?");
-							preparedStatement13.setString(1, propertyAddress.getAddress5());
-							preparedStatement13.setString(2, propertyAddress.getAddress4());
-							preparedStatement13.setString(3, propertyAddress.getAddress3());
-							preparedStatement13.setString(4, propertyAddress.getAddress2());
-							ResultSet resultSet13 = preparedStatement13.executeQuery();
-							while (resultSet13.next()) {
-								propertyAddress.setLocationName(resultSet13.getString(1));
-							}
-							scheduleB.setPropertyAddress(propertyAddress);
-						}
-					}
-					PreparedStatement preparedStatement14 = connection3.prepareStatement("Select North_By,South_By,East_By,West_By,"
-							+ "North_By_Measurements,South_By_Measurements,"
-							+ "East_By_Measurements,West_By_Measurements "
-							+ "From Cc_Technical_Valuation_Report where contract_number=? and property_number =? and property_cust_code=?");
-					preparedStatement14.setString(1, letterModel.getContractNumber());
-					preparedStatement14.setInt(2, titleHolderDetail.getPropertyNumber());
-					preparedStatement14.setString(3, titleHolderDetail.getCustomerShareCode());
-					ResultSet resultSet14 = preparedStatement14.executeQuery();
-					while (resultSet14.next()) {
-						measurement.setNorthMeasurement(resultSet14.getString(5));
-						measurement.setSouthMeasurement(resultSet14.getString(6));
-						measurement.setEastMeasurement(resultSet14.getString(7));
-						measurement.setWestMeasurement(resultSet14.getString(8));
-					}
-					boundriesListMap.put(titleHolderDetail.getCustomerShareCode(),boundries);
-					measurementListMap.put(titleHolderDetail.getCustomerShareCode(),measurement);
-					scheduleBListMap.put(titleHolderDetail.getCustomerShareCode(),scheduleB);
-				}catch (Exception e) {
-					e.printStackTrace();
-				}
-			});
 			propertyDetailModel.setScheduleBListMap(scheduleBListMap);
 			propertyDetailModel.setMeasurementListMap(measurementListMap);
 			propertyDetailModel.setBoundriesListMap(boundriesListMap);
 			letterModel.setPropertyDetailModel(propertyDetailModel);
 
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void getschedulBAndBoundriyMeasurment(LetterReportModel letterModel, TitleHolderDetail titleHolderDetail, Map<String, Boundries> boundriesListMap, Map<String, Measurement> measurementListMap, Map<String, ScheduleB> scheduleBListMap) {
+		// Use the current datasource to fetch data
+		dynamicDataSourceService.switchToOracleDataSource();
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		Connection connection = null;
+		Boundries boundries = new Boundries();
+		Measurement measurement = new Measurement();
+		ScheduleB scheduleB = new ScheduleB();
+		PropertyAddress propertyAddress = new PropertyAddress();
+		try {
+			connection = currentDataSource.getConnection();
+			Connection connection3 = currentDataSource.getConnection();
+			PreparedStatement preparedStatement10 = connection3.prepareStatement("Select Contract_Number,Bounded_North,"
+					+ " Bounded_South, Bounded_East, Bounded_West ,"
+					+ " Survey, Plot, Door_No, Building_Society_Name, State_Name, District, Taluk_Tehsil,"
+					+ " Town, Village, Sro, City_Code From cc_property_category_dtls_auth where contract_number=?"
+					+ " and customer_code=? and property_number=?");
+			preparedStatement10.setString(1, letterModel.getContractNumber());
+			preparedStatement10.setString(2, titleHolderDetail.getCustomerShareCode());
+			preparedStatement10.setInt(3, titleHolderDetail.getPropertyNumber());
+			ResultSet resultSet10 = preparedStatement10.executeQuery();
+			if(!resultSet10.isBeforeFirst()) {
+				scheduleB = null;
+				boundries = null;
+			}else {
+				while (resultSet10.next()) {
+					boundries.setNorthBoundry(resultSet10.getString(2));
+					boundries.setSouthBoundry(resultSet10.getString(3));
+					boundries.setEastBoundry(resultSet10.getString(4));
+					boundries.setWestBoundry(resultSet10.getString(5));
+					//
+					scheduleB.setSurveyNo(resultSet10.getString(6));
+					scheduleB.setPlotNo(resultSet10.getString(7));
+					scheduleB.setDoorNo(resultSet10.getString(8));
+					scheduleB.setBuildingSocietyName(resultSet10.getString(9));
+					scheduleB.setStateName(resultSet10.getString(10));
+					//scheduleB.setDistrict(resultSet10.getString(11));
+					//scheduleB.setTaluk(resultSet10.getString(12));
+					scheduleB.setTown(resultSet10.getString(13));
+					//scheduleB.setVillage(resultSet10.getString(14));
+					scheduleB.setSro(resultSet10.getString(15));
+					scheduleB.setCityCode(resultSet10.getString(15));
+					letterModel.setSRO(resultSet10.getString(15));
+
+					//propertyAddress
+					PreparedStatement preparedStatement11 = connection3.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
+							+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
+							+ "	A.Property_Address.Column4_L,A.Property_Address.Column5_L,"
+							+ "	A.Property_Address.Column6_L,A.Property_Address.Column7_L,"
+							+ "	A.Property_Address.Column8_L,A.Property_Address.Column9_L,"
+							+ "	A.Property_Address.Column10_L,A.Property_Address.Pin_Zip_Code_L,"
+							+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
+							+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
+							+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
+							+ "	A.Property_Address.Email,A.Land_Area_Sq_Ft"
+							+ "	From Sa_Customer_Property_Dtls A where customer_code=? and property_number=?");
+					preparedStatement11.setString(1, titleHolderDetail.getCustomerShareCode());
+					preparedStatement11.setInt(2, titleHolderDetail.getPropertyNumber());
+					ResultSet resultSet11 = preparedStatement11.executeQuery();
+
+					while (resultSet11.next()) {
+						propertyAddress.setStreet(resultSet11.getString(1));
+						propertyAddress.setAddress1(resultSet11.getString(2));
+						propertyAddress.setAddress2(resultSet11.getString(3));
+						propertyAddress.setAddress3(resultSet11.getString(4));
+						propertyAddress.setAddress4(resultSet11.getString(5));
+						propertyAddress.setAddress5(resultSet11.getString(6));
+						propertyAddress.setAddress6(resultSet11.getString(7));
+						propertyAddress.setAddress7(resultSet11.getString(8));
+						propertyAddress.setAddress8(resultSet11.getString(9));
+						propertyAddress.setAddress9(resultSet11.getString(10));
+						propertyAddress.setAddress10(resultSet11.getString(11));
+						propertyAddress.setPinCode(resultSet11.getString(12));
+						propertyAddress.setOfficePhoneNo(resultSet11.getString(13));
+						propertyAddress.setResidencePhoneNo(resultSet11.getString(14));
+						propertyAddress.setOfficeFaxNo(resultSet11.getString(15));
+						propertyAddress.setResidenceFaxNo(resultSet11.getString(16));
+						propertyAddress.setMobileNo(resultSet11.getString(17));
+						propertyAddress.setPagerNo(resultSet11.getString(18));
+						propertyAddress.setEmail(resultSet11.getString(19));
+						propertyAddress.setLandExtent(resultSet11.getString(20));
+
+						PreparedStatement preparedStatement12 = connection3.prepareStatement("Select City_Name"
+								+ "   From Hfs_Vw_City"
+								+ "   Where City_Code = ?"
+								+ "   And State_Record_Id ="
+								+ "   (Select Record_Id"
+								+ "   From Hfs_Vw_State"
+								+ "   Where State_Code = ?"
+								+ "   And Country_Code = ?)");
+						preparedStatement12.setString(1, propertyAddress.getAddress4());
+						preparedStatement12.setString(2, propertyAddress.getAddress3());
+						preparedStatement12.setString(3, propertyAddress.getAddress2());
+						ResultSet resultSet12 = preparedStatement12.executeQuery();
+						while (resultSet12.next()) {
+							propertyAddress.setCityName(resultSet12.getString(1));
+						}
+						PreparedStatement preparedStatement13 = connection3.prepareStatement("Select Location_Name"
+								+ "   From Hfs_Vw_Postal_Code"
+								+ "   Where Location_Code =?"
+								+ "   And City_Code = ?"
+								+ "   And State_Code = ?"
+								+ "   And Country_Code = ?");
+						preparedStatement13.setString(1, propertyAddress.getAddress5());
+						preparedStatement13.setString(2, propertyAddress.getAddress4());
+						preparedStatement13.setString(3, propertyAddress.getAddress3());
+						preparedStatement13.setString(4, propertyAddress.getAddress2());
+						ResultSet resultSet13 = preparedStatement13.executeQuery();
+						while (resultSet13.next()) {
+							propertyAddress.setLocationName(resultSet13.getString(1));
+						}
+						scheduleB.setPropertyAddress(propertyAddress);
+					}
+				}
+			}
+			PreparedStatement preparedStatement14 = connection3.prepareStatement("Select North_By,South_By,East_By,West_By,"
+					+ "North_By_Measurements,South_By_Measurements,"
+					+ "East_By_Measurements,West_By_Measurements "
+					+ "From Cc_Technical_Valuation_Report where contract_number=? and property_number =? and property_cust_code=?");
+			preparedStatement14.setString(1, letterModel.getContractNumber());
+			preparedStatement14.setInt(2, titleHolderDetail.getPropertyNumber());
+			preparedStatement14.setString(3, titleHolderDetail.getCustomerShareCode());
+			ResultSet resultSet14 = preparedStatement14.executeQuery();
+			if(!resultSet14.isBeforeFirst()) {
+				measurement = null;
+			}else {
+				while (resultSet14.next()) {
+					measurement.setNorthMeasurement(resultSet14.getString(5));
+					measurement.setSouthMeasurement(resultSet14.getString(6));
+					measurement.setEastMeasurement(resultSet14.getString(7));
+					measurement.setWestMeasurement(resultSet14.getString(8));
+				}
+			}
+			boundriesListMap.put(titleHolderDetail.getCustomerShareCode(),boundries);
+			measurementListMap.put(titleHolderDetail.getCustomerShareCode(),measurement);
+			scheduleBListMap.put(titleHolderDetail.getCustomerShareCode(),scheduleB);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void getScheduleADetail(LetterReportModel letterModel, PropertyDetailModel propertyDetailModel, TitleHolderDetail titleHolderDetail, Map<String, Set<ScheduleA>> scheduleListMap) {
+		// Use the current datasource to fetch data
+		dynamicDataSourceService.switchToOracleDataSource();
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		Connection connection = null;
+		Set<ScheduleA> scheduleAList = new HashSet<>();
+		try {
+			connection = currentDataSource.getConnection();
+			PreparedStatement preparedStatement8 = connection.prepareStatement("SELECT Contract_Number, Document_Id Doc_Id, Collection_Date, Original_Document, Document_Number, Title_Holder_Name, Document_Type, Document_Date FROM Dc_Document_Processing where "
+					+ "Contract_Number=? and entity_code=? and asset_number=?");
+			preparedStatement8.setString(1, letterModel.getContractNumber());
+			preparedStatement8.setString(2, titleHolderDetail.getCustomerShareCode());
+			preparedStatement8.setInt(3, titleHolderDetail.getPropertyNumber());
+			ResultSet resultSet8 = preparedStatement8.executeQuery();
+			while(resultSet8.next()) {
+				ScheduleA scheduleA = new ScheduleA();
+				scheduleA.setDocumentId(resultSet8.getString(2));
+				scheduleA.setCollectionDate(resultSet8.getString(3));
+				scheduleA.setOriginalDocument(resultSet8.getString(4));
+				scheduleA.setDocuemntNumber(resultSet8.getString(5));
+				titleHolderDetail.setOtdNumber(resultSet8.getString(5));
+				scheduleA.setTitleHolderName(getStringFromObject(resultSet8.getString(6)));
+				scheduleA.setDocmentType(resultSet8.getString(7));
+				scheduleA.setDocumentDate(resultSet8.getString(8));
+				PreparedStatement preparedStatement9 = connection.prepareStatement("Select Dty_Document_Id Doc_Id, Dty_Document_Desc Document_Name "
+						+ "From Sa_Document_Type_Master where Dty_Document_Id=?");
+				preparedStatement9.setString(1, scheduleA.getDocumentId());
+				ResultSet resultSet12 = preparedStatement9.executeQuery();
+				while (resultSet12.next()) {
+					scheduleA.setDocumentName(resultSet12.getString(2));
+				}
+				scheduleAList.add(scheduleA);
+			}
+			scheduleListMap.put(titleHolderDetail.getCustomerShareCode(), scheduleAList);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}		
+	}
+
+	private void getAddressForTitle(TitleHolderDetail titleHolderDetail, Map<String, Object> prepareStatementList) {
+		try {
+			PreparedStatement preparedStatement7 = (PreparedStatement) prepareStatementList.get("preparedStatement18");
+			preparedStatement7.setString(1, titleHolderDetail.getCustomerShareCode());
+			ResultSet resultSet7 = preparedStatement7.executeQuery();
+			setOtherAddress(resultSet7,prepareStatementList,titleHolderDetail);
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void getAgeForTitle(TitleHolderDetail titleHolderDetail) {
+		// Use the current datasource to fetch data
+		dynamicDataSourceService.switchToOracleDataSource();
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		Connection connection = null;
+		try {
+			connection = currentDataSource.getConnection();
+			PreparedStatement preparedStatement6 = connection.prepareStatement("Select Hcoi_Dob Dob From Hfs_Customer_Other_Info where hcoi_customer_code =?");
+			preparedStatement6.setString(1, titleHolderDetail.getCustomerShareCode());
+			ResultSet resultSet6 = preparedStatement6.executeQuery();
+			while (resultSet6.next()) {
+				titleHolderDetail.setDateOfBirth(resultSet6.getString(1));
+				int age =getAgeFromDate(titleHolderDetail);
+				titleHolderDetail.setAge(age);
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void getAadharForTitle(TitleHolderDetail titleHolderDetail) {
+		// Use the current datasource to fetch data
+		dynamicDataSourceService.switchToOracleDataSource();
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		Connection connection = null;
+		try {
+			connection = currentDataSource.getConnection();
+			PreparedStatement preparedStatement5 = connection.prepareStatement("SELECT CUM_AADHAR_NO FROM sa_customer_master where cum_customer_code=?");
+			preparedStatement5.setString(1, titleHolderDetail.getCustomerShareCode());
+			ResultSet resultSet5 = preparedStatement5.executeQuery();
+			while (resultSet5.next()) {
+				titleHolderDetail.setTitleAadharNo(resultSet5.getString(1));
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void getTitleInfo(TitleHolderDetail titleHolderDetail) {
+		// Use the current datasource to fetch data
+		dynamicDataSourceService.switchToOracleDataSource();
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		Connection connection = null;
+		try {
+			connection = currentDataSource.getConnection();
+			PreparedStatement preparedStatement4 = connection.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L"
+					+ " FROM Sa_Customer_Master A Where CUM_Customer_Code = ?");
+			preparedStatement4.setString(1, titleHolderDetail.getCustomerShareCode());
+			ResultSet resultSet4 = preparedStatement4.executeQuery();
+			while (resultSet4.next()) {
+				titleHolderDetail.setTitle(resultSet4.getString(1));
+			}
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2512,8 +2540,8 @@ public class DynamicTemplateService {
 	}
 
 	private void appendTitleHolderAddress(CustomerAddress customerAddress, TitleHolderDetail titleHolderDetail) {
-		String customerAddressString=	customerAddress.getStreet()+customerAddress.getAddress1()+customerAddress.getAddress7()+customerAddress.getLocation()+
-				customerAddress.getCity()+"-"+customerAddress.getZipCode()+customerAddress.getState()+customerAddress.getCountry();
+		String customerAddressString=	customerAddress.getStreet()+","+customerAddress.getAddress1()+","+customerAddress.getAddress7()+","+customerAddress.getLocation()+
+				","+customerAddress.getCity()+"-"+customerAddress.getZipCode()+","+customerAddress.getState()+","+customerAddress.getCountry();
 		titleHolderDetail.setTitleHolderAddress(customerAddressString);
 	}
 

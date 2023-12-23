@@ -20,8 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Aspect
 @Component
-public class StLapLogger {
-	private static final Logger logger = LoggerFactory.getLogger(StLapLogger.class);
+public class LetterGenerationLogger {
+	private static final Logger logger = LoggerFactory.getLogger(LetterGenerationLogger.class);
 
 	@Autowired
 	private ObjectMapper mapper;
