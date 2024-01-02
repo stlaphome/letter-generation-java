@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -1338,11 +1339,17 @@ public class DynamicTemplateService {
 	private void getDataForMOTD(Map<String, Object> variablesValueMap, LetterReportModel sanctionModel) {
 		PropertyDetailModel propertyDetailModel = sanctionModel.getPropertyDetailModel();
 		Set<String> firstMortagetitleHolderDetailList = new LinkedHashSet<>();
-		List<String> firstMortagetitleNameDetailList = new ArrayList<>();
+		Set<String> firstMortagetitleNameDetailList = new LinkedHashSet<>();
 		Set<String> scheduleATableList = new LinkedHashSet<>();
 		Set<String> scheduleBList = new LinkedHashSet<>();
-		List<String> boundriesList = new ArrayList<>();
-		List<String> measurementList = new ArrayList<>();
+		Set<String> boundriesList = new LinkedHashSet<>();
+		Set<String> measurementList = new LinkedHashSet<>();
+		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+	
 		if(Objects.nonNull(propertyDetailModel)) {
 			Set<TitleHolderDetail> titleHolderDetailList = propertyDetailModel.getTitleHolderDetailList();
 			Map<String, Set<ScheduleA>> scheduleAListMap = propertyDetailModel.getScheduleListMap();
@@ -1353,16 +1360,16 @@ public class DynamicTemplateService {
 				titleHolderDetailList.stream().forEach(titleHolderDetail->{
 					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderDetail.getTitle() +"."+titleHolderDetail.getTitleHolderName()+", Aadhaar No. "+
 							titleHolderDetail.getTitleAadharNo()+" aged about "+titleHolderDetail.getAge()+" years,"
-							+ " S/o.W/o.Mr/s"+titleHolderDetail.getTitleHolderGuardianName()
-							+",residing at "+"<br>"+titleHolderDetail.getTitleHolderAddress()+"<br>"
-							+"referred to as the MORTGAGORS”, the PARTY OF THE FIRST PART. "+"<br>"
+							+ " S/o.W/o.Mr/s "+titleHolderDetail.getTitleHolderGuardianName()
+							+", residing at "+"<br>"+titleHolderDetail.getTitleHolderAddress()+"<br>"
+							+"referred to as the MORTGAGORS ”, the PARTY OF THE FIRST PART. "+"<br>"
 							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "+"<br>"
 							+ "to include his / her / their successor and assigns)."
 							+"<br>"+"<br>");
 
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
 
-					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of"+titleHolderDetail.getTitle() +"."+titleHolderDetail.getTitleHolderName()
+					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderDetail.getTitle() +"."+titleHolderDetail.getTitleHolderName()
 					+"herein is the sole and absolute owner of "+"<br>"+"herein is the sole and absolute owner of the property by the following document "
 					+ titleHolderDetail.getOtdNumber()+" on the file of "+"("+sanctionModel.getSRO()+" ). "
 					+"<br>"+"<br>");
@@ -1401,56 +1408,55 @@ public class DynamicTemplateService {
 						int scheduleBIndex = getIndexValue(scheduleBMap,titleHolderDetail.getCustomerShareCode());
 						ScheduleB scheduleB = scheduleBMap.get(titleHolderDetail.getCustomerShareCode());
 						if(Objects.nonNull(scheduleB)) {
-							
-							PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
+								PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
 							StringBuilder scheduleBBuilder = new StringBuilder("Item"+scheduleBIndex+"<br>"+"<br>");
-							scheduleBBuilder.append("SRO District "+scheduleB.getSroDistrict());
+							scheduleBBuilder.append("SRO District "+space30.concat(space20).concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSroDistrict())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("SRO "+scheduleB.getSro());
+							scheduleBBuilder.append("SRO "+space30.concat(space30).concat(space5).concat(getString(scheduleB.getSro())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Survey No And Addl Survey No "+scheduleB.getSurveyNo());
+							scheduleBBuilder.append("Survey No And Addl Survey No "+space20.concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSurveyNo())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Plot No "+scheduleB.getPlotNo());
+							scheduleBBuilder.append("Plot No "+space30.concat(space25).concat(space5).concat("&nbsp;").concat(getString(scheduleB.getPlotNo())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Door No "+scheduleB.getDoorNo());
+							scheduleBBuilder.append("Door No "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(scheduleB.getDoorNo())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Project Name(If Available) "+"");//projectName
+							scheduleBBuilder.append("Project Name(If Available) "+space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));//projectName
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Flat No (if Available) "+"");//flatno
+							scheduleBBuilder.append("Flat No (if Available) "+space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));//flatno
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Floor (if Available) "+"");//floor
+							scheduleBBuilder.append("Floor (if Available) "+space30.concat(space10).concat("&nbsp;&nbsp;").concat(""));//floor
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Block No (if Available) "+"");//block
+							scheduleBBuilder.append("Block No (if Available) "+space30.concat(space5).concat(""));//block
 							scheduleBBuilder.append("<br>");
 							if(Objects.nonNull(proeprtyAddress)) {
-								scheduleBBuilder.append("Address 1 "+  proeprtyAddress.getStreet());
+								scheduleBBuilder.append("Address 1 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getStreet())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 2 "+  proeprtyAddress.getAddress1());
+								scheduleBBuilder.append("Address 2 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getAddress1())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 3 "+ proeprtyAddress.getAddress7());
+								scheduleBBuilder.append("Address 3 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getAddress7())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Pin Code "+  proeprtyAddress.getPinCode());
+								scheduleBBuilder.append("Pin Code "+  space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getPinCode())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Land Extent "+ proeprtyAddress.getLandExtent());
+								scheduleBBuilder.append("Land Extent "+ space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getLandExtent())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("District "+scheduleB.getDistrict());
+								scheduleBBuilder.append("District "+space30.concat(space30).concat("&nbsp;").concat(getString(scheduleB.getDistrict())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Taluk "+scheduleB.getTaluk());
+								scheduleBBuilder.append("Taluk "+space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(scheduleB.getTaluk())));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Village "+scheduleB.getVillage());
+								scheduleBBuilder.append("Village "+space30.concat(space30).concat("&nbsp;").concat(getString(scheduleB.getVillage())));
 								scheduleBBuilder.append("<br>");
 								scheduleBBuilder.append("<br>");
 								scheduleBBuilder.append("<br>");
 							}else {
-								scheduleBBuilder.append("Address 1 "+ "");
+								scheduleBBuilder.append("Address 1 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 2 "+ "");
+								scheduleBBuilder.append("Address 2 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 3 "+ "");
+								scheduleBBuilder.append("Address 3 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Pin Code "+ "");
+								scheduleBBuilder.append("Pin Code "+ space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
 								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Land Extent "+ "");
+								scheduleBBuilder.append("Land Extent "+ space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
 								scheduleBBuilder.append("<br>");
 								scheduleBBuilder.append("<br>");
 							}
@@ -1461,44 +1467,54 @@ public class DynamicTemplateService {
 					//boundries
 					if(Objects.nonNull(boundriesMap)) {
 						Boundries boundries = boundriesMap.get(titleHolderDetail.getCustomerCode());
-						StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
-						boundroesBuilder.append("<br>");
-						boundroesBuilder.append("North By "+boundries.getNorthBoundry());
-						boundroesBuilder.append("<br>");
-						boundroesBuilder.append("South By "+boundries.getSouthBoundry());
-						boundroesBuilder.append("<br>");
-						boundroesBuilder.append("East By "+boundries.getEastBoundry());
-						boundroesBuilder.append("<br>");
-						boundroesBuilder.append("West By "+boundries.getWestBoundry());
-						boundroesBuilder.append("<br>");
-						boundriesList.add(boundroesBuilder.toString());
+						if(Objects.nonNull(boundries)) {
+							StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
+							boundroesBuilder.append("<br>");
+							boundroesBuilder.append("North By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getNorthBoundry())));
+							boundroesBuilder.append("<br>");
+							boundroesBuilder.append("South By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getSouthBoundry())));
+							boundroesBuilder.append("<br>");
+							boundroesBuilder.append("East By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getEastBoundry())));
+							boundroesBuilder.append("<br>");
+							boundroesBuilder.append("West By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getWestBoundry())));
+							boundroesBuilder.append("<br>");
+							boundriesList.add(boundroesBuilder.toString());
+						}
 					}
 
 					//measurement
 					if(Objects.nonNull(measurementMap)) {
 						Measurement measurerments = measurementMap.get(titleHolderDetail.getCustomerCode());
-						StringBuilder measurementBuilder = new StringBuilder("Measurement");
-						measurementBuilder.append("<br>");
-						measurementBuilder.append("North By "+measurerments.getNorthMeasurement());
-						measurementBuilder.append("<br>");
-						measurementBuilder.append("South By "+measurerments.getSouthMeasurement());
-						measurementBuilder.append("<br>");
-						measurementBuilder.append("East By "+measurerments.getEastMeasurement());
-						measurementBuilder.append("<br>");
-						measurementBuilder.append("West By "+measurerments.getWestMeasurement());
-						measurementBuilder.append("<br>");
-						measurementList.add(measurementBuilder.toString());
+						if(Objects.nonNull(measurerments)) {
+
+							StringBuilder measurementBuilder = new StringBuilder("Measurement");
+							measurementBuilder.append("<br>");
+							measurementBuilder.append("North By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getNorthMeasurement())));
+							measurementBuilder.append("<br>");
+							measurementBuilder.append("South By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getSouthMeasurement())));
+							measurementBuilder.append("<br>");
+							measurementBuilder.append("East By "+space30.concat(space30).concat("&nbsp;").concat(getString(measurerments.getEastMeasurement())));
+							measurementBuilder.append("<br>");
+							measurementBuilder.append("West By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getWestMeasurement())));
+							measurementBuilder.append("<br>");
+							measurementList.add(measurementBuilder.toString());
+						}
 					}
 				});
 			}
 		}
-
-		variablesValueMap.put("~~MOTD_First_Mortage_Title_Holder_Detail~~", firstMortagetitleHolderDetailList.toString());
-		variablesValueMap.put("~~MOTD_First_Mortage_Title_Name_Detail~~", firstMortagetitleNameDetailList.toString());
-		variablesValueMap.put("~~Schedule_A_Table~~", scheduleATableList.toString());
-		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBList.toString());
-		variablesValueMap.put("~~Boundries_Detail~~", boundriesList.toString());
-		variablesValueMap.put("~~Measurement_Detail~~", measurementList.toString());
+		StringBuilder firstMortagetitleHolderDetailStr = getStringFromSet(firstMortagetitleHolderDetailList);
+		StringBuilder firstMortagetitleNameDetailStr = getStringFromSet(firstMortagetitleNameDetailList);
+		StringBuilder scheduleATableStr = getStringFromSet(scheduleATableList);
+		StringBuilder scheduleBListStr = getStringFromSet(scheduleBList);
+		StringBuilder boundriesStr = getStringFromSet(boundriesList);
+		StringBuilder measurementStr = getStringFromSet(measurementList);
+		variablesValueMap.put("~~MOTD_First_Mortage_Title_Holder_Detail~~", firstMortagetitleHolderDetailStr.toString());
+		variablesValueMap.put("~~MOTD_First_Mortage_Title_Name_Detail~~", firstMortagetitleNameDetailStr.toString());
+		variablesValueMap.put("~~Schedule_A_Table~~", scheduleATableStr.toString());
+		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBListStr.toString());
+		variablesValueMap.put("~~Boundries_Detail~~", boundriesStr.toString());
+		variablesValueMap.put("~~Measurement_Detail~~", measurementStr.toString());
 		variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
 
 		StringBuilder loanDetailsTable = new StringBuilder(
@@ -1522,16 +1538,18 @@ public class DynamicTemplateService {
 		loanDetailsTable.append("</td></tr>");
 		loanDetailsTable.append("</tbody></table>");
 		variablesValueMap.put("~~MOTD_Loan_details_table~~", loanDetailsTable.toString());
-		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-
-
-					
 
 	}
+	private StringBuilder getStringFromSet(Set<String> firstMortagetitleHolderDetailList) {
+		   // Display the list of sets without square brackets
+		StringBuilder str = new StringBuilder();
+            Iterator<String> iterator = firstMortagetitleHolderDetailList.iterator();
+            while (iterator.hasNext()) {
+            	str.append(iterator.next());
+            }
+            return str;
+	}
+
 	public <K, V> int getIndexValue(Map<K, V> input, String targetKey) { 
 		int index = 1;
 		for (K key : input.keySet()) { 
@@ -1691,7 +1709,7 @@ public class DynamicTemplateService {
 					letterModel.setMoratoriumPeriod(0);
 				}
 
-				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,PRINCIPAL_OS FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
+				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,PRINCIPAL_OS,RATE_TYPE FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");
 				preparedStatement1.setString(1, letterModel.getContractNumber());
 				ResultSet resultSet1 = preparedStatement1.executeQuery();
 				while (resultSet1.next()) {
@@ -1699,6 +1717,7 @@ public class DynamicTemplateService {
 					letterModel.setTerm((resultSet1.getInt(2)));
 					letterModel.setEmiAmount(convertRoundedValue(String.valueOf(resultSet1.getInt(3))));
 					letterModel.setPrincipalOutstanding(convertRoundedValue(String.valueOf(resultSet1.getInt(4))));
+					letterModel.setRateType(resultSet1.getString(5));
 				}
 
 				PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT PF_RECEIVABLE FROM Cc_Contract_Fee_Details where contract_number=?");
@@ -2163,8 +2182,9 @@ public class DynamicTemplateService {
 			}
 			//property main
 
-			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=?");
+			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=? and property_customer_code=?");
 			preparedStatement2.setString(1, letterModel.getContractNumber());
+			preparedStatement2.setString(2, letterModel.getCustomerCode());
 			ResultSet resultSet2 = preparedStatement2.executeQuery();
 			while (resultSet2.next()) {
 				PropertyNumberModel propertyNumberModel = new PropertyNumberModel();
