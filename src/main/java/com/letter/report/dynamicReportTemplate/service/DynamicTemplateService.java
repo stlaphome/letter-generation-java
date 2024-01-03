@@ -1358,10 +1358,13 @@ public class DynamicTemplateService {
 			Map<String, Measurement> measurementMap = propertyDetailModel.getMeasurementListMap();
 			if(Objects.nonNull(titleHolderDetailList)) {
 				titleHolderDetailList.stream().forEach(titleHolderDetail->{
-					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderDetail.getTitle() +"."+titleHolderDetail.getTitleHolderName()+", Aadhaar No. "+
-							titleHolderDetail.getTitleAadharNo()+" aged about "+titleHolderDetail.getAge()+" years,"
-							+ " S/o.W/o.Mr/s "+titleHolderDetail.getTitleHolderGuardianName()
-							+", residing at "+"<br>"+titleHolderDetail.getTitleHolderAddress()+"<br>"
+					if(Objects.isNull(titleHolderDetail)) {
+						return;
+					}
+					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+", Aadhaar No. "+
+							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
+							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
+							+", residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+"<br>"
 							+"referred to as the MORTGAGORS ”, the PARTY OF THE FIRST PART. "+"<br>"
 							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "+"<br>"
 							+ "to include his / her / their successor and assigns)."
@@ -1369,9 +1372,9 @@ public class DynamicTemplateService {
 
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
 
-					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderDetail.getTitle() +"."+titleHolderDetail.getTitleHolderName()
+					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+getStringFromObject(titleHolderDetail.getTitle()) +"."+getStringFromObject(titleHolderDetail.getTitleHolderName())
 					+"herein is the sole and absolute owner of "+"<br>"+"herein is the sole and absolute owner of the property by the following document "
-					+ titleHolderDetail.getOtdNumber()+" on the file of "+"("+sanctionModel.getSRO()+" ). "
+					+ getStringFromObject(titleHolderDetail.getOtdNumber())+" on the file of "+"("+sanctionModel.getSRO()+" ). "
 					+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 					//scheduleA
