@@ -155,6 +155,7 @@ public class DynamicTemplateService {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+			dynamicTemplate.setProductCode(dynamicTemplateModel.getProductCode());
 			dynamicTemplate.setActive(dynamicTemplateModel.getActive());
 			dynamicTemplate.setTemplateName(dynamicTemplateModel.getTemplateName());
 			if (dynamicTemplateModel.getMode().equalsIgnoreCase("NEW")) {
@@ -240,7 +241,7 @@ public class DynamicTemplateService {
 	}
 
 	public ResponseEntity<DynamicTemplateModel> getTemplate(DynamicTemplateModel dynamicTemplateModel) {
-		Optional<DynamicTemplate> optionalDynamicTemplate = dynamicTemplateRepo.findByTemplateNameAndTemplateKey(
+		Optional<DynamicTemplate> optionalDynamicTemplate = dynamicTemplateRepo.findByProductCodeAndTemplateNameAndTemplateKey(dynamicTemplateModel.getProductCode(),
 				dynamicTemplateModel.getTemplateName(), dynamicTemplateModel.getTemplateKey());
 
 		if (!optionalDynamicTemplate.isPresent()) {
@@ -267,15 +268,15 @@ public class DynamicTemplateService {
 	}
 
 	public ResponseEntity<List<Map>> getTemplateKey(Map<String, String> dataMap) {
-		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByTemplateName(dataMap.get("templateName"));
 		List<Map> templateKeyList = new ArrayList<>();
-		dynamicTemplateList.stream().forEach(item -> {
-			Map<String, String> tempMap = new HashMap<>();
-			tempMap.put("key", item.getTemplateKey());
-			tempMap.put("value", item.getTemplateKey());
-			tempMap.put("text", item.getTemplateKey());
-			templateKeyList.add(tempMap);
-		});
+			List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateName(dataMap.get("productCode"), dataMap.get("templateName"));
+			dynamicTemplateList.stream().forEach(item -> {
+				Map<String, String> tempMap = new HashMap<>();
+				tempMap.put("key", item.getTemplateKey());
+				tempMap.put("value", item.getTemplateKey());
+				tempMap.put("text", item.getTemplateKey());
+				templateKeyList.add(tempMap);
+			});
 		return ResponseEntity.ok(templateKeyList);
 	}
 
@@ -730,7 +731,7 @@ public class DynamicTemplateService {
 				"//~~Header_Company_Name~~//","//~~Current_Date~~//","//~~Branch_Address~~//","//~~To_Address~~//",
 				"//~~TelePhone_No~~//","//~~Header_Mail~~//",
 				"//~~Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//","//~~Moratorium_Period~~//",
-				"//~~MOTD_First_Mortage_Title_Holder_Detail~~//","//~~MOTD_First_Mortage_Title_Name_Detail~~//"
+				"//~~MOTD_First_Mortage_Title_Holder_Detail~~//","//~~MOTD_First_Mortage_Title_Name_Detail~~//","//~~MOTD_Title_Holder_Detail~~//","//~~MOTD_Date~~//","//~~MOTD_Month_Year~~//"
 				,"//~~Schedule_B_Detail~~//","//~~Boundries_Detail~~//","//~~Measurement_Detail~~//"
 				);
 	}
@@ -817,7 +818,7 @@ public class DynamicTemplateService {
 	public ResponseEntity<Map<String, Object>> generateLetter(GenerateTemplateModel model) throws SQLException {
 		String dataBase = "MSSQL";
 		LetterProduct letterProduct = letterProductRepo.findByProductCodeAndLetterName(model.getProductCode(),model.getTemplateName());
-		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByTemplateNameAndActive(model.getTemplateName(), true);
+		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateNameAndActive(model.getProductCode(),model.getTemplateName(), true);
 		DynamicTemplate dynamicTemplate;
 		if(!dynamicTemplateList.isEmpty()) {
 			dynamicTemplate = dynamicTemplateList.get(0);
@@ -1344,6 +1345,7 @@ public class DynamicTemplateService {
 		Set<String> scheduleBList = new LinkedHashSet<>();
 		Set<String> boundriesList = new LinkedHashSet<>();
 		Set<String> measurementList = new LinkedHashSet<>();
+		Set<String> motdTitleHolderList = new LinkedHashSet<>();
 		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -1361,6 +1363,7 @@ public class DynamicTemplateService {
 					if(Objects.isNull(titleHolderDetail)) {
 						return;
 					}
+					//smtitleholder
 					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+", Aadhaar No. "+
 							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
@@ -1371,12 +1374,24 @@ public class DynamicTemplateService {
 							+"<br>"+"<br>");
 
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
-
+					//smotd name
 					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+getStringFromObject(titleHolderDetail.getTitle()) +"."+getStringFromObject(titleHolderDetail.getTitleHolderName())
 					+"herein is the sole and absolute owner of "+"<br>"+"herein is the sole and absolute owner of the property by the following document "
 					+ getStringFromObject(titleHolderDetail.getOtdNumber())+" on the file of "+"("+sanctionModel.getSRO()+" ). "
 					+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
+					
+					//motd tileholder
+					StringBuilder motdTitleHolderBuilder =new StringBuilder(getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+", Aadhaar No. "+
+							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
+							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
+							+", residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+"<br>"
+							+"referred to as the BORROWER/S”, the PARTY OF THE FIRST PART. "+"<br>"
+							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "+"<br>"
+							+ "to include his / her / their successor and assigns)."
+							+"<br>"+"<br>");
+
+					motdTitleHolderList.add(motdTitleHolderBuilder.toString());
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
 						Set<ScheduleA> scheduleAList = scheduleAListMap.get(titleHolderDetail.getCustomerShareCode());
@@ -1508,18 +1523,23 @@ public class DynamicTemplateService {
 		}
 		StringBuilder firstMortagetitleHolderDetailStr = getStringFromSet(firstMortagetitleHolderDetailList);
 		StringBuilder firstMortagetitleNameDetailStr = getStringFromSet(firstMortagetitleNameDetailList);
+		StringBuilder motdTitleHolderStr = getStringFromSet(motdTitleHolderList);
 		StringBuilder scheduleATableStr = getStringFromSet(scheduleATableList);
 		StringBuilder scheduleBListStr = getStringFromSet(scheduleBList);
 		StringBuilder boundriesStr = getStringFromSet(boundriesList);
 		StringBuilder measurementStr = getStringFromSet(measurementList);
 		variablesValueMap.put("~~MOTD_First_Mortage_Title_Holder_Detail~~", firstMortagetitleHolderDetailStr.toString());
 		variablesValueMap.put("~~MOTD_First_Mortage_Title_Name_Detail~~", firstMortagetitleNameDetailStr.toString());
+		variablesValueMap.put("~~MOTD_Title_Holder_Detail~~", motdTitleHolderStr.toString());
 		variablesValueMap.put("~~Schedule_A_Table~~", scheduleATableStr.toString());
 		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBListStr.toString());
 		variablesValueMap.put("~~Boundries_Detail~~", boundriesStr.toString());
 		variablesValueMap.put("~~Measurement_Detail~~", measurementStr.toString());
 		variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
 
+		//day and month
+		splitDayFromDate(sanctionModel,variablesValueMap);
+		
 		StringBuilder loanDetailsTable = new StringBuilder(
 				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">File Number</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Loan Amount (in Rs.)</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Rate (in %)</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Type</td><td style=\\\\\\\\\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\\\\\\\\\" valign=\\\\\\\\\\\\\\\"top\\\\\\\\\\\\\\\" width=\\\\\\\\\\\\\\\"200\\\\\\\\\\\\\\\">Tenor</td></tr>");
 		loanDetailsTable.append(
@@ -1543,6 +1563,45 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~MOTD_Loan_details_table~~", loanDetailsTable.toString());
 
 	}
+	private void splitDayFromDate(LetterReportModel sanctionModel, Map<String, Object> variablesValueMap) {
+		// Parse the input date string
+        SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+        String inputDateString = sanctionModel.getCurrentDate();
+        Date date;
+        try {
+			date = inputFormat.parse(inputDateString);
+
+            // Format the date to the desired output format
+            SimpleDateFormat outputFormat = new SimpleDateFormat("d', 'MMMM yyyy");
+            String outputDateString = outputFormat.format(date);
+            String[] dateSplitdata = outputDateString.split(",");
+            String dayOrdinal = addOrdinalSuffix(dateSplitdata[0]);
+            variablesValueMap.put("~~MOTD_Date~~",dayOrdinal);
+            variablesValueMap.put("~~MOTD_Month_Year~~",dateSplitdata[1] );
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+		
+	}
+	
+	public static String addOrdinalSuffix(String data) {
+        int number = Integer.parseInt(data);
+		if (number >= 11 && number <= 13) {
+            return number + " th";
+        }
+
+        switch (number % 10) {
+            case 1:
+                return number + " st";
+            case 2:
+                return number + " nd";
+            case 3:
+                return number + " rd";
+            default:
+                return number + " th";
+        }
+    }
+
 	private StringBuilder getStringFromSet(Set<String> firstMortagetitleHolderDetailList) {
 		   // Display the list of sets without square brackets
 		StringBuilder str = new StringBuilder();

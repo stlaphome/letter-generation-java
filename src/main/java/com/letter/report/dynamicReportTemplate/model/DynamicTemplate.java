@@ -29,6 +29,9 @@ public class DynamicTemplate {
 	@Column(name = "template_hdr_key")
 	private int templateHeaderKey;
 	
+	@Column(name = "product_code")
+	private String productCode;
+	
 	@Column(name = "template_name")
 	private String templateName;
 	

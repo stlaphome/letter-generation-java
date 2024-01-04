@@ -16,4 +16,11 @@ public interface  DynamicTemplateRepo extends JpaRepository<DynamicTemplate, Int
 	List<DynamicTemplate> findByTemplateName(String templateName);
 	
 	List<DynamicTemplate> findByTemplateNameAndActive(String templateName,Boolean active);
+
+	List<DynamicTemplate> findByProductCodeAndTemplateName(String string, String string2);
+
+	List<DynamicTemplate> findByProductCodeAndTemplateNameAndActive(String productCode, String templateName, boolean b);
+
+	Optional<DynamicTemplate> findByProductCodeAndTemplateNameAndTemplateKey(String productCode, String templateName,
+			String templateKey);
 }
