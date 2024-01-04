@@ -132,6 +132,7 @@ public class DynamicTemplateService {
 
 	private static Logger logger = LoggerFactory.getLogger(DynamicTemplateService.class);
 
+	private int serialNo = 1;
 
 
 	@Value("${stlap.server.url}")
@@ -732,7 +733,8 @@ public class DynamicTemplateService {
 				"//~~TelePhone_No~~//","//~~Header_Mail~~//",
 				"//~~Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//","//~~Moratorium_Period~~//",
 				"//~~MOTD_First_Mortage_Title_Holder_Detail~~//","//~~MOTD_First_Mortage_Title_Name_Detail~~//","//~~MOTD_Title_Holder_Detail~~//","//~~MOTD_Date~~//","//~~MOTD_Month_Year~~//"
-				,"//~~Schedule_B_Detail~~//","//~~Boundries_Detail~~//","//~~Measurement_Detail~~//"
+				,"//~~Schedule_B_Detail~~//","//~~Boundries_Detail~~//","//~~Measurement_Detail~~//",
+				"//~~Supplement_MOTD_Title_Holder_Detail~~//"
 				);
 	}
 	public String replaceValues(String content, String applicationNumber) {
@@ -1341,11 +1343,12 @@ public class DynamicTemplateService {
 		PropertyDetailModel propertyDetailModel = sanctionModel.getPropertyDetailModel();
 		Set<String> firstMortagetitleHolderDetailList = new LinkedHashSet<>();
 		Set<String> firstMortagetitleNameDetailList = new LinkedHashSet<>();
+		Set<String> motdTitleHolderList = new LinkedHashSet<>();
+		Set<String> supplementMotdTitleHolderList = new LinkedHashSet<>();
 		Set<String> scheduleATableList = new LinkedHashSet<>();
 		Set<String> scheduleBList = new LinkedHashSet<>();
 		Set<String> boundriesList = new LinkedHashSet<>();
 		Set<String> measurementList = new LinkedHashSet<>();
-		Set<String> motdTitleHolderList = new LinkedHashSet<>();
 		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -1392,10 +1395,21 @@ public class DynamicTemplateService {
 							+"<br>"+"<br>");
 
 					motdTitleHolderList.add(motdTitleHolderBuilder.toString());
+					
+					//supplement motd title
+					
+					int a = serialNo++;
+					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a+getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+" ,S/o.W/o.Mr/s of"+
+							getString(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
+							+" residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+","
+							+"<br>"+"<br>");
+					
+					supplementMotdTitleHolderList.add(supplmentMotdTitleHolderBuilder.toString());
+					
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
-						Set<ScheduleA> scheduleAList = scheduleAListMap.get(titleHolderDetail.getCustomerShareCode());
-						int scheduleAIndex = getIndexValue(scheduleAListMap,titleHolderDetail.getCustomerShareCode());
+						Set<ScheduleA> scheduleAList = scheduleAListMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
+						int scheduleAIndex = titleHolderDetail.getPropertyNumber();
 						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
 							StringBuilder scheduleATable = new StringBuilder("Document details for item No."+scheduleAIndex+ "of Schedule -A");
 							scheduleATable.append("<br>");
@@ -1423,8 +1437,8 @@ public class DynamicTemplateService {
 					}
 					//scheduleB
 					if(Objects.nonNull(scheduleBMap)) {
-						int scheduleBIndex = getIndexValue(scheduleBMap,titleHolderDetail.getCustomerShareCode());
-						ScheduleB scheduleB = scheduleBMap.get(titleHolderDetail.getCustomerShareCode());
+						int scheduleBIndex = getIndexValue(scheduleBMap,String.valueOf(titleHolderDetail.getPropertyNumber()));
+						ScheduleB scheduleB = scheduleBMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
 						if(Objects.nonNull(scheduleB)) {
 								PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
 							StringBuilder scheduleBBuilder = new StringBuilder("Item"+scheduleBIndex+"<br>"+"<br>");
@@ -1484,7 +1498,7 @@ public class DynamicTemplateService {
 
 					//boundries
 					if(Objects.nonNull(boundriesMap)) {
-						Boundries boundries = boundriesMap.get(titleHolderDetail.getCustomerCode());
+						Boundries boundries = boundriesMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
 						if(Objects.nonNull(boundries)) {
 							StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
 							boundroesBuilder.append("<br>");
@@ -1502,7 +1516,7 @@ public class DynamicTemplateService {
 
 					//measurement
 					if(Objects.nonNull(measurementMap)) {
-						Measurement measurerments = measurementMap.get(titleHolderDetail.getCustomerCode());
+						Measurement measurerments = measurementMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
 						if(Objects.nonNull(measurerments)) {
 
 							StringBuilder measurementBuilder = new StringBuilder("Measurement");
@@ -1523,6 +1537,7 @@ public class DynamicTemplateService {
 		}
 		StringBuilder firstMortagetitleHolderDetailStr = getStringFromSet(firstMortagetitleHolderDetailList);
 		StringBuilder firstMortagetitleNameDetailStr = getStringFromSet(firstMortagetitleNameDetailList);
+		StringBuilder supplementMotdTitleHolderStr = getStringFromSet(supplementMotdTitleHolderList);
 		StringBuilder motdTitleHolderStr = getStringFromSet(motdTitleHolderList);
 		StringBuilder scheduleATableStr = getStringFromSet(scheduleATableList);
 		StringBuilder scheduleBListStr = getStringFromSet(scheduleBList);
@@ -1530,6 +1545,7 @@ public class DynamicTemplateService {
 		StringBuilder measurementStr = getStringFromSet(measurementList);
 		variablesValueMap.put("~~MOTD_First_Mortage_Title_Holder_Detail~~", firstMortagetitleHolderDetailStr.toString());
 		variablesValueMap.put("~~MOTD_First_Mortage_Title_Name_Detail~~", firstMortagetitleNameDetailStr.toString());
+		variablesValueMap.put("~~Supplement_MOTD_Title_Holder_Detail~~", supplementMotdTitleHolderStr.toString());
 		variablesValueMap.put("~~MOTD_Title_Holder_Detail~~", motdTitleHolderStr.toString());
 		variablesValueMap.put("~~Schedule_A_Table~~", scheduleATableStr.toString());
 		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBListStr.toString());
@@ -2262,7 +2278,7 @@ public class DynamicTemplateService {
 				try {
 					Connection connection1 = currentDataSource.getConnection();
 					preparedStatement3 = connection1.prepareStatement("Select share_customer_code ,Title_Holder_Name, Customer_Code,property_number"
-							+ " From Sa_Customer_Property_Share where customer_code=? and property_number =?");
+							+ " From Sa_Customer_Property_Share where customer_code=? and property_number =? order by property_number");
 
 					preparedStatement3.setString(1, propertyNumberModel.getPropertyCustomerCode());
 					preparedStatement3.setInt(2, propertyNumberModel.getPropertyNumber());
@@ -2443,9 +2459,9 @@ public class DynamicTemplateService {
 					measurement.setWestMeasurement(resultSet14.getString(8));
 				}
 			}
-			boundriesListMap.put(titleHolderDetail.getCustomerShareCode(),boundries);
-			measurementListMap.put(titleHolderDetail.getCustomerShareCode(),measurement);
-			scheduleBListMap.put(titleHolderDetail.getCustomerShareCode(),scheduleB);
+			boundriesListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()),boundries);
+			measurementListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()),measurement);
+			scheduleBListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()),scheduleB);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2484,7 +2500,7 @@ public class DynamicTemplateService {
 				}
 				scheduleAList.add(scheduleA);
 			}
-			scheduleListMap.put(titleHolderDetail.getCustomerShareCode(), scheduleAList);
+			scheduleListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()), scheduleAList);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}		
