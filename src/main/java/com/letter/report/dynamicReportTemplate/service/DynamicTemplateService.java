@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1347,8 +1348,8 @@ public class DynamicTemplateService {
 		Set<String> supplementMotdTitleHolderList = new LinkedHashSet<>();
 		Set<String> scheduleATableList = new LinkedHashSet<>();
 		Set<String> scheduleBList = new LinkedHashSet<>();
-		Set<String> boundriesList = new LinkedHashSet<>();
-		Set<String> measurementList = new LinkedHashSet<>();
+		List<String> boundriesList = new LinkedList<>();
+		List<String> measurementList = new LinkedList<>();
 		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -1357,10 +1358,11 @@ public class DynamicTemplateService {
 	
 		if(Objects.nonNull(propertyDetailModel)) {
 			Set<TitleHolderDetail> titleHolderDetailList = propertyDetailModel.getTitleHolderDetailList();
-			Map<String, Set<ScheduleA>> scheduleAListMap = propertyDetailModel.getScheduleListMap();
+			Map<String, LinkedHashSet<ScheduleA>> scheduleAListMap = propertyDetailModel.getScheduleListMap();
 			Map<String, ScheduleB> scheduleBMap = propertyDetailModel.getScheduleBListMap();
 			Map<String, Boundries> boundriesMap = propertyDetailModel.getBoundriesListMap();
 			Map<String, Measurement> measurementMap = propertyDetailModel.getMeasurementListMap();
+			serialNo = 1;
 			if(Objects.nonNull(titleHolderDetailList)) {
 				titleHolderDetailList.stream().forEach(titleHolderDetail->{
 					if(Objects.isNull(titleHolderDetail)) {
@@ -1399,7 +1401,7 @@ public class DynamicTemplateService {
 					//supplement motd title
 					
 					int a = serialNo++;
-					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a+getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+" ,S/o.W/o.Mr/s of"+
+					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a+"."+getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+" ,S/o.W/o.Mr/s of"+
 							getString(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
 							+" residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+","
 							+"<br>"+"<br>");
@@ -1510,6 +1512,7 @@ public class DynamicTemplateService {
 							boundroesBuilder.append("<br>");
 							boundroesBuilder.append("West By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getWestBoundry())));
 							boundroesBuilder.append("<br>");
+							boundroesBuilder.append("<br>");
 							boundriesList.add(boundroesBuilder.toString());
 						}
 					}
@@ -1528,6 +1531,7 @@ public class DynamicTemplateService {
 							measurementBuilder.append("East By "+space30.concat(space30).concat("&nbsp;").concat(getString(measurerments.getEastMeasurement())));
 							measurementBuilder.append("<br>");
 							measurementBuilder.append("West By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getWestMeasurement())));
+							measurementBuilder.append("<br>");
 							measurementBuilder.append("<br>");
 							measurementList.add(measurementBuilder.toString());
 						}
@@ -1626,6 +1630,15 @@ public class DynamicTemplateService {
             	str.append(iterator.next());
             }
             return str;
+	}
+	private StringBuilder getStringFromSet(List<String> firstMortagetitleHolderDetailList) {
+		// Display the list of sets without square brackets
+		StringBuilder str = new StringBuilder();
+		Iterator<String> iterator = firstMortagetitleHolderDetailList.iterator();
+		while (iterator.hasNext()) {
+			str.append(iterator.next());
+		}
+		return str;
 	}
 
 	public <K, V> int getIndexValue(Map<K, V> input, String targetKey) { 
@@ -2240,13 +2253,13 @@ public class DynamicTemplateService {
 		// Use the current datasource to fetch data
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
-		Set<PropertyNumberModel> propertyNumberModelList = new HashSet<>();
-		Set<TitleHolderDetail> titleHolderList = new HashSet<>();
-		TreeMap<String,Set<ScheduleA>> scheduleListMap = new TreeMap<>();
+		LinkedHashSet<PropertyNumberModel> propertyNumberModelList = new LinkedHashSet<>();
+		LinkedHashSet<TitleHolderDetail> titleHolderList = new LinkedHashSet<>();
+		TreeMap<String,LinkedHashSet<ScheduleA>> scheduleListMap = new TreeMap<>();
 		TreeMap<String,ScheduleB> scheduleBListMap= new TreeMap<>();
 		TreeMap<String,Boundries> boundriesListMap= new TreeMap<>();
 		TreeMap<String,Measurement> measurementListMap= new TreeMap<>();
-		Set<ScheduleA> scheduleAList = new HashSet<>();
+		Set<ScheduleA> scheduleAList = new LinkedHashSet<>();
 		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
 		try {
 			connection = currentDataSource.getConnection();
@@ -2260,7 +2273,7 @@ public class DynamicTemplateService {
 			}
 			//property main
 
-			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=? and property_customer_code=?");
+			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=? and property_customer_code=? order by property_number");
 			preparedStatement2.setString(1, letterModel.getContractNumber());
 			preparedStatement2.setString(2, letterModel.getCustomerCode());
 			ResultSet resultSet2 = preparedStatement2.executeQuery();
@@ -2320,7 +2333,6 @@ public class DynamicTemplateService {
 			propertyDetailModel.setMeasurementListMap(measurementListMap);
 			propertyDetailModel.setBoundriesListMap(boundriesListMap);
 			letterModel.setPropertyDetailModel(propertyDetailModel);
-
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2341,11 +2353,11 @@ public class DynamicTemplateService {
 			PreparedStatement preparedStatement10 = connection3.prepareStatement("Select Contract_Number,Bounded_North,"
 					+ " Bounded_South, Bounded_East, Bounded_West ,"
 					+ " Survey, Plot, Door_No, Building_Society_Name, State_Name, District, Taluk_Tehsil,"
-					+ " Town, Village, Sro, City_Code From cc_property_category_dtls_auth where contract_number=?"
+					+ " Town, Village, Sro, City_Code From cc_property_category_details where contract_number=?"
 					+ " and customer_code=? and property_number=?");
 			preparedStatement10.setString(1, letterModel.getContractNumber());
 			preparedStatement10.setString(2, titleHolderDetail.getCustomerShareCode());
-			preparedStatement10.setInt(3, titleHolderDetail.getPropertyNumber());
+			preparedStatement10.setInt(3,titleHolderDetail.getPropertyNumber());
 			ResultSet resultSet10 = preparedStatement10.executeQuery();
 			if(!resultSet10.isBeforeFirst()) {
 				scheduleB = null;
@@ -2467,12 +2479,12 @@ public class DynamicTemplateService {
 		}
 	}
 
-	private void getScheduleADetail(LetterReportModel letterModel, PropertyDetailModel propertyDetailModel, TitleHolderDetail titleHolderDetail, Map<String, Set<ScheduleA>> scheduleListMap) {
+	private void getScheduleADetail(LetterReportModel letterModel, PropertyDetailModel propertyDetailModel, TitleHolderDetail titleHolderDetail, Map<String, LinkedHashSet<ScheduleA>> scheduleListMap) {
 		// Use the current datasource to fetch data
 		dynamicDataSourceService.switchToOracleDataSource();
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
-		Set<ScheduleA> scheduleAList = new HashSet<>();
+		LinkedHashSet<ScheduleA> scheduleAList = new LinkedHashSet<>();
 		try {
 			connection = currentDataSource.getConnection();
 			PreparedStatement preparedStatement8 = connection.prepareStatement("SELECT Contract_Number, Document_Id Doc_Id, Collection_Date, Original_Document, Document_Number, Title_Holder_Name, Document_Type, Document_Date FROM Dc_Document_Processing where "
