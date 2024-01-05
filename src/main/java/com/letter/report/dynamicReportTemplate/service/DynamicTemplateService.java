@@ -685,6 +685,10 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "0"); //Not Applicable
 		variablesValueMap.put("~~Life_Insurance~~", nullCheckStringField(sanctionModel.getLifeInsurance())); 
 		variablesValueMap.put("~~Moratorium_Period~~", sanctionModel.getMoratoriumPeriod()); 
+		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
+		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
+		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 
 		List<CashHandlingChargesModel> cashHandlingChargesList = sanctionModel.getCashHandlingCharges();
 		StringBuilder cashHandlingChargesTables = new StringBuilder(
@@ -2466,6 +2470,8 @@ public class DynamicTemplateService {
 				letterModel.setApplicationNumber(getStringFromObject(returnResponse.get("applicationNum")));
 				letterModel.setCustomerCode(getStringFromObject(returnResponse.get("customerId")));
 				letterModel.setCustomerName(getStringFromObject(returnResponse.get("customerName")));
+				letterModel.setApplicant(getStringFromObject(returnResponse.get("customerName")));
+				letterModel.setCoApplicant1(getStringFromObject(returnResponse.get("coApplicantName")));
 				letterModel.setCurrentDate(formatter.format(date));
 				letterModel.setBranchCode(getStringFromObject(returnResponse.get("branchCode")));
 				letterModel.setAmountFinanced(convertRoundedValue(getStringFromObject(returnResponse.get("loanAmt"))));
@@ -2591,10 +2597,10 @@ public class DynamicTemplateService {
 		String sql = "";
 		String value = "";
 		if(Objects.nonNull(model.getApplicationNumber()) && !(model.getApplicationNumber().isEmpty())) {
-			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE application_num = ?";
+			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest,co_applicant_name FROM ST_TB_LOS_CUSTOMER WHERE application_num = ?";
 			value = model.getApplicationNumber();
 		}else if(model.getSanctionDate()!=null){
-			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest FROM ST_TB_LOS_CUSTOMER WHERE effective_date = ?";
+			sql = "SELECT application_num,customer_id,customer_name,branch_code,loan_amt,sanction_amt,tenure,rate_of_interest,co_applicant_name FROM ST_TB_LOS_CUSTOMER WHERE effective_date = ?";
 			DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 			LocalDate date = LocalDate.parse(model.getSanctionDate(), inputFormatter);
 			LocalDateTime dateTime = date.atStartOfDay();
@@ -2620,6 +2626,7 @@ public class DynamicTemplateService {
 						responseMap.put("sanctionAmt", resultSet.getFloat(6));
 						responseMap.put("tenure", resultSet.getInt(7));
 						responseMap.put("rateOfInterest", resultSet.getFloat(8));
+						responseMap.put("coApplicantName", resultSet.getString(8));
 						returnResponseList.add(responseMap);
 						logger.info("getcustomerDataFromLos query method ended"+returnResponseList);
 					}
