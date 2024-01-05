@@ -300,267 +300,7 @@ public class DynamicTemplateService {
 		return ResponseEntity.ok(templateNameList);
 	}
 
-	@SuppressWarnings("unchecked")
-	public Map<String, String> returnVariablesDataMapForMITC(String applicationNumber) {
-		Date date = new Date();
-		SimpleDateFormat formatter1 = new SimpleDateFormat("MM/dd/yyyy");
-
-		Map<String, Object> dataMap = new HashMap<>();
-		dataMap.put("applicationNum", applicationNumber);
-		dataMap.put("type", "accrual");
-
-		// Get Los Customer Data
-		Map<String, Object> returnResponse = webClient.post()
-				.uri(stlapServerUrl + "/losCustomer/getCustomerDataByAppNum")
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-				.bodyToMono(Map.class).block();
-
-
-
-		// Calculate Documentation Charges
-		ResponseEntity<Map> feeDataResponse = webClient.post().uri(stlapServerUrl + "/additionalfee/getFeeData")
-				.bodyValue(dataMap).accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-				.toEntity(Map.class).block();
-
-		List<Map<String, String>> feeDataList = (List<Map<String, String>>) feeDataResponse.getBody().get("gridData");
-		AtomicInteger documentationCharges = new AtomicInteger();
-		feeDataList.stream().filter(item -> item.get("details").equalsIgnoreCase("DOCUMENTATION CHARGES"))
-		.forEach(item -> {
-			int tempValue = getInt(item.get("receiveable")) - getInt(item.get("received"));
-			documentationCharges.set(tempValue);
-		});
-
-		// Amort Calculation for Balance Payable
-		Calendar calendar = Calendar.getInstance();
-		Date currentDate = getDate(calendar.getTime());
-		calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
-		Date dueStartDate = getDate(calendar.getTime());
-		Double balancePayable = 0.0;
-
-		ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
-				.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
-				.block();
-		List<Amort> amortData = amortDataResponse.getBody();
-		balancePayable = amortData.stream().filter(amort -> (amort.getDueStartDate().after(dueStartDate)
-				|| amort.getDueStartDate().compareTo(dueStartDate) == 0)).mapToDouble(Amort::getEmiDue).sum();
-
-		// Cash Handling Charges Calculation
-		ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
-				.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-				.toEntityList(CashHandlingChargesModel.class).block();
-		List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
-
-		StringBuilder cashHandlingChargesTables = new StringBuilder(
-				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Amount of Remittance</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Applicable Charges</td></tr><tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> Upto Rs.2000/-</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> NIL</td></tr>");
-		cashHandlingChargesList.stream().forEach(item -> {
-			cashHandlingChargesTables.append(
-					"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-			cashHandlingChargesTables
-			.append("Rs." + item.getFromReceiptAmt() + "/- to Rs." + item.getToReceiptAmt() + "/-");
-			cashHandlingChargesTables.append(
-					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-			cashHandlingChargesTables.append("Rs." + item.getCashHandlingCharges() + "/- + GST Per Receipt");
-			cashHandlingChargesTables.append("</td></tr>");
-		});
-		cashHandlingChargesTables.append("</tbody></table>");
-		List<Object> scheduledChangeTablesList = new ArrayList<>();
-		//scheduledChangeTablesList.add("Test");
-		StringBuilder scheduledChangeTables = new StringBuilder(
-				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\">"
-						+ "<tbody>"
-						+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
-						+ "<td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td>"
-						+ "<td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black;border-left: none;  background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td>"
-						+ "<td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black;border-left: none;  background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Date</td>"
-						+ "<td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black;border-left: none;  background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Title Holder</td></tr>");
-
-		scheduledChangeTablesList.stream().forEach(item -> {
-			scheduledChangeTables.append(
-					"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-			scheduledChangeTables
-			.append(item);
-			scheduledChangeTables.append(
-					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-			scheduledChangeTables.append(item);
-			scheduledChangeTables.append(
-					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-			scheduledChangeTables.append(item);
-			scheduledChangeTables.append(
-					"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-			scheduledChangeTables.append(item);
-			scheduledChangeTables.append("</td></tr>");
-		});
-		scheduledChangeTables.append("</tbody></table>");
-		//annxure table
-		List<Map<String,Object>> annexureChrgeTableList = new ArrayList<>();
-
-		Map<String,Object> annexureTableValuesMap = new HashMap<>();
-		annexureTableValuesMap.put("Documentation Charges", "Kerala – Rs.800/-, Rajasthan – Rs.700/-, Maharashtra & Gujarat\r\n"
-				+ "Rs.600/- and Other states Rs.450/-");
-		annexureTableValuesMap.put("Switch Fee", "0.5% of the Principal Outstanding + GST");
-		annexureTableValuesMap.put("Statement Charges", "Rs.500/- + GST. Not applicable if requested for the first time in a\r\n"
-				+ "financial year.");
-		annexureChrgeTableList.add(annexureTableValuesMap);
-		StringBuilder annexureChrgeTables = new StringBuilder(
-				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 04.00pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\">"
-						+ "<tbody>"
-						+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
-						+ "<td style=\\\"width: 15pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">SL\r\nNo</td>"
-						+ "<td style=\\\"width: 150pt; border: 1pt solid black; background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">DESCRIPTION</td>"
-						+ "<td style=\\\"width: 250pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black;border-left: none;  background: rgb(191, 204, 218); padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">CHARGES\r\n"
-						+ "(Wherever applicable, charges are subject to GST on inclusive\r\n"
-						+ "/exclusive basis)</td></tr>");
-		annexureChrgeTableList.stream().forEach(item -> {
-			int index = 1;
-			for (Map.Entry<String, Object> entry : item.entrySet()) {
-
-				annexureChrgeTables.append(
-						"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 50.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				annexureChrgeTables
-				.append(index);
-				annexureChrgeTables.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				annexureChrgeTables.append(entry.getKey());
-				annexureChrgeTables.append(
-						"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
-				annexureChrgeTables.append(entry.getValue());
-				annexureChrgeTables.append("</td></tr>");
-				++index;
-			}
-
-		});
-		annexureChrgeTables.append("</tbody></table>");
-
-		// Prepayment Charges Calculation
-		dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
-
-		PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
-		String prepaymentCharge = "";
-		if(prepaymentModel!=null ) {
-			prepaymentCharge = String.valueOf(prepaymentModel.getRate().intValue());
-		}
-		//customer address
-		String customerAddress = getCustomerAddress(Integer.parseInt( String.valueOf(returnResponse.get("customerId"))), String.valueOf(returnResponse.get("customerName")));
-
-		// ChequeReturnCharges Calculation
-		dataMap.put("parameterName", "ChequeReturnCharges");
-		Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-				.bodyToMono(Map.class).block();
-		String todayDate = formatter1.format(currentDate);
-		String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
-				&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
-				? parameterResponse.get("paramValue").toString()
-						: "0";
-		int loanAmount = (int)Math.round((Double) returnResponse.get("loanAmt"));
-		int sanctionAmount = (int)Math.round((Double) returnResponse.get("sanctionAmt"));		
-		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-		YearMonth yearMonth = YearMonth.now();
-		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
-		Map<String, String> variablesValueMap = new HashMap<String, String>();
-		//String toAddress = returnResponse.get("customerName") + ",<br>" +dynamicVariables.getToAddress();
-		//String[] branchAddress = dynamicVariables.getBranchAddress().split(",");
-		//String branchNewAddress = getExpandedAddress(branchAddress);
-		String toNewAddress = getExpandedAddress(customerAddress.split(","),returnResponse.get("customerName"));
-		variablesValueMap.put("~~Branch_Address~~", "Nil");
-		variablesValueMap.put("~~Date~~", formatter.format(date));
-		variablesValueMap.put("~~To_Address~~", toNewAddress);
-		variablesValueMap.put("~~Application_Number~~", returnResponse.get("applicationNum").toString());
-		variablesValueMap.put("~~Loan_Amount~~", String.valueOf(loanAmount));
-		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(loanAmount)));
-		variablesValueMap.put("~~Product~~", "Nil");
-		variablesValueMap.put("~~Purpose_of_Loan~~", "Nil");
-		variablesValueMap.put("~~Term~~", String.valueOf(returnResponse.get("tenure")));
-		variablesValueMap.put("~~ROI~~", String.valueOf(returnResponse.get("rateOfInterest")));
-		variablesValueMap.put("~~EMI~~", "Nil");
-		variablesValueMap.put("~~Upfront_Processing_Fee~~", "Nil"); //los_fee or accural_fee
-		variablesValueMap.put("~~Balance_Payable~~", String.valueOf((int) Math.round(balancePayable)));
-		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(documentationCharges.get()));
-		variablesValueMap.put("~~CERSAI_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Appraisal_Charges~~", "Not Applicable"); //
-		variablesValueMap.put("~~Switch_Fee~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");//
-		variablesValueMap.put("~~Conversion_Charges~~", "Nil");
-		variablesValueMap.put("~~Cheque_Return_Charges~~", chequeReturnCharges);
-		variablesValueMap.put("~~GST_Tamilnadu~~", "Nil");  //its static in sanction letter
-		variablesValueMap.put("~~GST_Andra~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~GST_Karnataka~~","Nil"); //its static in sanction letter
-		variablesValueMap.put("~~GST_Others~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Repricing_Fee~~",  "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~CA_Certification_Fee~~", "Nil"); //
-		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","Nil"); //
-		variablesValueMap.put("~~PDC_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Swapping_Charges~~","Nil"); //
-		variablesValueMap.put("~~Travelling_Expense~~", "Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","Nil"); //
-		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","Nil"); //
-		variablesValueMap.put("~~Prepayment_Charges~~", prepaymentCharge);
-		variablesValueMap.put("~~Penal_Interest~~","Nil"); //its static in sanction letter
-		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "Nil"); //
-		variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
-		variablesValueMap.put("~~Annexures_Tables~~", annexureChrgeTables.toString());
-		variablesValueMap.put("~~MOTD_Title_Execution~~", "TEST");
-		variablesValueMap.put("~~MOTD_Run_Day~~", String.valueOf(date.getDay()));
-		variablesValueMap.put("~~MOTD_Run_Month_Year~~", formattedDate);
-		variablesValueMap.put("~~MOTD_Title_Holder~~", String.valueOf(returnResponse.get("customerName")));
-		variablesValueMap.put("~~Schedule_Detail_Table~~", scheduledChangeTables.toString());
-		variablesValueMap.put("~~SRO~~", "SRO"); //
-		variablesValueMap.put("~~MOTD_Title_Holder_Aadhaar~~", "9326 4143 9726");
-		variablesValueMap.put("~~MOTD_Title_Holder_Age~~", "40");
-		variablesValueMap.put("~~MOTD_Title_Holder_Guardian~~", "Gokila");
-		variablesValueMap.put("~~MOTD_Title_Holder_Address~~", "4/150 B3, Coimbatore");
-		variablesValueMap.put("~~MOTD_Title_Holder_1~~", "TEST");
-		variablesValueMap.put("~~MOTD_Title_Holder_Aadhaar_1~~", "TEST");
-		variablesValueMap.put("~~MOTD_Title_Holder_Age_1~~", "TEST");
-		variablesValueMap.put("~~MOTD_Title_Holder_Guardian_1~~", "TEST");
-		variablesValueMap.put("~~MOTD_Title_Holder_Address_1~~", "TEST");
-		variablesValueMap.put("~~MOTD_Registered_Date~~", "TEST");
-		variablesValueMap.put("~~MOTD_Registered_Doc_no~~", "TEST");
-		variablesValueMap.put("~~MOTD_Registered_Office~~", "TEST");
-		variablesValueMap.put("~~MOTD_Registered_Sub_Office~~", "TEST");
-		variablesValueMap.put("~~MOTD_Clearance_Date~~", "TEST");
-		variablesValueMap.put("~~MOTD_Favour_Of~~", "Sundaram Home Finance Limited"); //
-		variablesValueMap.put("~~MOTD_Sanction_Amount~~", String.valueOf(sanctionAmount));
-		variablesValueMap.put("~~MOTD_Sanction_Amount_Words~~",
-				convertToIndianCurrency(String.valueOf(sanctionAmount)));
-		variablesValueMap.put("~~MOTD_Mortgage_Type~~", "TEST");
-		variablesValueMap.put("~~MOTD_SRO_District~~", space30.concat(space20).concat("&nbsp;&nbsp;").concat("THIRUVALLUR")); //
-		variablesValueMap.put("~~MOTD_SRO_Place~~", space30.concat(space30).concat(space5).concat("REDHILLS"));
-		variablesValueMap.put("~~MOTD_District~~", space30.concat(space30).concat("&nbsp;").concat("THIRUVALLUR"));
-		variablesValueMap.put("~~MOTD_Taluk~~", space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("MADHAVARAM"));
-		variablesValueMap.put("~~MOTD_Village~~",  space30.concat(space30).concat("&nbsp;").concat("NARAVARIKUPPAM"));
-		variablesValueMap.put("~~MOTD_Survey_Additional_Survey~~",space20.concat("&nbsp;&nbsp;").concat("91/104B and NOW PONNERI TALUK"));
-		variablesValueMap.put("~~MOTD_Plot_No~~", space30.concat(space25).concat(space5).concat("&nbsp;").concat("91/104B."));
-		variablesValueMap.put("~~MOTD_Door_No~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("3/1 3/2 3/3"));
-		variablesValueMap.put("~~MOTD_Project_Name~~", space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-		variablesValueMap.put("~~MOTD_Flat_No~~", space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-		variablesValueMap.put("~~MOTD_Floor~~", space30.concat(space10).concat("&nbsp;&nbsp;").concat(""));
-		variablesValueMap.put("~~MOTD_Block_No~~", space30.concat(space5).concat(""));
-		variablesValueMap.put("~~MOTD_Address_1~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat("AS PER SITE DOOR NO 3 3/1 3/2 3/3"));
-		variablesValueMap.put("~~MOTD_Address_2~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat("S NO 91/2A MUTHURAMALINGA DEVAR STREET"));
-		variablesValueMap.put("~~MOTD_Address_3~~", space30.concat(space25).concat("&nbsp;&nbsp;").concat("NOW MUTHURAMALINGAM STREET REDHILLS"));
-		variablesValueMap.put("~~MOTD_Pin_Code~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("600052"));
-		variablesValueMap.put("~~MOTD_Land_Extent~~", space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("550.00 Sq.Ft"));
-		variablesValueMap.put("~~MOTD_North_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("HOUSE OF MANIKA ASARI"));
-		variablesValueMap.put("~~MOTD_South_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("HOUSE OF BASKAR"));
-		variablesValueMap.put("~~MOTD_East_Boundary~~", space30.concat(space30).concat("&nbsp;").concat("REMAINING LAND OF SELVAMANI"));
-		variablesValueMap.put("~~MOTD_West_Boundary~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat("MUTHURAMALINGAMDEVARSTREET"));
-		variablesValueMap.put("~~MOTD_North_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("40’00”"));
-		variablesValueMap.put("~~MOTD_South_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat("40’00”"));
-		variablesValueMap.put("~~MOTD_East_Measurement~~", space30.concat(space30).concat("&nbsp;").concat("60’00”"));
-		variablesValueMap.put("~~MOTD_West_Measurement~~", space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat("60’00”"));
-		variablesValueMap.put("~~Property_Under_Mortgaged~~", "TEST");
-		variablesValueMap.put("~~Property_Boundary_Details~~", "TEST");
-		return variablesValueMap;
-	}
+	
 
 	public void getFeeDataForLetterGeneration(Map<String, Object> dataMap, LetterReportModel letterModel) {
 		logger.info("getFeeDataForLetterGeneration method started");
@@ -586,6 +326,7 @@ public class DynamicTemplateService {
 		}
 		AtomicInteger processingFee = new AtomicInteger(0);
 		AtomicInteger documentationCharges = new AtomicInteger(0);
+		AtomicInteger lifeInsuranceChrages = new AtomicInteger(0);
 		memorandumSavedData.stream().forEach(action -> {
 			logger.info("memorandumSavedData loop "+action);
 			if (action.getMemoCode().equalsIgnoreCase("PROCESSING FEE")) {
@@ -599,16 +340,31 @@ public class DynamicTemplateService {
 			} 
 		});
 		logger.info("processingFee loop completed"+String.valueOf(processingFee.get()));
-		//			 if (action.getMemoCode().equalsIgnoreCase("DOCUMENTATION CHARGES")
-		//						|| action.getMemoCode().equalsIgnoreCase("DOCUMENTATION FEE")) {
-		//					if (action.getTxnIndicator().equals("accrual")) {
-		//						documentationCharges.set(documentationCharges.get() + action.getTxnAmt());
-		//					} else {
-		//						documentationCharges.set(documentationCharges.get() - action.getTxnAmt());
-		//					}
-		//				}
-		//		letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
+		memorandumSavedData.stream().forEach(action -> {
+			if (action.getMemoCode().equalsIgnoreCase("DOCUMENTATION CHARGES")
+					|| action.getMemoCode().equalsIgnoreCase("DOCUMENTATION FEE")) {
+				if (action.getTxnIndicator().equals("accrual")) {
+					documentationCharges.set(documentationCharges.get() + action.getTxnAmt());
+				} else {
+					documentationCharges.set(documentationCharges.get() - action.getTxnAmt());
+				}
+			}
+		});
+		logger.info("documentationCharges loop completed"+String.valueOf(documentationCharges.get()));
+		memorandumSavedData.stream().forEach(action -> {
+			if (action.getMemoCode().equalsIgnoreCase("LIFE INSURANCE")
+					|| action.getMemoCode().equalsIgnoreCase("PROPERTY INSURANCE")) {
+				if (action.getTxnIndicator().equals("accrual")) {
+					lifeInsuranceChrages.set(lifeInsuranceChrages.get() + action.getTxnAmt());
+				} else {
+					lifeInsuranceChrages.set(lifeInsuranceChrages.get() - action.getTxnAmt());
+				}
+			}
+		});
+		logger.info("lifeInsuranceChrages loop completed"+String.valueOf(lifeInsuranceChrages.get()));
+		letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
 		letterModel.setProcessingFee(String.valueOf(processingFee.get()));
+		letterModel.setLifeInsurance(String.valueOf(lifeInsuranceChrages.get()));
 
 	}
 
@@ -738,19 +494,7 @@ public class DynamicTemplateService {
 				"//~~Supplement_MOTD_Title_Holder_Detail~~//"
 				);
 	}
-	public String replaceValues(String content, String applicationNumber) {
-		Map<String, String> valuesMap = returnVariablesDataMapForMITC(applicationNumber);
-		StringBuilder returnValue = new StringBuilder(content);
-		valuesMap.entrySet().stream().forEach(value -> {
-			String temp = returnValue.toString();
-			returnValue.delete(0, returnValue.length());
-			returnValue.append(temp.replaceAll(String.valueOf("//" + value.getKey() + "//"),
-					Objects.isNull(value.getValue()) ? "" : value.getValue()));
-		});
-		//System.out.println(returnValue.toString());
-		return returnValue.toString();
-	}
-
+	
 	public ResponseEntity<List<String>> getAllApplicationNumbers(String productCode) {
 		String dataBase = "MSSQL";
 		List<LetterProduct> letterproductDataList = letterProductRepo.findByProductCode(productCode);
@@ -984,164 +728,8 @@ public class DynamicTemplateService {
 		dynamicReportContainerRepo.save(reportContainer);		
 	}
 
-	private Map<String, Object> generateLetterForSanctionDate(GenerateTemplateModel model, String dataBase, DynamicTemplate dynamicTemplate) {
-		return null;
-	}
 
-	public Map<String, Object> generateReportForSanctionDate(GenerateTemplateModel model,
-			DynamicTemplate dynamicTemplate) {
-		Map<String, String> filesMap = new HashMap();
-		filesMap.put("sanctiondate", model.getSanctionDate());
-		Map<String, List<String>> contactDetails = new HashMap<>();
-		List<Map<String, String>> returnResponse = webClient.post()
-				.uri(stlapServerUrl + "/losCustomer/getBySanctionDate")
-				.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(filesMap).retrieve()
-				.bodyToMono(List.class).block();
-		filesMap.clear();
-		List<String> applicationList = new ArrayList<>();
-
-		Date date = new Date();
-		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
-		if(returnResponse.size()==0) {
-			Map<String, Object> resultMap = new HashMap<>();
-			resultMap.put("FilesList", filesMap);
-			resultMap.put("Status", "No Report Found For this Sanctioned Date");
-			resultMap.put("ApplicationList", applicationList);
-			resultMap.put("ContactList", contactDetails);
-			return resultMap;
-		}
-		returnResponse.stream().forEach(application -> {
-			try {
-				String fileName = (dynamicTemplate.getTemplateName()).concat("_")
-						.concat(application.get("applicationNum")).concat("_").concat(dateFormat.format(date))
-						.concat(".pdf");
-
-				//				File file = new File("./downloads/letter_generation/" + fileName);
-
-				filesMap.put(application.get("applicationNum"), fileName);
-				applicationList.add(application.get("applicationNum"));
-				List<String> contactDetailsList = new ArrayList<>();
-				contactDetailsList.add(application.get("mobileNumber"));
-				contactDetailsList.add(application.get("emailId"));
-				contactDetails.put(application.get("applicationNum"), contactDetailsList);
-				//				FileOutputStream fos = new FileOutputStream(file);
-
-				Blob blob = dynamicTemplate.getContent();
-
-				byte[] bdata;
-
-				bdata = blob.getBytes(1, (int) blob.length());
-
-				String s = new String(bdata);
-
-				String content = replaceValues(s, application.get("applicationNum"));
-
-				blob = (Blob) new SerialBlob(content.getBytes());
-
-				DynamicReportContainer reportContainer = new DynamicReportContainer();
-				reportContainer.setReportFile(blob);
-				reportContainer.setReportFileName(fileName);
-				SecureRandom secureRandom;
-				try {
-					secureRandom = SecureRandom.getInstance("SHA1PRNG");
-					int randomValue = secureRandom.nextInt();
-					if (randomValue < 0) {
-						reportContainer.setDynamicReportContainerHeaderKey(randomValue * -1);
-					} else {
-						reportContainer.setDynamicReportContainerHeaderKey(randomValue);
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-
-				dynamicReportContainerRepo.save(reportContainer);
-
-				//				HtmlConverter.convertToPdf(content, fos);
-			} catch (Exception e) {
-				e.printStackTrace();
-
-			}
-		});
-		Map<String, Object> resultMap = new HashMap<>();
-		resultMap.put("FilesList", filesMap);
-		resultMap.put("Status", "Letter Generated Successfully");
-		resultMap.put("ApplicationList", applicationList);
-		resultMap.put("ContactList", contactDetails);
-		return resultMap;
-	}
-
-	public Map<String, Object> generateReportForApplicationNumber(GenerateTemplateModel model,
-			DynamicTemplate dynamicTemplate) {
-		List<String> applicationList = new ArrayList<>();
-		Map<String, String> filesMap = new HashMap<>();
-		Map<String, List<String>> contactDetails = new HashMap<>();
-		Date date = new Date();
-		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
-		try {
-			String fileName = (dynamicTemplate.getTemplateName()).concat("_").concat(model.getApplicationNumber())
-					.concat("_").concat(dateFormat.format(date)).concat(".pdf");
-
-			//			File file = new File("./downloads/letter_generation/" + fileName);
-			filesMap.put("applicationNum", model.getApplicationNumber());
-
-			Map<String, String> responseMap = webClient.post().uri(stlapServerUrl + "/losCustomer/getByAppNum")
-					.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(filesMap).retrieve()
-					.bodyToMono(Map.class).block();
-			filesMap.clear();
-			List<String> contactDetailsList = new ArrayList<>();
-			contactDetailsList.add(responseMap.get("mobileNumber"));
-			contactDetailsList.add(responseMap.get("emailId"));
-			contactDetails.put(model.getApplicationNumber(), contactDetailsList);
-
-			applicationList.add(model.getApplicationNumber());
-			filesMap.put(model.getApplicationNumber(), fileName);
-
-			//			FileOutputStream fos = new FileOutputStream(file);
-
-			Blob blob = dynamicTemplate.getContent();
-
-			byte[] bdata;
-
-			bdata = blob.getBytes(1, (int) blob.length());
-
-			String s = new String(bdata);
-
-			String content = replaceValues(s, model.getApplicationNumber());
-
-			blob = (Blob) new SerialBlob(content.getBytes());
-
-			DynamicReportContainer reportContainer = new DynamicReportContainer();
-			reportContainer.setReportFile(blob);
-			reportContainer.setReportFileName(fileName);
-			SecureRandom secureRandom;
-			try {
-				secureRandom = SecureRandom.getInstance("SHA1PRNG");
-				int randomValue = secureRandom.nextInt();
-				if (randomValue < 0) {
-					reportContainer.setDynamicReportContainerHeaderKey(randomValue * -1);
-				} else {
-					reportContainer.setDynamicReportContainerHeaderKey(randomValue);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-
-			dynamicReportContainerRepo.save(reportContainer);
-
-			//			HtmlConverter.convertToPdf(content, fos);
-		} catch (Exception e) {
-			e.printStackTrace();
-
-		}
-		Map<String, Object> resultMap = new HashMap<>();
-		resultMap.put("FilesList", filesMap);
-		resultMap.put("Status", "Letter Generated Successfully");
-		resultMap.put("ApplicationList", applicationList);
-		resultMap.put("ContactList", contactDetails);
-
-		return resultMap;
-	}
-
+	
 	public ResponseEntity<byte[]> getGeneratedFile(String filePath) {
 
 		try {
@@ -1248,14 +836,6 @@ public class DynamicTemplateService {
 
 	}
 
-	private Integer getInt(Object object) {
-		try {
-			return (object == null || object.toString().equals("")) ? 0
-					: Integer.parseInt(object.toString().replace(",", ""));
-		} catch (Exception exception) {
-			return 0;
-		}
-	}
 
 	public ResponseEntity<List<Map<String, Object>>> getProductTypeList() {
 		List<LetterProduct> letterproductAllData = letterProductRepo.findAll();
@@ -1401,49 +981,48 @@ public class DynamicTemplateService {
 					//supplement motd title
 					
 					int a = serialNo++;
-					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a+"."+getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+" ,S/o.W/o.Mr/s of"+
+					String titleHolder = a+"."+getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+" ,S/o.W/o.Mr/s of"+
 							getString(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
-							+" residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+","
-							+"<br>"+"<br>");
+							+" residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress());
+					String valueCondition = ""+","+"<br>"+"<br>"+titleHolder;
+					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a!=1?valueCondition:titleHolder);
 					
 					supplementMotdTitleHolderList.add(supplmentMotdTitleHolderBuilder.toString());
 					
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
 						Set<ScheduleA> scheduleAList = scheduleAListMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
-						int scheduleAIndex = titleHolderDetail.getPropertyNumber();
 						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
-							StringBuilder scheduleATable = new StringBuilder("Document details for item No."+scheduleAIndex+ "of Schedule -A");
+							StringBuilder scheduleATable = new StringBuilder("Document details for item No."+titleHolderDetail.getPropertyNumber()+ "of Schedule -A");
 							scheduleATable.append("<br>");
-							scheduleATable.append("<br>");
-							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
+							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
 							scheduleAList.stream().forEach(scheduleA -> {
 								scheduleATable.append(
-										"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+										"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 250.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"250\\\"> ");
 								scheduleATable
 								.append(scheduleA.getDocumentName());
 								scheduleATable.append(
-										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+										"</td><td style=\\\"width: 100.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
 								scheduleATable.append(scheduleA.getDocuemntNumber());
 								scheduleATable.append(
-										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+										"</td><td style=\\\"width: 100.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
 								scheduleATable.append(scheduleA.getDocumentDate());
 								scheduleATable.append(
-										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"150\\\"> ");
 								scheduleATable.append(scheduleA.getTitleHolderName());
 								scheduleATable.append("</td></tr>");
 							});
 							scheduleATable.append("</tbody></table>");
+							scheduleATable.append("<br>");
 							scheduleATableList.add(scheduleATable.toString());
 						}
 					}
 					//scheduleB
 					if(Objects.nonNull(scheduleBMap)) {
-						int scheduleBIndex = getIndexValue(scheduleBMap,String.valueOf(titleHolderDetail.getPropertyNumber()));
 						ScheduleB scheduleB = scheduleBMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
 						if(Objects.nonNull(scheduleB)) {
 								PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
-							StringBuilder scheduleBBuilder = new StringBuilder("Item"+scheduleBIndex+"<br>"+"<br>");
+							StringBuilder scheduleBBuilder = new StringBuilder("Item "+titleHolderDetail.getPropertyNumber()+"<br>"+"<br>");
 							scheduleBBuilder.append("SRO District "+space30.concat(space20).concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSroDistrict())));
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("SRO "+space30.concat(space30).concat(space5).concat(getString(scheduleB.getSro())));
@@ -2392,7 +1971,7 @@ public class DynamicTemplateService {
 							+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
 							+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
 							+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
-							+ "	A.Property_Address.Email,A.Land_Area_Sq_Ft"
+							+ "	A.Property_Address.Email,A.Land_Area_Sq_Ft,A.flat_no,A.flat_floor_no,A.flat_remarks"
 							+ "	From Sa_Customer_Property_Dtls A where customer_code=? and property_number=?");
 					preparedStatement11.setString(1, titleHolderDetail.getCustomerShareCode());
 					preparedStatement11.setInt(2, titleHolderDetail.getPropertyNumber());
@@ -2419,6 +1998,9 @@ public class DynamicTemplateService {
 						propertyAddress.setPagerNo(resultSet11.getString(18));
 						propertyAddress.setEmail(resultSet11.getString(19));
 						propertyAddress.setLandExtent(resultSet11.getString(20));
+						propertyAddress.setFlatNo(resultSet11.getString(21));
+						propertyAddress.setFloorNo(resultSet11.getString(22));
+						propertyAddress.setBlock(resultSet11.getString(23));
 
 						PreparedStatement preparedStatement12 = connection3.prepareStatement("Select City_Name"
 								+ "   From Hfs_Vw_City"
@@ -2904,6 +2486,7 @@ public class DynamicTemplateService {
 				logger.info("getLosApplicationSQL method completed");
 				dataMap.put("applicationNum",letterModel.getApplicationNumber());
 				dataMap.put("type", "accrual");
+				getAccountNo(letterModel);
 				//get processingfee & documentation charges
 				//getFeeDataForLetterGeneration(dataMap,letterModel);
 
@@ -2979,6 +2562,29 @@ public class DynamicTemplateService {
 
 
 
+	private void getAccountNo(LetterReportModel letterModel) {
+		String query = "select bank_account_num from st_tb_los_bank_dtl where application_number=? and internal_customer_id=?";
+		try (Connection connection = dataSource.getConnection()) {
+			logger.info("getAccountNo method started");
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, letterModel.getApplicationNumber());
+				statement.setString(2, letterModel.getCustomerCode());
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						letterModel.setAccountNo(resultSet.getString(1));
+						logger.info("getAccountNo method completed");
+					}
+				}catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}catch (SQLException e) {
+				e.printStackTrace();
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private List<Map<String, Object>> getcustomerDataFromLos(GenerateTemplateModel model) throws ParseException {
 		logger.info("getcustomerDataFromLos method started");
 		List<Map<String, Object>> returnResponseList = new ArrayList<>();
@@ -3017,7 +2623,11 @@ public class DynamicTemplateService {
 						returnResponseList.add(responseMap);
 						logger.info("getcustomerDataFromLos query method ended"+returnResponseList);
 					}
+				}catch (SQLException e) {
+					e.printStackTrace();
 				}
+			}catch (SQLException e) {
+				e.printStackTrace();
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -3035,7 +2645,11 @@ public class DynamicTemplateService {
 					while (resultSet.next()) {
 						responseMapList.add(resultSet.getString(1));
 					}
+				}catch (SQLException e) {
+					e.printStackTrace();
 				}
+			}catch (SQLException e) {
+				e.printStackTrace();
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -3045,8 +2659,12 @@ public class DynamicTemplateService {
 
 	private String convertDecimalValue(String value) {
 		DecimalFormat format = new DecimalFormat("0.00");
-		String outputValue = format.format(Double.parseDouble(value));
-		return outputValue;
+		if(Objects.nonNull(value)) {
+			String outputValue = format.format(Double.parseDouble(value));
+			return outputValue;
+		}else {
+			return "0.00";
+		}
 	}
 
 	private LetterReportModel getLosApplicationSQL(String applicationNumber, LetterReportModel letterModel) {
@@ -3060,10 +2678,13 @@ public class DynamicTemplateService {
 					while (resultSet.next()) {
 						logger.info("getLosApplicationSQL query started");
 						letterModel.setPurposeOfLoan(resultSet.getString(1));
-						letterModel.setEmiAmount(resultSet.getInt(2));
-						//letterModel.setEmiAmount(convertRoundedValue(resultSet.getString(2)));
+						letterModel.setEmiAmount(convertRoundedValue(resultSet.getString(2)));
 					}
+				}catch (SQLException e) {
+					e.printStackTrace();
 				}
+			}catch (SQLException e) {
+				e.printStackTrace();
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -3072,7 +2693,10 @@ public class DynamicTemplateService {
 		return letterModel;
 	}
 	public int convertRoundedValue(String value) {
-		return (int)Math.round(Double.parseDouble(value));
+		if(Objects.nonNull(value)) {
+			return (int)Math.round(Double.parseDouble(value));
+		}
+		return 0;
 	}
 	public static String convertToIndianCurrency(String num) {
 		BigDecimal bd = new BigDecimal(num);
