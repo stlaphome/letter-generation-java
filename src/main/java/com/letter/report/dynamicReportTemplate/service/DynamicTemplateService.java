@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import javax.sql.rowset.serial.SerialBlob;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -952,8 +953,14 @@ public class DynamicTemplateService {
 					if(Objects.isNull(titleHolderDetail)) {
 						return;
 					}
+					String titleHolderName = "";
+					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
+						titleHolderName = getString(titleHolderDetail.getTitleHolderName());
+					}else {
+						titleHolderName = getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName());
+					}
 					//smtitleholder
-					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+", Aadhaar No. "+
+					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderName+", Aadhaar No. "+
 							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
 							+", residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+"<br>"
@@ -964,14 +971,14 @@ public class DynamicTemplateService {
 
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
 					//smotd name
-					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+getStringFromObject(titleHolderDetail.getTitle()) +"."+getStringFromObject(titleHolderDetail.getTitleHolderName())
-					+"herein is the sole and absolute owner of "+"<br>"+"herein is the sole and absolute owner of the property by the following document "
+					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderName
+					+" herein is the sole and absolute owner of "+"<br>"+"herein is the sole and absolute owner of the property by the following document "
 					+ getStringFromObject(titleHolderDetail.getOtdNumber())+" on the file of "+"("+sanctionModel.getSRO()+" ). "
 					+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 					
 					//motd tileholder
-					StringBuilder motdTitleHolderBuilder =new StringBuilder(getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+", Aadhaar No. "+
+					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+", Aadhaar No. "+
 							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
 							+", residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+"<br>"
@@ -985,7 +992,7 @@ public class DynamicTemplateService {
 					//supplement motd title
 					
 					int a = serialNo++;
-					String titleHolder = a+"."+getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName())+" ,S/o.W/o.Mr/s of"+
+					String titleHolder = a+"."+titleHolderName+" ,S/o.W/o.Mr/s of"+
 							getString(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
 							+" residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress());
 					String valueCondition = ""+","+"<br>"+"<br>"+titleHolder;
