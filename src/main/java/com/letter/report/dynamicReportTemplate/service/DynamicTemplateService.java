@@ -398,6 +398,9 @@ public class DynamicTemplateService {
 	private String getString(String name) {
 		return Objects.nonNull(name) ? name : "";
 	}
+	private String getUnknownValueFromObject(Object name) {
+		return Objects.nonNull(name) ? String.valueOf(name) : "___________";
+	}
 	private String getStringFromObject(Object name) {
 		return Objects.nonNull(name) ? String.valueOf(name) : "";
 	}
@@ -955,35 +958,35 @@ public class DynamicTemplateService {
 					}
 					String titleHolderName = "";
 					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
-						titleHolderName = getString(titleHolderDetail.getTitleHolderName());
+						titleHolderName = getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}else {
-						titleHolderName = getString(titleHolderDetail.getTitle()) +"."+getString(titleHolderDetail.getTitleHolderName());
+						titleHolderName = Objects.nonNull(titleHolderDetail.getTitle())?titleHolderDetail.getTitle():"___"+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}
 					//smtitleholder
 					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderName+", Aadhaar No. "+
-							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
-							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
-							+", residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+"<br>"
-							+"referred to as the MORTGAGORS ”, the PARTY OF THE FIRST PART. "+"<br>"
-							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "+"<br>"
+							getUnknownValueFromObject(titleHolderDetail.getTitleAadharNo())+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
+							+ " S/o.W/o.Mr/s "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())
+							+",residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress())
+							+" referred to as the MORTGAGORS ”,the PARTY OF THE FIRST PART."
+							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "
 							+ "to include his / her / their successor and assigns)."
 							+"<br>"+"<br>");
 
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
 					//smotd name
 					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderName
-					+" herein is the sole and absolute owner of "+"<br>"+"herein is the sole and absolute owner of the property by the following document "
-					+ getStringFromObject(titleHolderDetail.getOtdNumber())+" on the file of "+"("+sanctionModel.getSRO()+" ). "
+					+ "herein is the sole and absolute owner of the property by the following document ("
+					+ getUnknownValueFromObject(titleHolderDetail.getOtdNumber())+") on the file of "+"("+sanctionModel.getSRO()+" ). "
 					+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 					
 					//motd tileholder
-					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+", Aadhaar No. "+
-							getString(titleHolderDetail.getTitleAadharNo())+" aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
-							+ " S/o.W/o.Mr/s "+getString(titleHolderDetail.getTitleHolderGuardianName())
-							+", residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress())+"<br>"
-							+"referred to as the BORROWER/S”, the PARTY OF THE FIRST PART. "+"<br>"
-							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "+"<br>"
+					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+",Aadhaar No."+
+							getUnknownValueFromObject(titleHolderDetail.getTitleAadharNo())+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
+							+ " S/o.W/o.Mr/s "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())
+							+",residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress())
+							+" referred to as the BORROWER/S”, the PARTY OF THE FIRST PART."
+							+ "(Which expression shall unless excluded by or repugnant to the context be deemed "
 							+ "to include his / her / their successor and assigns)."
 							+"<br>"+"<br>");
 
@@ -992,9 +995,9 @@ public class DynamicTemplateService {
 					//supplement motd title
 					
 					int a = serialNo++;
-					String titleHolder = a+"."+titleHolderName+" ,S/o.W/o.Mr/s of"+
-							getString(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getStringFromObject(titleHolderDetail.getAge())+" years,"
-							+" residing at "+"<br>"+getString(titleHolderDetail.getTitleHolderAddress());
+					String titleHolder = a+"."+titleHolderName+" ,S/o.W/o.Mr/s of "+
+							getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
+							+" residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress());
 					String valueCondition = ""+","+"<br>"+"<br>"+titleHolder;
 					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a!=1?valueCondition:titleHolder);
 					
@@ -1011,16 +1014,16 @@ public class DynamicTemplateService {
 								scheduleATable.append(
 										"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 250.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"250\\\"> ");
 								scheduleATable
-								.append(scheduleA.getDocumentName());
+								.append(getStringFromObject(scheduleA.getDocumentName()));
 								scheduleATable.append(
 										"</td><td style=\\\"width: 100.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
-								scheduleATable.append(scheduleA.getDocuemntNumber());
+								scheduleATable.append(getStringFromObject(scheduleA.getDocuemntNumber()));
 								scheduleATable.append(
 										"</td><td style=\\\"width: 100.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
-								scheduleATable.append(scheduleA.getDocumentDate());
+								scheduleATable.append(getStringFromObject(scheduleA.getDocumentDate()));
 								scheduleATable.append(
 										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"150\\\"> ");
-								scheduleATable.append(scheduleA.getTitleHolderName());
+								scheduleATable.append(getStringFromObject(scheduleA.getTitleHolderName()));
 								scheduleATable.append("</td></tr>");
 							});
 							scheduleATable.append("</tbody></table>");
@@ -1145,7 +1148,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBListStr.toString());
 		variablesValueMap.put("~~Boundries_Detail~~", boundriesStr.toString());
 		variablesValueMap.put("~~Measurement_Detail~~", measurementStr.toString());
-		variablesValueMap.put("~~MOTD_SRO~~", sanctionModel.getSRO()); //
+		variablesValueMap.put("~~MOTD_SRO~~", getUnknownValueFromObject(sanctionModel.getSRO())); //
 
 		//day and month
 		splitDayFromDate(sanctionModel,variablesValueMap);
@@ -1202,13 +1205,13 @@ public class DynamicTemplateService {
 
         switch (number % 10) {
             case 1:
-                return number + " st";
+                return number + "st";
             case 2:
-                return number + " nd";
+                return number + "nd";
             case 3:
-                return number + " rd";
+                return number + "rd";
             default:
-                return number + " th";
+                return number + "th";
         }
     }
 
