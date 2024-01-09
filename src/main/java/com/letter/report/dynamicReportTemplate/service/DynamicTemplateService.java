@@ -959,8 +959,8 @@ public class DynamicTemplateService {
 					String titleHolderName = "";
 					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
 						titleHolderName = getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
-					}else {
-						titleHolderName = Objects.nonNull(titleHolderDetail.getTitle())?titleHolderDetail.getTitle():"___"+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
+					}else {						
+						titleHolderName = titleHolderDetail.getTitle()+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}
 					//smtitleholder
 					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderName+", Aadhaar No. "+
