@@ -272,14 +272,14 @@ public class DynamicTemplateService {
 
 	public ResponseEntity<List<Map>> getTemplateKey(Map<String, String> dataMap) {
 		List<Map> templateKeyList = new ArrayList<>();
-			List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateName(dataMap.get("productCode"), dataMap.get("templateName"));
-			dynamicTemplateList.stream().forEach(item -> {
-				Map<String, String> tempMap = new HashMap<>();
-				tempMap.put("key", item.getTemplateKey());
-				tempMap.put("value", item.getTemplateKey());
-				tempMap.put("text", item.getTemplateKey());
-				templateKeyList.add(tempMap);
-			});
+		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateName(dataMap.get("productCode"), dataMap.get("templateName"));
+		dynamicTemplateList.stream().forEach(item -> {
+			Map<String, String> tempMap = new HashMap<>();
+			tempMap.put("key", item.getTemplateKey());
+			tempMap.put("value", item.getTemplateKey());
+			tempMap.put("text", item.getTemplateKey());
+			templateKeyList.add(tempMap);
+		});
 		return ResponseEntity.ok(templateKeyList);
 	}
 
@@ -301,7 +301,7 @@ public class DynamicTemplateService {
 		return ResponseEntity.ok(templateNameList);
 	}
 
-	
+
 
 	public void getFeeDataForLetterGeneration(Map<String, Object> dataMap, LetterReportModel letterModel) {
 		logger.info("getFeeDataForLetterGeneration method started");
@@ -494,11 +494,11 @@ public class DynamicTemplateService {
 				"//~~TelePhone_No~~//","//~~Header_Mail~~//",
 				"//~~Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//","//~~Moratorium_Period~~//",
 				"//~~MOTD_First_Mortage_Title_Holder_Detail~~//","//~~MOTD_First_Mortage_Title_Name_Detail~~//","//~~MOTD_Title_Holder_Detail~~//","//~~MOTD_Date~~//","//~~MOTD_Month_Year~~//"
-				,"//~~Schedule_B_Detail~~//","//~~Boundries_Detail~~//","//~~Measurement_Detail~~//",
+				,"//~~Schedule_B_Detail~~//","//~~Boundries_Detail~~//","//~~Measurement_Detail~~//","//~~MOTD_Term~~//",
 				"//~~Supplement_MOTD_Title_Holder_Detail~~//"
 				);
 	}
-	
+
 	public ResponseEntity<List<String>> getAllApplicationNumbers(String productCode) {
 		String dataBase = "MSSQL";
 		List<LetterProduct> letterproductDataList = letterProductRepo.findByProductCode(productCode);
@@ -737,7 +737,7 @@ public class DynamicTemplateService {
 	}
 
 
-	
+
 	public ResponseEntity<byte[]> getGeneratedFile(String filePath) {
 
 		try {
@@ -943,7 +943,7 @@ public class DynamicTemplateService {
 		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-	
+
 		if(Objects.nonNull(propertyDetailModel)) {
 			Set<TitleHolderDetail> titleHolderDetailList = propertyDetailModel.getTitleHolderDetailList();
 			Map<String, LinkedHashSet<ScheduleA>> scheduleAListMap = propertyDetailModel.getScheduleListMap();
@@ -962,9 +962,10 @@ public class DynamicTemplateService {
 					}else {						
 						titleHolderName = titleHolderDetail.getTitle()+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}
+					String aadharNo = "____________";
 					//smtitleholder
-					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderName+", Aadhaar No. "+
-							getUnknownValueFromObject(titleHolderDetail.getTitleAadharNo())+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
+					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderName+", Aadhaar No. "+ aadharNo
+							+"aged about "+ getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())
 							+",residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress())
 							+" referred to as the MORTGAGORS ”,the PARTY OF THE FIRST PART."
@@ -975,11 +976,11 @@ public class DynamicTemplateService {
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
 					//smotd name
 					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderName
-					+ "herein is the sole and absolute owner of the property by the following document ("
-					+ getUnknownValueFromObject(titleHolderDetail.getOtdNumber())+") on the file of "+"("+sanctionModel.getSRO()+" ). "
-					+"<br>"+"<br>");
+							+ " herein is the sole and absolute owner of the property by the following document ("
+							+ getUnknownValueFromObject(titleHolderDetail.getOtdNumber())+") on the file of "+"("+sanctionModel.getSRO()+" ). "
+							+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
-					
+
 					//motd tileholder
 					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+",Aadhaar No."+
 							getUnknownValueFromObject(titleHolderDetail.getTitleAadharNo())+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
@@ -991,26 +992,38 @@ public class DynamicTemplateService {
 							+"<br>"+"<br>");
 
 					motdTitleHolderList.add(motdTitleHolderBuilder.toString());
-					
+
 					//supplement motd title
-					
+
 					int a = serialNo++;
 					String titleHolder = a+"."+titleHolderName+" ,S/o.W/o.Mr/s of "+
 							getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+" residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress());
 					String valueCondition = ""+","+"<br>"+"<br>"+titleHolder;
 					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a!=1?valueCondition:titleHolder);
-					
+
 					supplementMotdTitleHolderList.add(supplmentMotdTitleHolderBuilder.toString());
-					
+					DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+					DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
 						Set<ScheduleA> scheduleAList = scheduleAListMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
 						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
-							StringBuilder scheduleATable = new StringBuilder("Document details for item No."+titleHolderDetail.getPropertyNumber()+ "of Schedule -A");
+							StringBuilder scheduleATable = new StringBuilder();
+							if(scheduleAListMap.size()>1) {
+								scheduleATable.append("Document details for item No."+titleHolderDetail.getPropertyNumber()+ "of Schedule -A");
+							}else {
+								scheduleATable.append("Document details for Schedule -A");
+							}
 							scheduleATable.append("<br>");
 							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Document Date</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Title Holder</td></tr>");
 							scheduleAList.stream().forEach(scheduleA -> {
+								String value = getStringFromObject(scheduleA.getDocumentDate());
+								String outputVlaue = "";
+								if(!value.isEmpty()) {
+									LocalDateTime ds = LocalDateTime.parse(value,inputFormatter);
+									outputVlaue = ds.format(outputFormatter);
+								}
 								scheduleATable.append(
 										"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 250.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"250\\\"> ");
 								scheduleATable
@@ -1020,7 +1033,7 @@ public class DynamicTemplateService {
 								scheduleATable.append(getStringFromObject(scheduleA.getDocuemntNumber()));
 								scheduleATable.append(
 										"</td><td style=\\\"width: 100.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
-								scheduleATable.append(getStringFromObject(scheduleA.getDocumentDate()));
+								scheduleATable.append(outputVlaue);
 								scheduleATable.append(
 										"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\" valign=\\\"top\\\" width=\\\"150\\\"> ");
 								scheduleATable.append(getStringFromObject(scheduleA.getTitleHolderName()));
@@ -1035,8 +1048,14 @@ public class DynamicTemplateService {
 					if(Objects.nonNull(scheduleBMap)) {
 						ScheduleB scheduleB = scheduleBMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
 						if(Objects.nonNull(scheduleB)) {
-								PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
-							StringBuilder scheduleBBuilder = new StringBuilder("Item "+titleHolderDetail.getPropertyNumber()+"<br>"+"<br>");
+							PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
+							StringBuilder scheduleBBuilder = new StringBuilder();
+							if(scheduleBMap.size()>1) {
+								scheduleBBuilder.append("Item "+titleHolderDetail.getPropertyNumber()+"<br>"+"<br>");
+							}else {
+								scheduleBBuilder.append("Item "+"<br>"+"<br>");
+
+							}
 							scheduleBBuilder.append("SRO District "+space30.concat(space20).concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSroDistrict())));
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("SRO "+space30.concat(space30).concat(space5).concat(getString(scheduleB.getSro())));
@@ -1047,13 +1066,13 @@ public class DynamicTemplateService {
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("Door No "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(scheduleB.getDoorNo())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Project Name(If Available) "+space25.concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));//projectName
+							scheduleBBuilder.append("Project Name "+space25.concat(space25).concat("&nbsp;").concat(getString(scheduleB.getProjectName())));//projectName
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Flat No (if Available) "+space30.concat(space5).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));//flatno
+							scheduleBBuilder.append("Flat No "+space30.concat(space30).concat("&nbsp;").concat(getString(proeprtyAddress.getFlatNo())));//flatno
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Floor (if Available) "+space30.concat(space10).concat("&nbsp;&nbsp;").concat(""));//floor
+							scheduleBBuilder.append("Floor "+space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getFloorNo())));//floor
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Block No (if Available) "+space30.concat(space5).concat(""));//block
+							scheduleBBuilder.append("Block No "+space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getBlock())));//block
 							scheduleBBuilder.append("<br>");
 							if(Objects.nonNull(proeprtyAddress)) {
 								scheduleBBuilder.append("Address 1 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getStreet())));
@@ -1149,10 +1168,11 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Boundries_Detail~~", boundriesStr.toString());
 		variablesValueMap.put("~~Measurement_Detail~~", measurementStr.toString());
 		variablesValueMap.put("~~MOTD_SRO~~", getUnknownValueFromObject(sanctionModel.getSRO())); //
+		variablesValueMap.put("~~MOTD_Term~~", getYearsFromMonth(sanctionModel.getTerm())); //
 
 		//day and month
 		splitDayFromDate(sanctionModel,variablesValueMap);
-		
+
 		StringBuilder loanDetailsTable = new StringBuilder(
 				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody><tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\"><td style=\\\"width: 150pt; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">File Number</td><td style=\\\"width: 150pt; border-top: 1pt solid black; border-right: 1pt solid black; border-bottom: 1pt solid black; border-image: initial; border-left: none;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Loan Amount (in Rs.)</td><td style=\\\\\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Rate (in %)</td><td style=\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\" valign=\\\\\\\"top\\\\\\\" width=\\\\\\\"200\\\\\\\">Type</td><td style=\\\\\\\\\\\\\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt;\\\\\\\\\\\\\\\" valign=\\\\\\\\\\\\\\\"top\\\\\\\\\\\\\\\" width=\\\\\\\\\\\\\\\"200\\\\\\\\\\\\\\\">Tenor</td></tr>");
 		loanDetailsTable.append(
@@ -1176,53 +1196,65 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~MOTD_Loan_details_table~~", loanDetailsTable.toString());
 
 	}
+	private Object getYearsFromMonth(int term) {
+		if(term>0) {
+			int data = term/12;
+			BigDecimal decimal = new BigDecimal(data);
+			 String formattedValue = decimal.setScale(1, BigDecimal.ROUND_HALF_UP)
+                     .stripTrailingZeros()
+                     .toPlainString();
+			 return formattedValue;
+		}
+		return "";
+	}
+
 	private void splitDayFromDate(LetterReportModel sanctionModel, Map<String, Object> variablesValueMap) {
 		// Parse the input date string
-        SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
-        String inputDateString = sanctionModel.getCurrentDate();
-        Date date;
-        try {
+		SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
+		String inputDateString = sanctionModel.getCurrentDate();
+		Date date;
+		try {
 			date = inputFormat.parse(inputDateString);
 
-            // Format the date to the desired output format
-            SimpleDateFormat outputFormat = new SimpleDateFormat("d', 'MMMM yyyy");
-            String outputDateString = outputFormat.format(date);
-            String[] dateSplitdata = outputDateString.split(",");
-            String dayOrdinal = addOrdinalSuffix(dateSplitdata[0]);
-            variablesValueMap.put("~~MOTD_Date~~",dayOrdinal);
-            variablesValueMap.put("~~MOTD_Month_Year~~",dateSplitdata[1] );
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-		
-	}
-	
-	public static String addOrdinalSuffix(String data) {
-        int number = Integer.parseInt(data);
-		if (number >= 11 && number <= 13) {
-            return number + " th";
-        }
+			// Format the date to the desired output format
+			SimpleDateFormat outputFormat = new SimpleDateFormat("d', 'MMMM yyyy");
+			String outputDateString = outputFormat.format(date);
+			String[] dateSplitdata = outputDateString.split(",");
+			String dayOrdinal = addOrdinalSuffix(dateSplitdata[0]);
+			variablesValueMap.put("~~MOTD_Date~~",dayOrdinal);
+			variablesValueMap.put("~~MOTD_Month_Year~~",dateSplitdata[1] );
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
 
-        switch (number % 10) {
-            case 1:
-                return number + "st";
-            case 2:
-                return number + "nd";
-            case 3:
-                return number + "rd";
-            default:
-                return number + "th";
-        }
-    }
+	}
+
+	public static String addOrdinalSuffix(String data) {
+		int number = Integer.parseInt(data);
+		if (number >= 11 && number <= 13) {
+			return number + " th";
+		}
+
+		switch (number % 10) {
+		case 1:
+			return number + "st";
+		case 2:
+			return number + "nd";
+		case 3:
+			return number + "rd";
+		default:
+			return number + "th";
+		}
+	}
 
 	private StringBuilder getStringFromSet(Set<String> firstMortagetitleHolderDetailList) {
-		   // Display the list of sets without square brackets
+		// Display the list of sets without square brackets
 		StringBuilder str = new StringBuilder();
-            Iterator<String> iterator = firstMortagetitleHolderDetailList.iterator();
-            while (iterator.hasNext()) {
-            	str.append(iterator.next());
-            }
-            return str;
+		Iterator<String> iterator = firstMortagetitleHolderDetailList.iterator();
+		while (iterator.hasNext()) {
+			str.append(iterator.next());
+		}
+		return str;
 	}
 	private StringBuilder getStringFromSet(List<String> firstMortagetitleHolderDetailList) {
 		// Display the list of sets without square brackets
@@ -1943,11 +1975,21 @@ public class DynamicTemplateService {
 		try {
 			connection = currentDataSource.getConnection();
 			Connection connection3 = currentDataSource.getConnection();
-			PreparedStatement preparedStatement10 = connection3.prepareStatement("Select Contract_Number,Bounded_North,"
-					+ " Bounded_South, Bounded_East, Bounded_West ,"
-					+ " Survey, Plot, Door_No, Building_Society_Name, State_Name, District, Taluk_Tehsil,"
-					+ " Town, Village, Sro, City_Code From cc_property_category_details where contract_number=?"
-					+ " and customer_code=? and property_number=?");
+			PreparedStatement preparedStatement10 = connection3.prepareStatement("SELECT a.door_no, a.plot, a.survey,a.addl_survey,"
+					+ " (SELECT glpd_geo_level_desc FROM sa_geo_level_property_details WHERE glpd_geo_level_string IS NULL"
+					+ "  AND glpd_geo_level_code = TO_NUMBER (a.state_name)) State_Name,"
+					+ "  (SELECT glpd_geo_level_desc  FROM sa_geo_level_property_details WHERE glpd_geo_level_string IS NOT NULL"
+					+ " AND glpd_geo_level_string = TO_CHAR (a.state_name) AND glpd_geo_level_code ="
+					+ " TO_NUMBER (SUBSTR (a.district, INSTR (a.district, ':', 1) +1))) District,"
+					+ " (SELECT glpd_geo_level_desc FROM sa_geo_level_property_details WHERE glpd_geo_level_string IS NOT NULL"
+					+ " AND glpd_geo_level_string = district AND glpd_geo_level_code = TO_NUMBER (SUBSTR (a.taluk_tehsil, INSTR (a.taluk_tehsil,':', 1,2)+ 1))) Taluk,"
+					+ "  a.town,(SELECT glpd_geo_level_desc FROM sa_geo_level_property_details WHERE glpd_geo_level_string IS NOT NULL AND glpd_geo_level_string = taluk_tehsil"
+					+ "  AND glpd_geo_level_code = TO_NUMBER (SUBSTR (a.village,INSTR (a.village, ':', 1, 3)+ 1))) Village,"
+					+ " a.building_society_name, (SELECT glpd_geo_level_desc FROM sa_geo_level_property_details WHERE glpd_geo_level_string IS NOT NULL"
+					+ " AND glpd_geo_level_string = TO_CHAR (a.state_name) AND glpd_geo_level_code =TO_NUMBER (SUBSTR (a.SRODISTRICT,INSTR (a.SRODISTRICT, ':', 1) + 1))) Sro_District"
+					+",a.sro"
+					+ " FROM cc_property_category_details a"
+					+ " WHERE a.contract_number = ? and a.customer_code=? and a.property_number=?");
 			preparedStatement10.setString(1, letterModel.getContractNumber());
 			preparedStatement10.setString(2, titleHolderDetail.getCustomerShareCode());
 			preparedStatement10.setInt(3,titleHolderDetail.getPropertyNumber());
@@ -1957,24 +1999,21 @@ public class DynamicTemplateService {
 				boundries = null;
 			}else {
 				while (resultSet10.next()) {
-					boundries.setNorthBoundry(resultSet10.getString(2));
-					boundries.setSouthBoundry(resultSet10.getString(3));
-					boundries.setEastBoundry(resultSet10.getString(4));
-					boundries.setWestBoundry(resultSet10.getString(5));
-					//
-					scheduleB.setSurveyNo(resultSet10.getString(6));
-					scheduleB.setPlotNo(resultSet10.getString(7));
-					scheduleB.setDoorNo(resultSet10.getString(8));
-					scheduleB.setBuildingSocietyName(resultSet10.getString(9));
-					scheduleB.setStateName(resultSet10.getString(10));
-					//scheduleB.setDistrict(resultSet10.getString(11));
-					//scheduleB.setTaluk(resultSet10.getString(12));
-					scheduleB.setTown(resultSet10.getString(13));
-					//scheduleB.setVillage(resultSet10.getString(14));
-					scheduleB.setSro(resultSet10.getString(15));
-					scheduleB.setCityCode(resultSet10.getString(15));
-					letterModel.setSRO(resultSet10.getString(15));
 
+					//
+					scheduleB.setDoorNo(resultSet10.getString(1));
+					scheduleB.setPlotNo(resultSet10.getString(2));
+					scheduleB.setSurveyNo(resultSet10.getString(3));
+					scheduleB.setAddlSurveyNo(resultSet10.getString(4));
+					scheduleB.setStateName(resultSet10.getString(5));
+					scheduleB.setDistrict(resultSet10.getString(6));					
+					scheduleB.setTaluk(resultSet10.getString(7));
+					scheduleB.setTown(resultSet10.getString(8));
+					scheduleB.setVillage(resultSet10.getString(9));
+					scheduleB.setBuildingSocietyName(resultSet10.getString(10));
+					scheduleB.setSroDistrict(resultSet10.getString(11));
+					scheduleB.setSro(resultSet10.getString(12));
+					letterModel.setSRO(resultSet10.getString(12));
 					//propertyAddress
 					PreparedStatement preparedStatement11 = connection3.prepareStatement("Select A.Property_Address.Street_L,A.Property_Address.Column1_L,"
 							+ "	A.Property_Address.Column2_L,A.Property_Address.Column3_L,"
@@ -1985,7 +2024,7 @@ public class DynamicTemplateService {
 							+ "	A.Property_Address.Office_Phone_No,A.Property_Address.Residence_Phone_No,"
 							+ "	A.Property_Address.Office_Fax_No,A.Property_Address.Residence_Fax_No,"
 							+ "	A.Property_Address.Mobile_No,A.Property_Address.Pager_No,"
-							+ "	A.Property_Address.Email,A.Land_Area_Sq_Ft,A.flat_no,A.flat_floor_no,A.flat_remarks"
+							+ "	A.Property_Address.Email,A.Land_Area_Sq_Ft,A.flat_no,A.flat_floor_no,A.flat_remarks,A.project_code"
 							+ "	From Sa_Customer_Property_Dtls A where customer_code=? and property_number=?");
 					preparedStatement11.setString(1, titleHolderDetail.getCustomerShareCode());
 					preparedStatement11.setInt(2, titleHolderDetail.getPropertyNumber());
@@ -2015,6 +2054,7 @@ public class DynamicTemplateService {
 						propertyAddress.setFlatNo(resultSet11.getString(21));
 						propertyAddress.setFloorNo(resultSet11.getString(22));
 						propertyAddress.setBlock(resultSet11.getString(23));
+						propertyAddress.setProjectCode(resultSet11.getString(24));
 
 						PreparedStatement preparedStatement12 = connection3.prepareStatement("Select City_Name"
 								+ "   From Hfs_Vw_City"
@@ -2049,6 +2089,32 @@ public class DynamicTemplateService {
 					}
 				}
 			}
+			PreparedStatement preparedStatement12 = connection3.prepareStatement("Select Contract_Number,Bounded_North,"
+					+ "	 Bounded_South, Bounded_East, Bounded_West"
+					+ "	 From cc_property_category_details where contract_number=?"
+					+ "	 and customer_code=? and property_number=?");
+			preparedStatement12.setString(1, letterModel.getContractNumber());
+			preparedStatement12.setString(2, titleHolderDetail.getCustomerShareCode());
+			preparedStatement12.setInt(3, titleHolderDetail.getPropertyNumber());
+			ResultSet resultSet12 = preparedStatement12.executeQuery();
+			if(!resultSet12.isBeforeFirst()) {
+				boundries = null;
+			}else {
+				while (resultSet12.next()) {
+					boundries.setNorthBoundry(resultSet12.getString(2));
+					boundries.setSouthBoundry(resultSet12.getString(3));
+					boundries.setEastBoundry(resultSet12.getString(4));
+					boundries.setWestBoundry(resultSet12.getString(5));
+				}
+			}
+			PreparedStatement preparedStatement13 = connection3.prepareStatement("SELECT A.PROJECT_NAME.NAME_3_L project_name,"
+					+ "project_code  FROM sa_project_master_hdr A where project_code=?");
+			preparedStatement13.setString(1, propertyAddress.getProjectCode());
+			ResultSet resultSet13 = preparedStatement13.executeQuery();
+			while (resultSet13.next()) {
+				scheduleB.setProjectName(resultSet13.getString(1));
+			}
+
 			PreparedStatement preparedStatement14 = connection3.prepareStatement("Select North_By,South_By,East_By,West_By,"
 					+ "North_By_Measurements,South_By_Measurements,"
 					+ "East_By_Measurements,West_By_Measurements "
@@ -2246,8 +2312,8 @@ public class DynamicTemplateService {
 	}
 
 	private void appendTitleHolderAddress(CustomerAddress customerAddress, TitleHolderDetail titleHolderDetail) {
-		String customerAddressString=	customerAddress.getStreet()+","+customerAddress.getAddress1()+","+customerAddress.getAddress7()+","+customerAddress.getLocation()+
-				","+customerAddress.getCity()+"-"+customerAddress.getZipCode()+","+customerAddress.getState()+","+customerAddress.getCountry();
+		String customerAddressString=getStringFromObject(customerAddress.getStreet())+","+getStringFromObject(customerAddress.getAddress1())+","+getStringFromObject(customerAddress.getAddress7())+","+getStringFromObject(customerAddress.getLocation())+
+				","+getStringFromObject(customerAddress.getCity())+"-"+getStringFromObject(customerAddress.getZipCode())+","+getStringFromObject(customerAddress.getState())+","+getStringFromObject(customerAddress.getCountry());
 		titleHolderDetail.setTitleHolderAddress(customerAddressString);
 	}
 
@@ -2777,7 +2843,7 @@ public class DynamicTemplateService {
 				? " And Paise " + words.get(Integer.valueOf((int) (decimal - decimal % 10))) + " "
 				+ words.get(Integer.valueOf((int) (decimal % 10)))
 				: "";
-		return "Rupees " + Rupees + paise + " Only";
+		return " " + Rupees + paise;
 	}
 
 	public void insertProductData() {
