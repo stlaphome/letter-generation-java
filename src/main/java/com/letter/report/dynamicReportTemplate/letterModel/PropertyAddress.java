@@ -29,5 +29,6 @@ public class PropertyAddress {
 	private String flatNo;
 	private String floorNo;
 	private String Block;
+	private String projectCode;
 
 }

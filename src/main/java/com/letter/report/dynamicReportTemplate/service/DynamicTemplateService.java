@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -35,7 +36,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -272,7 +273,8 @@ public class DynamicTemplateService {
 
 	public ResponseEntity<List<Map>> getTemplateKey(Map<String, String> dataMap) {
 		List<Map> templateKeyList = new ArrayList<>();
-		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateName(dataMap.get("productCode"), dataMap.get("templateName"));
+		Sort sort = Sort.by("templateKey");
+		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateName(dataMap.get("productCode"), dataMap.get("templateName"),sort);
 		dynamicTemplateList.stream().forEach(item -> {
 			Map<String, String> tempMap = new HashMap<>();
 			tempMap.put("key", item.getTemplateKey());
@@ -953,9 +955,10 @@ public class DynamicTemplateService {
 			serialNo = 1;
 			if(Objects.nonNull(titleHolderDetailList)) {
 				titleHolderDetailList.stream().forEach(titleHolderDetail->{
-					if(Objects.isNull(titleHolderDetail)) {
+					if(Objects.isNull(titleHolderDetail) && Objects.isNull(titleHolderDetail.getPropertyNumber())&& Objects.isNull(titleHolderDetail.getCustomerShareCode())) {
 						return;
 					}
+					String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 					String titleHolderName = "";
 					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
 						titleHolderName = "___"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
@@ -977,13 +980,13 @@ public class DynamicTemplateService {
 					//smotd name
 					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderName
 							+ " herein is the sole and absolute owner of the property by the following document ("
-							+ getUnknownValueFromObject(titleHolderDetail.getOtdNumber())+") on the file of "+"("+sanctionModel.getSRO()+" ). "
+							+ getUnknownValueFromObject(titleHolderDetail.getOtdNumber())+") on the file of "+"("+getUnknownValueFromObject(sanctionModel.getSRO())+" ). "
 							+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 
 					//motd tileholder
-					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+",Aadhaar No."+
-							getUnknownValueFromObject(titleHolderDetail.getTitleAadharNo())+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
+					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+",Aadhaar No."+aadharNo
+							+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())
 							+",residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress())
 							+" referred to as the BORROWER/S”, the PARTY OF THE FIRST PART."
@@ -1007,11 +1010,13 @@ public class DynamicTemplateService {
 					DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
-						Set<ScheduleA> scheduleAList = scheduleAListMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
+						Set<ScheduleA> scheduleAList = scheduleAListMap.get(combinationKey);
 						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
+							int scheduleAIndex = getIndexValue(scheduleAListMap,combinationKey);
 							StringBuilder scheduleATable = new StringBuilder();
-							if(scheduleAListMap.size()>1) {
-								scheduleATable.append("Document details for item No."+titleHolderDetail.getPropertyNumber()+ "of Schedule -A");
+							long size = getSizeOfScheduleAMap(scheduleAListMap);
+							if(size>1) {
+								scheduleATable.append("Document details for item No."+scheduleAIndex+ "of Schedule -A");
 							}else {
 								scheduleATable.append("Document details for Schedule -A");
 							}
@@ -1046,35 +1051,49 @@ public class DynamicTemplateService {
 					}
 					//scheduleB
 					if(Objects.nonNull(scheduleBMap)) {
-						ScheduleB scheduleB = scheduleBMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
+						ScheduleB scheduleB = scheduleBMap.get(combinationKey);
 						if(Objects.nonNull(scheduleB)) {
 							PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
 							StringBuilder scheduleBBuilder = new StringBuilder();
-							if(scheduleBMap.size()>1) {
-								scheduleBBuilder.append("Item "+titleHolderDetail.getPropertyNumber()+"<br>"+"<br>");
+							int scheduleBIndex = getIndexValue(scheduleBMap,combinationKey);
+							long size = getSizeOfScheduleBMap(scheduleBMap);
+							if(size>1) {
+								scheduleBBuilder.append("Item "+scheduleBIndex+"<br>"+"<br>");
 							}else {
-								scheduleBBuilder.append("Item "+"<br>"+"<br>");
-
+								scheduleBBuilder.append("<br>");
 							}
 							scheduleBBuilder.append("SRO District "+space30.concat(space20).concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSroDistrict())));
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("SRO "+space30.concat(space30).concat(space5).concat(getString(scheduleB.getSro())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Survey No And Addl Survey No "+space20.concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSurveyNo())));
+							String addSurveyNo ="";
+							if(!getString(scheduleB.getAddlSurveyNo()).isEmpty()) {
+								addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
+							}
+							String surveyNumber = "Survey No And Addl Survey No "+space20.concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSurveyNo())).concat(addSurveyNo);
+							scheduleBBuilder.append(surveyNumber);
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("Plot No "+space30.concat(space25).concat(space5).concat("&nbsp;").concat(getString(scheduleB.getPlotNo())));
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("Door No "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(scheduleB.getDoorNo())));
 							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Project Name "+space25.concat(space25).concat("&nbsp;").concat(getString(scheduleB.getProjectName())));//projectName
-							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Flat No "+space30.concat(space30).concat("&nbsp;").concat(getString(proeprtyAddress.getFlatNo())));//flatno
-							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Floor "+space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getFloorNo())));//floor
-							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Block No "+space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getBlock())));//block
-							scheduleBBuilder.append("<br>");
+							if(!getString(scheduleB.getProjectName()).isEmpty()) {
+								scheduleBBuilder.append("Project Name "+space25.concat(space25).concat("&nbsp;").concat(getString(scheduleB.getProjectName())));//projectName
+								scheduleBBuilder.append("<br>");
+							}
 							if(Objects.nonNull(proeprtyAddress)) {
+								if(!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
+									scheduleBBuilder.append("Flat No "+space30.concat(space30).concat("&nbsp;").concat(getString(proeprtyAddress.getFlatNo())));//flatno
+									scheduleBBuilder.append("<br>");
+								}
+								if(!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
+									scheduleBBuilder.append("Floor "+space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getFloorNo())));//floor
+									scheduleBBuilder.append("<br>");
+								}
+								if(!getString(proeprtyAddress.getBlock()).isEmpty()) {
+									scheduleBBuilder.append("Block No "+space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getBlock())));//block
+									scheduleBBuilder.append("<br>");
+								}
 								scheduleBBuilder.append("Address 1 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getStreet())));
 								scheduleBBuilder.append("<br>");
 								scheduleBBuilder.append("Address 2 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getAddress1())));
@@ -1112,7 +1131,7 @@ public class DynamicTemplateService {
 
 					//boundries
 					if(Objects.nonNull(boundriesMap)) {
-						Boundries boundries = boundriesMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
+						Boundries boundries = boundriesMap.get(combinationKey);
 						if(Objects.nonNull(boundries)) {
 							StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
 							boundroesBuilder.append("<br>");
@@ -1131,7 +1150,7 @@ public class DynamicTemplateService {
 
 					//measurement
 					if(Objects.nonNull(measurementMap)) {
-						Measurement measurerments = measurementMap.get(String.valueOf(titleHolderDetail.getPropertyNumber()));
+						Measurement measurerments = measurementMap.get(combinationKey);
 						if(Objects.nonNull(measurerments)) {
 
 							StringBuilder measurementBuilder = new StringBuilder("Measurement");
@@ -1196,6 +1215,23 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~MOTD_Loan_details_table~~", loanDetailsTable.toString());
 
 	}
+	private long getSizeOfScheduleBMap(Map<String, ScheduleB> scheduleBMap) {
+		long nonNullValueCount = scheduleBMap.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue() != null)
+                .count();
+		return nonNullValueCount;
+	}
+
+	private long getSizeOfScheduleAMap(Map<String, LinkedHashSet<ScheduleA>> map) {
+		long nonNullValueCount = map.entrySet()
+                .stream()
+                .filter(entry -> !entry.getValue().isEmpty())
+                .count();
+		return nonNullValueCount;
+	}
+
+
 	private Object getYearsFromMonth(int term) {
 		if(term>0) {
 			int data = term/12;
@@ -1232,7 +1268,7 @@ public class DynamicTemplateService {
 	public static String addOrdinalSuffix(String data) {
 		int number = Integer.parseInt(data);
 		if (number >= 11 && number <= 13) {
-			return number + " th";
+			return number + "th";
 		}
 
 		switch (number % 10) {
@@ -1880,10 +1916,10 @@ public class DynamicTemplateService {
 		Connection connection = null;
 		LinkedHashSet<PropertyNumberModel> propertyNumberModelList = new LinkedHashSet<>();
 		LinkedHashSet<TitleHolderDetail> titleHolderList = new LinkedHashSet<>();
-		TreeMap<String,LinkedHashSet<ScheduleA>> scheduleListMap = new TreeMap<>();
-		TreeMap<String,ScheduleB> scheduleBListMap= new TreeMap<>();
-		TreeMap<String,Boundries> boundriesListMap= new TreeMap<>();
-		TreeMap<String,Measurement> measurementListMap= new TreeMap<>();
+		LinkedHashMap<String,LinkedHashSet<ScheduleA>> scheduleListMap = new LinkedHashMap<>();
+		LinkedHashMap<String,ScheduleB> scheduleBListMap= new LinkedHashMap<>();
+		LinkedHashMap<String,Boundries> boundriesListMap= new LinkedHashMap<>();
+		LinkedHashMap<String,Measurement> measurementListMap= new LinkedHashMap<>();
 		Set<ScheduleA> scheduleAList = new LinkedHashSet<>();
 		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
 		try {
@@ -1898,9 +1934,9 @@ public class DynamicTemplateService {
 			}
 			//property main
 
-			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=? and property_customer_code=? order by property_number");
+			PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details where contract_number=? order by property_number");
 			preparedStatement2.setString(1, letterModel.getContractNumber());
-			preparedStatement2.setString(2, letterModel.getCustomerCode());
+			//preparedStatement2.setString(2, letterModel.getCustomerCode());
 			ResultSet resultSet2 = preparedStatement2.executeQuery();
 			while (resultSet2.next()) {
 				PropertyNumberModel propertyNumberModel = new PropertyNumberModel();
@@ -1927,22 +1963,24 @@ public class DynamicTemplateService {
 						titleHolderDetail.setTitleHolderName(resultSet3.getString(2));
 						titleHolderDetail.setCustomerCode(resultSet3.getString(3));
 						titleHolderDetail.setPropertyNumber(resultSet3.getInt(4));
-						//title
-						getTitleInfo(titleHolderDetail);
-
-						//aadhar
-						getAadharForTitle(titleHolderDetail);
-						//age
-						getAgeForTitle(titleHolderDetail);
-
-						//address
-						getAddressForTitle(titleHolderDetail,prepareStatementList);
-
-						//getScheduleA
-						getScheduleADetail(letterModel,propertyDetailModel,titleHolderDetail,scheduleListMap);
-
-						//schedule B &boundries&measurement
-						getschedulBAndBoundriyMeasurment(letterModel,titleHolderDetail,boundriesListMap,measurementListMap,scheduleBListMap);
+						if(Objects.nonNull(titleHolderDetail.getCustomerShareCode())) {
+							//title
+							getTitleInfo(titleHolderDetail);
+							
+							//aadhar
+							getAadharForTitle(titleHolderDetail);
+							//age
+							getAgeForTitle(titleHolderDetail);
+							
+							//address
+							getAddressForTitle(titleHolderDetail,prepareStatementList);
+							
+							//getScheduleA
+							getScheduleADetail(letterModel,propertyDetailModel,titleHolderDetail,scheduleListMap);
+							
+							//schedule B &boundries&measurement
+							getschedulBAndBoundriyMeasurment(letterModel,titleHolderDetail,boundriesListMap,measurementListMap,scheduleBListMap);
+						}
 
 						titleHolderList.add(titleHolderDetail);
 
@@ -1963,11 +2001,12 @@ public class DynamicTemplateService {
 		}
 	}
 
-	private void getschedulBAndBoundriyMeasurment(LetterReportModel letterModel, TitleHolderDetail titleHolderDetail, Map<String, Boundries> boundriesListMap, Map<String, Measurement> measurementListMap, Map<String, ScheduleB> scheduleBListMap) {
+	private void getschedulBAndBoundriyMeasurment(LetterReportModel letterModel, TitleHolderDetail titleHolderDetail, LinkedHashMap<String, Boundries> boundriesListMap, LinkedHashMap<String, Measurement> measurementListMap, LinkedHashMap<String, ScheduleB> scheduleBListMap) {
 		// Use the current datasource to fetch data
 		dynamicDataSourceService.switchToOracleDataSource();
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
+		String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 		Boundries boundries = new Boundries();
 		Measurement measurement = new Measurement();
 		ScheduleB scheduleB = new ScheduleB();
@@ -1996,7 +2035,6 @@ public class DynamicTemplateService {
 			ResultSet resultSet10 = preparedStatement10.executeQuery();
 			if(!resultSet10.isBeforeFirst()) {
 				scheduleB = null;
-				boundries = null;
 			}else {
 				while (resultSet10.next()) {
 
@@ -2133,48 +2171,43 @@ public class DynamicTemplateService {
 					measurement.setWestMeasurement(resultSet14.getString(8));
 				}
 			}
-			boundriesListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()),boundries);
-			measurementListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()),measurement);
-			scheduleBListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()),scheduleB);
+			boundriesListMap.put(combinationKey,boundries);
+			measurementListMap.put(combinationKey,measurement);
+			scheduleBListMap.put(combinationKey,scheduleB);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	private void getScheduleADetail(LetterReportModel letterModel, PropertyDetailModel propertyDetailModel, TitleHolderDetail titleHolderDetail, Map<String, LinkedHashSet<ScheduleA>> scheduleListMap) {
+	private void getScheduleADetail(LetterReportModel letterModel, PropertyDetailModel propertyDetailModel, TitleHolderDetail titleHolderDetail, LinkedHashMap<String, LinkedHashSet<ScheduleA>> scheduleListMap) {
 		// Use the current datasource to fetch data
 		dynamicDataSourceService.switchToOracleDataSource();
+		
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
 		LinkedHashSet<ScheduleA> scheduleAList = new LinkedHashSet<>();
 		try {
 			connection = currentDataSource.getConnection();
-			PreparedStatement preparedStatement8 = connection.prepareStatement("SELECT Contract_Number, Document_Id Doc_Id, Collection_Date, Original_Document, Document_Number, Title_Holder_Name, Document_Type, Document_Date FROM Dc_Document_Processing where "
-					+ "Contract_Number=? and entity_code=? and asset_number=?");
+			PreparedStatement preparedStatement8 = connection.prepareStatement(" SELECT  B.Dty_Document_Desc Document_Name,A.Document_Number, A.Document_Date,A.Title_Holder_Name,A.Document_Id"
+					+ " FROM Dc_Document_Processing a,Sa_Document_Type_Master b "
+					+ "  WHERE A.Contract_Number=? AND a.entity_code=?"
+					+ "  AND a.ASSET_NUMBER=? And B.Dty_Document_Id = A.Document_Id And B.DTY_DOCUMENT_TYPE=A.Document_Type");
+			String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 			preparedStatement8.setString(1, letterModel.getContractNumber());
 			preparedStatement8.setString(2, titleHolderDetail.getCustomerShareCode());
 			preparedStatement8.setInt(3, titleHolderDetail.getPropertyNumber());
 			ResultSet resultSet8 = preparedStatement8.executeQuery();
 			while(resultSet8.next()) {
 				ScheduleA scheduleA = new ScheduleA();
-				scheduleA.setDocumentId(resultSet8.getString(2));
-				scheduleA.setCollectionDate(resultSet8.getString(3));
-				scheduleA.setOriginalDocument(resultSet8.getString(4));
-				scheduleA.setDocuemntNumber(resultSet8.getString(5));
-				titleHolderDetail.setOtdNumber(resultSet8.getString(5));
-				scheduleA.setTitleHolderName(getStringFromObject(resultSet8.getString(6)));
-				scheduleA.setDocmentType(resultSet8.getString(7));
-				scheduleA.setDocumentDate(resultSet8.getString(8));
-				PreparedStatement preparedStatement9 = connection.prepareStatement("Select Dty_Document_Id Doc_Id, Dty_Document_Desc Document_Name "
-						+ "From Sa_Document_Type_Master where Dty_Document_Id=?");
-				preparedStatement9.setString(1, scheduleA.getDocumentId());
-				ResultSet resultSet12 = preparedStatement9.executeQuery();
-				while (resultSet12.next()) {
-					scheduleA.setDocumentName(resultSet12.getString(2));
-				}
+				scheduleA.setDocumentName(resultSet8.getString(1));
+				scheduleA.setDocuemntNumber(resultSet8.getString(2));
+				titleHolderDetail.setOtdNumber(resultSet8.getString(2));
+				scheduleA.setDocumentDate(resultSet8.getString(3));
+				scheduleA.setTitleHolderName(getStringFromObject(resultSet8.getString(4)));
+				scheduleA.setDocumentId(resultSet8.getString(5));
 				scheduleAList.add(scheduleA);
 			}
-			scheduleListMap.put(String.valueOf(titleHolderDetail.getPropertyNumber()), scheduleAList);
+			scheduleListMap.put(combinationKey, scheduleAList);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}		

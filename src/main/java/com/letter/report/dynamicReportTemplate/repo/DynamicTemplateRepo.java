@@ -3,6 +3,7 @@ package com.letter.report.dynamicReportTemplate.repo;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -17,7 +18,7 @@ public interface  DynamicTemplateRepo extends JpaRepository<DynamicTemplate, Int
 	
 	List<DynamicTemplate> findByTemplateNameAndActive(String templateName,Boolean active);
 
-	List<DynamicTemplate> findByProductCodeAndTemplateName(String string, String string2);
+	List<DynamicTemplate> findByProductCodeAndTemplateName(String string, String string2, Sort sort);
 
 	List<DynamicTemplate> findByProductCodeAndTemplateNameAndActive(String productCode, String templateName, boolean b);
 
