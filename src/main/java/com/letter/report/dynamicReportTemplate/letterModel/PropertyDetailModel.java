@@ -15,6 +15,7 @@ public class PropertyDetailModel {
 	private Map<String,ScheduleB> scheduleBListMap;
 	private Map<String,Boundries> boundriesListMap;
 	private Map<String,Measurement> measurementListMap;
+	private Map<String,LinkedSroDetails> linkedSroDetailMap;
 	
 
 }
