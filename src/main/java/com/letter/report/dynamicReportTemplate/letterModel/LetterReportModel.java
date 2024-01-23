@@ -16,6 +16,7 @@ public class LetterReportModel {
 	private String customerCode;
 	private List<String> customerShareCode;
 	private int amountFinanced;
+	private String purposeOfLoanCode;
 	private String purposeOfLoan;
 	private String netRate;
 	private int term;
