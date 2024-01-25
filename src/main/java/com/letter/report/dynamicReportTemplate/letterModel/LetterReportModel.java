@@ -63,7 +63,7 @@ public class LetterReportModel {
 	private int principalOutstanding;
 	
 	
-	private LinkedHashSet<LinkedSroDetails> LinkedSroDetailsList;
+	private LinkedSroDetails linkedSroDetails;
 	private PropertyDetailModel propertyDetailModel;
 	
 	

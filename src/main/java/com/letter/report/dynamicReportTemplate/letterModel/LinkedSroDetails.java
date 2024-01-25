@@ -4,10 +4,13 @@ import lombok.Data;
 
 @Data
 public class LinkedSroDetails {
-	public String receiptDeedNumber;
-	public String regDocDate;
-	public String regDate;
+	public String linkedDocumentNumber;
+	public String linkedDocumentDate;
 	public String linkedSro;
 	public String linkedSroDistrict;
+	private String linkedCustomerCode;
+	private int linkedPropertyNumber;
+	private String documentId;
+	
 
 }

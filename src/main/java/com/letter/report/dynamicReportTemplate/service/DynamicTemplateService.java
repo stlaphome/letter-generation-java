@@ -1002,13 +1002,21 @@ public class DynamicTemplateService {
 					String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 					String titleHolderName = "";
 					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
-						titleHolderName = "___"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
+						titleHolderName = "___"+"<b>"+"<u>"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName())+"</b>"+"</u>";
 					}else {						
-						titleHolderName = titleHolderDetail.getTitle()+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
+						titleHolderName = "<b>"+"<u>"+titleHolderDetail.getTitle()+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName())+"</b>"+"</u>";
+					}
+					int a = serialNo++;
+					String titleHolderPrefix ="";
+					long titleSize = getSizeOfTitleMap(titleHolderDetailList);
+					if(titleSize>1) {
+						titleHolderPrefix = a+"."+titleHolderName;
+					}else {
+						titleHolderPrefix = titleHolderName;
 					}
 					String aadharNo = "____________";
 					//smtitleholder
-					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderName+", Aadhaar No. "+ aadharNo
+					StringBuilder firstMortagetitleHolderDetail =new StringBuilder(titleHolderPrefix+", Aadhaar No. "+ aadharNo
 							+"aged about "+ getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())
 							+",residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress())
@@ -1026,7 +1034,7 @@ public class DynamicTemplateService {
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 
 					//motd tileholder
-					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderName+",Aadhaar No."+aadharNo
+					StringBuilder motdTitleHolderBuilder =new StringBuilder(titleHolderPrefix+",Aadhaar No."+aadharNo
 							+" aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+ " S/o.W/o.Mr/s "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())
 							+",residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress())
@@ -1039,14 +1047,7 @@ public class DynamicTemplateService {
 
 
 					//supplement motd title
-					int a = serialNo++;
-					String titleHolderPrefix ="";
-					long titleSize = getSizeOfTitleMap(titleHolderDetailList);
-					if(titleSize>1) {
-						titleHolderPrefix = a+"."+titleHolderName;
-					}else {
-						titleHolderPrefix = titleHolderName;
-					}
+
 					String titleHolder = titleHolderPrefix+" ,S/o.W/o.Mr/s of "+
 							getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+" residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress());
@@ -1062,11 +1063,15 @@ public class DynamicTemplateService {
 							int scheduleAIndex = getIndexValue(scheduleAListMap,combinationKey);
 							StringBuilder scheduleATable = new StringBuilder();
 							long size = getSizeOfScheduleAMap(scheduleAListMap);
+							scheduleATable.append("<b>");
+							scheduleATable.append("<u>");
 							if(size>1) {
 								scheduleATable.append("Document details for item No."+scheduleAIndex+ " of Schedule -A");
 							}else {
 								scheduleATable.append("Document details for Schedule -A");
 							}
+							scheduleATable.append("</u>");
+							scheduleATable.append("</b>");
 							scheduleATable.append("<br>");
 							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
 									+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
@@ -1110,11 +1115,15 @@ public class DynamicTemplateService {
 							StringBuilder scheduleBBuilder = new StringBuilder();
 							int scheduleBIndex = getIndexValue(scheduleBMap,combinationKey);
 							long size = getSizeOfScheduleBMap(scheduleBMap);
+							scheduleBBuilder.append("<b>");
+							scheduleBBuilder.append("<u>");
 							if(size>1) {
 								scheduleBBuilder.append("Item "+scheduleBIndex+"<br>"+"<br>");
 							}else {
 								scheduleBBuilder.append("<br>");
 							}
+							scheduleBBuilder.append("</u>");
+							scheduleBBuilder.append("</b>");
 							scheduleBBuilder.append("SRO District "+space30.concat(space20).concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSroDistrict())));
 							scheduleBBuilder.append("<br>");
 							scheduleBBuilder.append("SRO "+space30.concat(space30).concat(space5).concat(getString(scheduleB.getSro())));
@@ -1186,7 +1195,12 @@ public class DynamicTemplateService {
 					if(Objects.nonNull(boundriesMap)) {
 						Boundries boundries = boundriesMap.get(combinationKey);
 						if(Objects.nonNull(boundries)) {
-							StringBuilder boundroesBuilder = new StringBuilder("Boundaries");
+							StringBuilder boundroesBuilder = new StringBuilder("");
+							boundroesBuilder.append("<b>");
+							boundroesBuilder.append("<u>");
+							boundroesBuilder.append("Boundaries");
+							boundroesBuilder.append("</u>");
+							boundroesBuilder.append("</b>");
 							boundroesBuilder.append("<br>");
 							boundroesBuilder.append("North By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getNorthBoundry())));
 							boundroesBuilder.append("<br>");
@@ -1206,7 +1220,12 @@ public class DynamicTemplateService {
 						Measurement measurerments = measurementMap.get(combinationKey);
 						if(Objects.nonNull(measurerments)) {
 
-							StringBuilder measurementBuilder = new StringBuilder("Measurement");
+							StringBuilder measurementBuilder = new StringBuilder("");
+							measurementBuilder.append("<b>");
+							measurementBuilder.append("<u>");
+							measurementBuilder.append("<Measurement>");
+							measurementBuilder.append("</u>");
+							measurementBuilder.append("</b>");
 							measurementBuilder.append("<br>");
 							measurementBuilder.append("North By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getNorthMeasurement())));
 							measurementBuilder.append("<br>");
@@ -1240,30 +1259,16 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Boundries_Detail~~", boundriesStr.toString());
 		variablesValueMap.put("~~Measurement_Detail~~", measurementStr.toString());
 		variablesValueMap.put("~~MOTD_Term~~", getYearsFromMonth(sanctionModel.getTerm())); //
-		String sroValue = null;
-		LinkedHashSet<String> sroSet = sanctionModel.getSroList();
-		if(Objects.nonNull(sroSet)) {
-			Iterator<String> iterator = sroSet.iterator();
-			if(iterator.hasNext()) {
-				sroValue = iterator.next();
-			}
-		}
-		variablesValueMap.put("~~MOTD_SRO~~", getUnknownValueFromObject(sroValue)); //
-		LinkedHashSet<LinkedSroDetails> sroDetailList = sanctionModel.getLinkedSroDetailsList();
-		LinkedSroDetails sroDetail = new LinkedSroDetails();
-		if(Objects.nonNull(sroDetailList)) {
-			Iterator<LinkedSroDetails> iterator = sroDetailList.iterator();
-			if(iterator.hasNext()) {
-				sroDetail = iterator.next();
-			}
-		}
-		String motdDate = getDateWithoutTiming(sroDetail.getRegDate());
-		String motdRegDate = getDateWithoutTiming(sroDetail.getRegDocDate());
+		//sro detail
+		LinkedSroDetails sroDetail = sanctionModel.getLinkedSroDetails();
+		String motdDate = getDateWithoutTiming(Objects.nonNull(sroDetail)?sroDetail.getLinkedDocumentDate():null);
+		String motdRegDate = getDateWithChangeFormat(sanctionModel.getCurrentDate());
 		variablesValueMap.put("~~Linked_Motd_Date~~", getUnknownValueFromObject(motdDate));
 		variablesValueMap.put("~~Linked_Motd_Reg_Doc_Date~~", getUnknownValueFromObject(motdRegDate));
-		variablesValueMap.put("~~Linked_Motd_No~~", getUnknownValueFromObject(sroDetail.getReceiptDeedNumber()));
-		variablesValueMap.put("~~Linked_Motd_Sro~~", getUnknownValueFromObject(sroDetail.getLinkedSro()));
-		variablesValueMap.put("~~linked_motd_sro_district~~", getUnknownValueFromObject(sroDetail.getLinkedSroDistrict()));
+		variablesValueMap.put("~~Linked_Motd_No~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedDocumentNumber():null));
+		variablesValueMap.put("~~Linked_Motd_Sro~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSro():null));
+		variablesValueMap.put("~~linked_motd_sro_district~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSroDistrict():null));
+		variablesValueMap.put("~~MOTD_SRO~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSro():null)); //
 		//day and month
 		splitDayFromDate(sanctionModel,variablesValueMap);
 
@@ -1306,7 +1311,7 @@ public class DynamicTemplateService {
 
 	private String getDateWithoutTiming(Object valueString) {
 		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-		DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+		DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 		String value = getStringFromObject(valueString);
 		String outputVlaue = null;
 		if(!value.isEmpty()) {
@@ -1315,6 +1320,18 @@ public class DynamicTemplateService {
 		}
 		return outputVlaue;		
 	}
+	private String getDateWithChangeFormat(Object valueString) {
+		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+		DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+		String value = getStringFromObject(valueString);
+		String outputVlaue = null;
+		if(!value.isEmpty()) {
+			LocalDateTime ds = LocalDateTime.now();
+			outputVlaue = ds.format(outputFormatter);
+		}
+		return outputVlaue;		
+	}
+
 
 	private String getSROValue(Map<String, ScheduleB> scheduleBMap, String combinationKey) {
 		if(Objects.nonNull(scheduleBMap)) {
@@ -2189,6 +2206,7 @@ public class DynamicTemplateService {
 		LinkedHashMap<String,Boundries> boundriesListMap= new LinkedHashMap<>();
 		LinkedHashMap<String,Measurement> measurementListMap= new LinkedHashMap<>();
 		LinkedHashSet<LinkedSroDetails> linkedSroDetailsMap= new LinkedHashSet<>();
+		LinkedSroDetails linkedSroDetails= new LinkedSroDetails();
 		LinkedHashSet<String> sroList = new LinkedHashSet<>();
 		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
 		try {
@@ -2241,8 +2259,8 @@ public class DynamicTemplateService {
 							//age
 							getAgeForTitle(titleHolderDetail);
 
-							//linkdate and SRO
-							getSroDetails(letterModel,titleHolderDetail,linkedSroDetailsMap);
+							//otdNumber
+							getOtdNumber(titleHolderDetail,letterModel);
 
 							//address
 							getAddressForTitle(titleHolderDetail,prepareStatementList);
@@ -2262,6 +2280,9 @@ public class DynamicTemplateService {
 					e.printStackTrace();
 				}
 			});
+			//linkdate and SRO
+			getSroDetails(letterModel,linkedSroDetails);
+
 			propertyDetailModel.setTitleHolderDetailList(titleHolderList);
 			propertyDetailModel.setScheduleListMap(scheduleListMap);
 			propertyDetailModel.setScheduleBListMap(scheduleBListMap);
@@ -2269,7 +2290,7 @@ public class DynamicTemplateService {
 			propertyDetailModel.setBoundriesListMap(boundriesListMap);
 			letterModel.setPropertyDetailModel(propertyDetailModel);
 			letterModel.setSroList(sroList);
-			letterModel.setLinkedSroDetailsList(linkedSroDetailsMap);
+			letterModel.setLinkedSroDetails(linkedSroDetails);
 		}catch (Exception e) {
 			e.printStackTrace();
 			logger.info("motd lettermodel set",e);
@@ -2285,53 +2306,106 @@ public class DynamicTemplateService {
 		}
 	}
 
-	private void getSroDetails(LetterReportModel letterModel, TitleHolderDetail titleHolderDetail, LinkedHashSet<LinkedSroDetails> linkedSroDetailsMap) {
+	private void getOtdNumber(TitleHolderDetail titleHolderDetail, LetterReportModel letterModel) {
 		// Use the current datasource to fetch data
 		dynamicDataSourceService.switchToOracleDataSource();
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
-		LinkedSroDetails linkedSroDetails = new LinkedSroDetails();
-		String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
+		try {
+			connection = currentDataSource.getConnection();
+			PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT  A.DOCUMENT_NUMBER FROM DC_DOCUMENT_PROCESSING A,SA_DOCUMENT_TYPE_MASTER B"
+					+ " WHERE A.CONTRACT_NUMBER=?"
+					+ "  AND A.ENTITY_CODE=? AND A.ASSET_NUMBER=?"
+					+ "   AND A.DOCUMENT_NUMBER IS NOT NULL"
+					+ "   AND A.DOCUMENT_ID IN (1,9,33)"
+					+ "   AND B.DTY_DOCUMENT_ID = A.DOCUMENT_ID"
+					+ "   AND B.DTY_DOCUMENT_TYPE=A.DOCUMENT_TYPE  AND ROWNUM =1");
+			preparedStatement1.setString(1, letterModel.getContractNumber());
+			preparedStatement1.setString(2, titleHolderDetail.getCustomerShareCode());
+			preparedStatement1.setInt(3, titleHolderDetail.getPropertyNumber());
+			ResultSet resultSet1 = preparedStatement1.executeQuery();
+			while (resultSet1.next()) {
+				titleHolderDetail.setOtdNumber(resultSet1.getString(1));
+			}
+		}catch (Exception e) {
+			logger.info("link sro fails" ,e);
+			e.printStackTrace();
+		}
+	}
+
+	private void getSroDetails(LetterReportModel letterModel,LinkedSroDetails linkedSroDetails) {
+		// Use the current datasource to fetch data
+		dynamicDataSourceService.switchToOracleDataSource();
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		Connection connection = null;
 
 		try {
 			connection = currentDataSource.getConnection();
-			PreparedStatement preparedStatement = connection.prepareStatement("SELECT RECEIPT_DEED_NO, REG_DATE, SRO, SRO_DISTRICT,REC_DOC_DATE FROM Hfs_Receipt_Deed_Upd "
-					+ "where TRN=? and PROP_CUST_CODE=? and PROPERTY_NO=?");
-			preparedStatement.setString(1, letterModel.getContractNumber());
-			preparedStatement.setString(2, titleHolderDetail.getCustomerShareCode());
-			preparedStatement.setInt(3, titleHolderDetail.getPropertyNumber());
-			ResultSet resultSet = preparedStatement.executeQuery();
-			if(!resultSet.isBeforeFirst()) {
-				linkedSroDetailsMap.add(linkedSroDetails);
-			}else {
-				while (resultSet.next()) {
-					linkedSroDetails.setReceiptDeedNumber(resultSet.getString(1));
-					linkedSroDetails.setRegDate(resultSet.getString(2));
-					linkedSroDetails.setLinkedSro(resultSet.getString(3));
-					linkedSroDetails.setLinkedSroDistrict(resultSet.getString(4));
-					linkedSroDetails.setRegDocDate(resultSet.getString(5));
-					linkedSroDetailsMap.add(linkedSroDetails);
-				}
-			}
 			try {
-				PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT  A.DOCUMENT_NUMBER FROM DC_DOCUMENT_PROCESSING A,SA_DOCUMENT_TYPE_MASTER B"
-						+ " WHERE A.CONTRACT_NUMBER=?"
-						+ "  AND A.ENTITY_CODE=? AND A.ASSET_NUMBER=?"
+				PreparedStatement preparedStatement = connection.prepareStatement("SELECT A.Document_Number,"
+						+ "  A.Document_Date,A.ENTITY_CODE,A.ASSET_NUMBER,B.DTY_DOCUMENT_ID,DTY_DOCUMENT_TYPE"
+						+ "  FROM Dc_Document_Processing a,Sa_Document_Type_Master b"
+						+ " WHERE A.Contract_Number=?"
 						+ "   AND A.DOCUMENT_NUMBER IS NOT NULL"
-						+ "   AND DTY_DOCUMENT_DESC LIKE '%ORIGINAL TITLE DEED%'"
-						+ "   AND B.DTY_DOCUMENT_ID = A.DOCUMENT_ID"
-						+ "   AND B.DTY_DOCUMENT_TYPE=A.DOCUMENT_TYPE");
-				preparedStatement1.setString(1, letterModel.getContractNumber());
-				preparedStatement1.setString(2, titleHolderDetail.getCustomerShareCode());
-				preparedStatement1.setInt(3, titleHolderDetail.getPropertyNumber());
-				ResultSet resultSet1 = preparedStatement1.executeQuery();
-				while (resultSet1.next()) {
-					titleHolderDetail.setOtdNumber(resultSet1.getString(1));
+						+ "   AND DTY_DOCUMENT_ID =13 AND DTY_DOCUMENT_TYPE ='AL'"
+						+ "   And B.Dty_Document_Id = A.Document_Id"
+						+ "   AND VERIFICATION_DATE IS NOT NULL"
+						+ "   And B.DTY_DOCUMENT_TYPE=A.Document_Type AND ROWNUM =1");
+				preparedStatement.setString(1, letterModel.getContractNumber());
+				ResultSet resultSet = preparedStatement.executeQuery();
+				if(!resultSet.isBeforeFirst()) {
+					linkedSroDetails = null;
+				}else {
+					while (resultSet.next()) {
+						linkedSroDetails.setLinkedDocumentNumber(resultSet.getString(1));
+						linkedSroDetails.setLinkedDocumentDate(resultSet.getString(2));
+						linkedSroDetails.setLinkedCustomerCode(resultSet.getString(3));
+						linkedSroDetails.setLinkedPropertyNumber(resultSet.getInt(4));
+					}
 				}
 			}catch (Exception e) {
-				logger.info("link sro fails" ,e);
 				e.printStackTrace();
 			}
+
+			try {
+				String sql = "SELECT A.Contract_Number, A.Customer_Code, A.Sro, " +
+				         "(SELECT C.Glpd_Geo_Level_Desc FROM Sa_Geo_Level_Property_Details C " +
+				         "WHERE C.Glpd_Geo_Level_Number = 2 AND C.Glpd_Geo_Level_String || ':' || C.Glpd_Geo_Level_Code = Srodistrict) AS Srodistrict " +
+				         "FROM Cc_Property_Category_Details A " +
+				         "WHERE A.contract_Number = ? AND A.property_Number = ? AND A.customer_Code = ? " +
+				         "UNION " +
+				         "SELECT A.Contract_Number, A.Customer_Code, A.Sro, " +
+				         "(SELECT C.Glpd_Geo_Level_Desc FROM Sa_Geo_Level_Property_Details C " +
+				         "WHERE C.Glpd_Geo_Level_Number = 2 AND C.Glpd_Geo_Level_String || ':' || C.Glpd_Geo_Level_Code = Srodistrict) AS Srodistrict " +
+				         "FROM Cc_Property_Category_Details_H A " +
+				         "WHERE A.contract_Number = ? AND A.property_Number = ? AND A.customer_Code = ? " +
+				         "AND A.Txn_Id = (SELECT MAX(Txn_Id) FROM Cc_Property_Category_Details_H B " +
+				         "WHERE B.contract_Number = ? AND B.property_Number = ? AND B.customer_Code = ?) " +
+				         "AND A.contract_Number NOT IN (" +
+				         "SELECT C.contract_Number FROM Cc_Property_Category_Details C " +
+				         "WHERE C.contract_Number = ? AND C.property_Number = ? AND C.customer_Code = ?)";
+				PreparedStatement preparedStatement1 = connection.prepareStatement(sql);
+				preparedStatement1.setString(1, letterModel.getContractNumber());
+				preparedStatement1.setInt(2, linkedSroDetails.getLinkedPropertyNumber());
+				preparedStatement1.setString(3, linkedSroDetails.getLinkedCustomerCode());
+				preparedStatement1.setString(4, letterModel.getContractNumber());
+				preparedStatement1.setInt(5, linkedSroDetails.getLinkedPropertyNumber());
+				preparedStatement1.setString(6, linkedSroDetails.getLinkedCustomerCode());
+				preparedStatement1.setString(7, letterModel.getContractNumber());
+				preparedStatement1.setInt(8, linkedSroDetails.getLinkedPropertyNumber());
+				preparedStatement1.setString(9, linkedSroDetails.getLinkedCustomerCode());
+				preparedStatement1.setString(10, letterModel.getContractNumber());
+				preparedStatement1.setInt(11, linkedSroDetails.getLinkedPropertyNumber());
+				preparedStatement1.setString(12, linkedSroDetails.getLinkedCustomerCode());
+				ResultSet resultSet1 = preparedStatement1.executeQuery();
+				while (resultSet1.next()) {
+					linkedSroDetails.setLinkedSro(resultSet1.getString(3));
+					linkedSroDetails.setLinkedSroDistrict(resultSet1.getString(4));
+				}
+			}catch (Exception e) {
+				// TODO: handle exception
+			}
+
 		}catch (Exception e) {
 			logger.info("link sro fails" ,e);
 			e.printStackTrace();
@@ -2599,10 +2673,10 @@ public class DynamicTemplateService {
 			preparedStatement8.setInt(3, titleHolderDetail.getPropertyNumber());
 			ResultSet resultSet8 = preparedStatement8.executeQuery();
 			if(!resultSet8.isBeforeFirst()) {
-				 scheduleA = null;
+				scheduleA = null;
 			}else {
 				while(resultSet8.next()) {
-					 scheduleA = new ScheduleA();
+					scheduleA = new ScheduleA();
 					scheduleA.setDocumentName(resultSet8.getString(1));
 					scheduleA.setDocuemntNumber(resultSet8.getString(2));
 					scheduleA.setDocumentDate(resultSet8.getString(3));
