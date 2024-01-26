@@ -138,6 +138,8 @@ public class DynamicTemplateService {
 	private static Logger logger = LoggerFactory.getLogger(DynamicTemplateService.class);
 
 	private int serialNo = 1;
+	private int scheduleANo = 0;
+	private int scheduleBNo = 0;
 
 
 	@Value("${stlap.server.url}")
@@ -440,7 +442,17 @@ public class DynamicTemplateService {
 	private String getString(String name) {
 		return Objects.nonNull(name) ? name : "";
 	}
+	private String getStringFromModel(Object proeprtyAddress, String name) {
+		if(Objects.nonNull(proeprtyAddress)) {
+			return Objects.nonNull(name) ? name : "&nbsp;";
+		}else {
+			return "&nbsp;";
+		}
+	}
 	private String getUnknownValueFromObject(Object name) {
+		return Objects.nonNull(name) ? ("<b>"+"<u>"+String.valueOf(name)+"</u>"+"</b>") : "___________";
+	}
+	private String getUnknownValueForSRO(Object name) {
 		return Objects.nonNull(name) ? String.valueOf(name) : "___________";
 	}
 	private String getStringFromObject(Object name) {
@@ -994,6 +1006,8 @@ public class DynamicTemplateService {
 			Map<String, Boundries> boundriesMap = propertyDetailModel.getBoundriesListMap();
 			Map<String, Measurement> measurementMap = propertyDetailModel.getMeasurementListMap();
 			serialNo = 1;
+			scheduleANo = 0;
+			scheduleBNo = 0;
 			if(Objects.nonNull(titleHolderDetailList)) {
 				titleHolderDetailList.stream().forEach(titleHolderDetail->{
 					if(Objects.isNull(titleHolderDetail) && Objects.isNull(titleHolderDetail.getPropertyNumber())&& Objects.isNull(titleHolderDetail.getCustomerShareCode())) {
@@ -1002,9 +1016,9 @@ public class DynamicTemplateService {
 					String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 					String titleHolderName = "";
 					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
-						titleHolderName = "___"+"<b>"+"<u>"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName())+"</b>"+"</u>";
+						titleHolderName = "___"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}else {						
-						titleHolderName = "<b>"+"<u>"+titleHolderDetail.getTitle()+"."+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName())+"</b>"+"</u>";
+						titleHolderName = "<b>"+"<u>"+titleHolderDetail.getTitle()+"."+"</u>"+"</b>"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}
 					int a = serialNo++;
 					String titleHolderPrefix ="";
@@ -1027,9 +1041,11 @@ public class DynamicTemplateService {
 
 					firstMortagetitleHolderDetailList.add(firstMortagetitleHolderDetail.toString());
 					//smotd name
-					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "+titleHolderName
+					StringBuilder firstMortagetitleNameDetail =new StringBuilder("WHEREAS the first mortgagor of "
+							+titleHolderName
 							+ " herein is the sole and absolute owner of the property by the following document ("
-							+ getUnknownValueFromObject(titleHolderDetail.getOtdNumber())+") on the file of "+"("+getSROValue(scheduleBMap,combinationKey)+" ). "
+							+getUnknownValueForSRO(titleHolderDetail.getOtdNumber())+") on the file of "
+							+"("+getSROValue(scheduleBMap,combinationKey)+" ). "
 							+"<br>"+"<br>");
 					firstMortagetitleNameDetailList.add(firstMortagetitleNameDetail.toString());
 
@@ -1049,24 +1065,27 @@ public class DynamicTemplateService {
 					//supplement motd title
 
 					String titleHolder = titleHolderPrefix+" ,S/o.W/o.Mr/s of "+
-							getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
+							getUnknownValueFromObject(titleHolderDetail.getTitleHolderGuardianName())+" ,aged about "
+							+getUnknownValueFromObject(titleHolderDetail.getAge())+" years,"
 							+" residing at "+getUnknownValueFromObject(titleHolderDetail.getTitleHolderAddress());
 					String valueCondition = ""+","+"<br>"+"<br>"+titleHolder;
 					StringBuilder supplmentMotdTitleHolderBuilder =new StringBuilder(a!=1?valueCondition:titleHolder);
 
 					supplementMotdTitleHolderList.add(supplmentMotdTitleHolderBuilder.toString());
-
+					
+			        
 					//scheduleA
 					if(Objects.nonNull(scheduleAListMap)) {
 						Set<ScheduleA> scheduleAList = scheduleAListMap.get(combinationKey);
 						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
+							scheduleANo++;
 							int scheduleAIndex = getIndexValue(scheduleAListMap,combinationKey);
 							StringBuilder scheduleATable = new StringBuilder();
 							long size = getSizeOfScheduleAMap(scheduleAListMap);
 							scheduleATable.append("<b>");
 							scheduleATable.append("<u>");
 							if(size>1) {
-								scheduleATable.append("Document details for item No."+scheduleAIndex+ " of Schedule -A");
+								scheduleATable.append("Document details for item No."+scheduleANo+ " of Schedule -A");
 							}else {
 								scheduleATable.append("Document details for Schedule -A");
 							}
@@ -1110,84 +1129,17 @@ public class DynamicTemplateService {
 					//scheduleB
 					if(Objects.nonNull(scheduleBMap)) {
 						ScheduleB scheduleB = scheduleBMap.get(combinationKey);
+						long size = getSizeOfScheduleBMap(scheduleBMap);
 						if(Objects.nonNull(scheduleB)) {
+							scheduleBNo++;
 							PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
 							StringBuilder scheduleBBuilder = new StringBuilder();
-							int scheduleBIndex = getIndexValue(scheduleBMap,combinationKey);
-							long size = getSizeOfScheduleBMap(scheduleBMap);
-							scheduleBBuilder.append("<b>");
-							scheduleBBuilder.append("<u>");
-							if(size>1) {
-								scheduleBBuilder.append("Item "+scheduleBIndex+"<br>"+"<br>");
-							}else {
-								scheduleBBuilder.append("<br>");
-							}
-							scheduleBBuilder.append("</u>");
-							scheduleBBuilder.append("</b>");
-							scheduleBBuilder.append("SRO District "+space30.concat(space20).concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSroDistrict())));
-							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("SRO "+space30.concat(space30).concat(space5).concat(getString(scheduleB.getSro())));
-							scheduleBBuilder.append("<br>");
 							String addSurveyNo ="";
 							if(!getString(scheduleB.getAddlSurveyNo()).isEmpty()) {
 								addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
 							}
-							String surveyNumber = "Survey No And Addl Survey No "+space20.concat("&nbsp;&nbsp;").concat(getString(scheduleB.getSurveyNo())).concat(addSurveyNo);
-							scheduleBBuilder.append(surveyNumber);
-							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Plot No "+space30.concat(space25).concat(space5).concat("&nbsp;").concat(getString(scheduleB.getPlotNo())));
-							scheduleBBuilder.append("<br>");
-							scheduleBBuilder.append("Door No "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(scheduleB.getDoorNo())));
-							scheduleBBuilder.append("<br>");
-							if(!getString(scheduleB.getProjectName()).isEmpty()) {
-								scheduleBBuilder.append("Project Name "+space25.concat(space25).concat("&nbsp;").concat(getString(scheduleB.getProjectName())));//projectName
-								scheduleBBuilder.append("<br>");
-							}
-							if(Objects.nonNull(proeprtyAddress)) {
-								if(!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
-									scheduleBBuilder.append("Flat No "+space30.concat(space30).concat("&nbsp;").concat(getString(proeprtyAddress.getFlatNo())));//flatno
-									scheduleBBuilder.append("<br>");
-								}
-								if(!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
-									scheduleBBuilder.append("Floor "+space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getFloorNo())));//floor
-									scheduleBBuilder.append("<br>");
-								}
-								if(!getString(proeprtyAddress.getBlock()).isEmpty()) {
-									scheduleBBuilder.append("Block No "+space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getBlock())));//block
-									scheduleBBuilder.append("<br>");
-								}
-								scheduleBBuilder.append("Address 1 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getStreet())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 2 "+  space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getAddress1())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 3 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(getString(proeprtyAddress.getAddress7())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Pin Code "+  space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getPinCode())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Land Extent "+ space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(proeprtyAddress.getLandExtent())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("District "+space30.concat(space30).concat("&nbsp;").concat(getString(scheduleB.getDistrict())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Taluk "+space30.concat(space30).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(scheduleB.getTaluk())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Village "+space30.concat(space30).concat("&nbsp;").concat(getString(scheduleB.getVillage())));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("<br>");
-							}else {
-								scheduleBBuilder.append("Address 1 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 2 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Address 3 "+ space30.concat(space25).concat("&nbsp;&nbsp;").concat(""));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Pin Code "+ space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("Land Extent "+ space25.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(""));
-								scheduleBBuilder.append("<br>");
-								scheduleBBuilder.append("<br>");
-							}
-							scheduleBList.add(scheduleBBuilder.toString());
+							String scheduleString =getScheduleBBuilder(scheduleB,proeprtyAddress,size,scheduleBBuilder);
+							scheduleBList.add(scheduleString);
 						}
 					}
 
@@ -1201,17 +1153,8 @@ public class DynamicTemplateService {
 							boundroesBuilder.append("Boundaries");
 							boundroesBuilder.append("</u>");
 							boundroesBuilder.append("</b>");
-							boundroesBuilder.append("<br>");
-							boundroesBuilder.append("North By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getNorthBoundry())));
-							boundroesBuilder.append("<br>");
-							boundroesBuilder.append("South By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getSouthBoundry())));
-							boundroesBuilder.append("<br>");
-							boundroesBuilder.append("East By "+space30.concat(space30).concat("&nbsp;").concat(getString(boundries.getEastBoundry())));
-							boundroesBuilder.append("<br>");
-							boundroesBuilder.append("West By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(boundries.getWestBoundry())));
-							boundroesBuilder.append("<br>");
-							boundroesBuilder.append("<br>");
-							boundriesList.add(boundroesBuilder.toString());
+							String boundryString = getBoundriesBuilder(boundroesBuilder,boundries);
+							boundriesList.add(boundryString);
 						}
 					}
 
@@ -1223,20 +1166,11 @@ public class DynamicTemplateService {
 							StringBuilder measurementBuilder = new StringBuilder("");
 							measurementBuilder.append("<b>");
 							measurementBuilder.append("<u>");
-							measurementBuilder.append("<Measurement>");
+							measurementBuilder.append("Measurement");
 							measurementBuilder.append("</u>");
 							measurementBuilder.append("</b>");
-							measurementBuilder.append("<br>");
-							measurementBuilder.append("North By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getNorthMeasurement())));
-							measurementBuilder.append("<br>");
-							measurementBuilder.append("South By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getSouthMeasurement())));
-							measurementBuilder.append("<br>");
-							measurementBuilder.append("East By "+space30.concat(space30).concat("&nbsp;").concat(getString(measurerments.getEastMeasurement())));
-							measurementBuilder.append("<br>");
-							measurementBuilder.append("West By "+space30.concat(space25).concat("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;").concat(getString(measurerments.getWestMeasurement())));
-							measurementBuilder.append("<br>");
-							measurementBuilder.append("<br>");
-							measurementList.add(measurementBuilder.toString());
+							String measurementString = getMeasurermentBuilder(measurementBuilder,measurerments);
+							measurementList.add(measurementString);
 						}
 					}
 				});
@@ -1258,17 +1192,17 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Schedule_B_Detail~~", scheduleBListStr.toString());
 		variablesValueMap.put("~~Boundries_Detail~~", boundriesStr.toString());
 		variablesValueMap.put("~~Measurement_Detail~~", measurementStr.toString());
-		variablesValueMap.put("~~MOTD_Term~~", getYearsFromMonth(sanctionModel.getTerm())); //
+		variablesValueMap.put("~~MOTD_Term~~", ("<b>"+"<u>"+getYearsFromMonth(sanctionModel.getTerm())+"</u>"+"</b>")); //
 		//sro detail
 		LinkedSroDetails sroDetail = sanctionModel.getLinkedSroDetails();
 		String motdDate = getDateWithoutTiming(Objects.nonNull(sroDetail)?sroDetail.getLinkedDocumentDate():null);
 		String motdRegDate = getDateWithChangeFormat(sanctionModel.getCurrentDate());
-		variablesValueMap.put("~~Linked_Motd_Date~~", getUnknownValueFromObject(motdDate));
-		variablesValueMap.put("~~Linked_Motd_Reg_Doc_Date~~", getUnknownValueFromObject(motdRegDate));
-		variablesValueMap.put("~~Linked_Motd_No~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedDocumentNumber():null));
-		variablesValueMap.put("~~Linked_Motd_Sro~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSro():null));
-		variablesValueMap.put("~~linked_motd_sro_district~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSroDistrict():null));
-		variablesValueMap.put("~~MOTD_SRO~~", getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSro():null)); //
+		variablesValueMap.put("~~Linked_Motd_Date~~", (getUnknownValueFromObject(motdDate)));
+		variablesValueMap.put("~~Linked_Motd_Reg_Doc_Date~~", (getUnknownValueFromObject(motdRegDate)));
+		variablesValueMap.put("~~Linked_Motd_No~~", (getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedDocumentNumber():null)));
+		variablesValueMap.put("~~Linked_Motd_Sro~~", (getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSro():null)));
+		variablesValueMap.put("~~linked_motd_sro_district~~", (getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSroDistrict():null)));
+		variablesValueMap.put("~~MOTD_SRO~~", (getUnknownValueFromObject(Objects.nonNull(sroDetail)?sroDetail.getLinkedSro():null))); //
 		//day and month
 		splitDayFromDate(sanctionModel,variablesValueMap);
 
@@ -1301,6 +1235,141 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~MOTD_Loan_details_table~~", loanDetailsTable.toString());
 
 	}
+	
+	private String getBoundriesBuilder(StringBuilder boundroesBuilder, Boundries boundries) {
+		 boundroesBuilder.append("<html>\n<body>\n");
+
+	        // Left-aligned content
+	        boundroesBuilder.append("<div style=\"float: left; width: 40%;\">");
+	        boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">North By</p>");
+	        boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">South By</p>");
+	        boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">East By</p>");
+	        boundroesBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px;padding: 0;\">West By</p>");
+	        boundroesBuilder.append("</div>");
+	        
+	        //right alinged content
+	        boundroesBuilder.append("<div style=\"float: right; width: 60%;\">");
+	        boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(boundries,boundries.getNorthBoundry()))+"</p>");
+	        boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(boundries,boundries.getSouthBoundry()))+"</p>");
+	        boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(boundries,boundries.getEastBoundry()))+"</p>");
+	        boundroesBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">"+(getStringFromModel(boundries,boundries.getWestBoundry()))+"</p>");
+	        boundroesBuilder.append("</div>");
+	        
+	        boundroesBuilder.append("</body>\n</html>\n");
+
+	        
+		return boundroesBuilder.toString();
+	}
+	private String getMeasurermentBuilder(StringBuilder measuremrentBuilder, Measurement measurement) {
+		measuremrentBuilder.append("<html>\n<body>\n");
+		
+		// Left-aligned content
+		measuremrentBuilder.append("<div style=\"float: left; width: 40%;\">");
+		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">North By</p>");
+		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">South By</p>");
+		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">East By</p>");
+		measuremrentBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px;padding: 0;\">West By</p>");
+		measuremrentBuilder.append("</div>");
+		
+		//right alinged content
+		measuremrentBuilder.append("<div style=\"float: right; width: 60%;\">");
+		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(measurement,measurement.getNorthMeasurement()))+"</p>");
+		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(measurement,measurement.getSouthMeasurement()))+"</p>");
+		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(measurement,measurement.getEastMeasurement()))+"</p>");
+		measuremrentBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">"+(getStringFromModel(measurement,measurement.getWestMeasurement()))+"</p>");
+		measuremrentBuilder.append("</div>");
+		
+		measuremrentBuilder.append("</body>\n</html>\n");
+		
+		
+		return measuremrentBuilder.toString();
+	}
+
+	private String getScheduleBBuilder(ScheduleB scheduleB, PropertyAddress proeprtyAddress,long size, StringBuilder scheduleBBuilder) {
+		String addSurveyNo ="";
+		if(!getString(scheduleB.getAddlSurveyNo()).isEmpty()) {
+			addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
+		}
+		 // Start HTML document
+		scheduleBBuilder.append("<b>");
+		scheduleBBuilder.append("<u>");
+		if(size>1) {
+			scheduleBBuilder.append("Item "+scheduleBNo+"<br>");
+		}else {
+			scheduleBBuilder.append("<br>");
+		}
+		scheduleBBuilder.append("</u>");
+		scheduleBBuilder.append("</b>");
+        scheduleBBuilder.append("<html>\n<body>\n");
+
+        // Left-aligned content
+        scheduleBBuilder.append("<div style=\"float: left; width: 40%;\">");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">SRO District</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">SRO</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Survey No And Addl Survey No</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Plot No</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Door No</p>");
+        if(!getString(scheduleB.getProjectName()).isEmpty()) {
+        	scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Project Name</p>");
+        }
+        if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Flat No</p>");
+        }
+        if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Floor</p>");
+        }
+        if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Block No</p>");
+        }
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Address 1</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Address 2</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Address 3</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Pin Code</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Land Extent</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">District</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Taluk</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">Village</p>");
+        scheduleBBuilder.append("</div>");
+
+        // Right-aligned content
+        scheduleBBuilder.append("<div style=\"float: right; width: 60%;\">");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getSroDistrict())+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getSro())+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getPlotNo())+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getDoorNo())+"</p>");
+        if(!getString(scheduleB.getProjectName()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getString(scheduleB.getProjectName())+"</p>");
+        }
+        if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getFlatNo())+"</p>");
+        }
+        if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getFloorNo())+"</p>");
+        }
+        if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getBlock())+"</p>");
+        }
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getStreet()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress1()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress7()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getPinCode()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getLandExtent()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,scheduleB.getDistrict()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(scheduleB,scheduleB.getTaluk()))+"</p>");
+        scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">"+(getStringFromModel(scheduleB,scheduleB.getVillage()))+"</p>");
+        scheduleBBuilder.append("<br>");
+        scheduleBBuilder.append("</div>");
+
+        // End HTML document
+        scheduleBBuilder.append("</body>\n</html>\n");
+
+        // Print or use the HTML content
+        String htmlContent = scheduleBBuilder.toString();
+	        return htmlContent;
+
+	}
+
 	private long getSizeOfTitleMap(Set<TitleHolderDetail> titleHolderDetailList) {
 		long nonNullValueCount = titleHolderDetailList
 				.stream()
@@ -1337,12 +1406,12 @@ public class DynamicTemplateService {
 		if(Objects.nonNull(scheduleBMap)) {
 			ScheduleB scheduleB = scheduleBMap.get(combinationKey);
 			if(Objects.nonNull(scheduleB)) {
-				return getUnknownValueFromObject(scheduleB.getSro());
+				return getUnknownValueForSRO(scheduleB.getSro());
 			}else {
-				return getUnknownValueFromObject(null);
+				return getUnknownValueForSRO(null);
 			}
 		}else {
-			return getUnknownValueFromObject(null);
+			return getUnknownValueForSRO(null);
 		}
 	}
 
@@ -1388,8 +1457,8 @@ public class DynamicTemplateService {
 			String outputDateString = outputFormat.format(date);
 			String[] dateSplitdata = outputDateString.split(",");
 			String dayOrdinal = addOrdinalSuffix(dateSplitdata[0]);
-			variablesValueMap.put("~~MOTD_Date~~",dayOrdinal);
-			variablesValueMap.put("~~MOTD_Month_Year~~",dateSplitdata[1] );
+			variablesValueMap.put("~~MOTD_Date~~",("<b>"+"<u>"+dayOrdinal+"</b>"+"</u>"));
+			variablesValueMap.put("~~MOTD_Month_Year~~",("<b>"+"<u>"+dateSplitdata[1]+"</b>"+"</u>"));
 		} catch (ParseException e) {
 			e.printStackTrace();
 		}
@@ -2331,6 +2400,46 @@ public class DynamicTemplateService {
 			logger.info("link sro fails" ,e);
 			e.printStackTrace();
 		}
+		
+		try {
+			String sql = "SELECT A.Contract_Number, A.Customer_Code, A.Sro, " +
+			         "(SELECT C.Glpd_Geo_Level_Desc FROM Sa_Geo_Level_Property_Details C " +
+			         "WHERE C.Glpd_Geo_Level_Number = 2 AND C.Glpd_Geo_Level_String || ':' || C.Glpd_Geo_Level_Code = Srodistrict) AS Srodistrict " +
+			         "FROM Cc_Property_Category_Details A " +
+			         "WHERE A.contract_Number = ? AND A.property_Number = ? AND A.customer_Code = ? " +
+			         "UNION " +
+			         "SELECT A.Contract_Number, A.Customer_Code, A.Sro, " +
+			         "(SELECT C.Glpd_Geo_Level_Desc FROM Sa_Geo_Level_Property_Details C " +
+			         "WHERE C.Glpd_Geo_Level_Number = 2 AND C.Glpd_Geo_Level_String || ':' || C.Glpd_Geo_Level_Code = Srodistrict) AS Srodistrict " +
+			         "FROM Cc_Property_Category_Details_H A " +
+			         "WHERE A.contract_Number = ? AND A.property_Number = ? AND A.customer_Code = ? " +
+			         "AND A.Txn_Id = (SELECT MAX(Txn_Id) FROM Cc_Property_Category_Details_H B " +
+			         "WHERE B.contract_Number = ? AND B.property_Number = ? AND B.customer_Code = ?) " +
+			         "AND A.contract_Number NOT IN (" +
+			         "SELECT C.contract_Number FROM Cc_Property_Category_Details C " +
+			         "WHERE C.contract_Number = ? AND C.property_Number = ? AND C.customer_Code = ?)";
+			PreparedStatement preparedStatement1 = connection.prepareStatement(sql);
+			preparedStatement1.setString(1, letterModel.getContractNumber());
+			preparedStatement1.setInt(2, titleHolderDetail.getPropertyNumber());
+			preparedStatement1.setString(3, titleHolderDetail.getCustomerShareCode());
+			preparedStatement1.setString(4, letterModel.getContractNumber());
+			preparedStatement1.setInt(5, titleHolderDetail.getPropertyNumber());
+			preparedStatement1.setString(6, titleHolderDetail.getCustomerShareCode());
+			preparedStatement1.setString(7, letterModel.getContractNumber());
+			preparedStatement1.setInt(8, titleHolderDetail.getPropertyNumber());
+			preparedStatement1.setString(9, titleHolderDetail.getCustomerShareCode());
+			preparedStatement1.setString(10, letterModel.getContractNumber());
+			preparedStatement1.setInt(11, titleHolderDetail.getPropertyNumber());
+			preparedStatement1.setString(12, titleHolderDetail.getCustomerShareCode());
+			ResultSet resultSet1 = preparedStatement1.executeQuery();
+			while (resultSet1.next()) {
+				titleHolderDetail.setSro(resultSet1.getString(3));
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		
 	}
 
 	private void getSroDetails(LetterReportModel letterModel,LinkedSroDetails linkedSroDetails) {
