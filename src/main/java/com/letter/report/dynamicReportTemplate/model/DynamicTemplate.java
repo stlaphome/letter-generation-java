@@ -9,6 +9,7 @@ import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.persistence.Table;
 
 import org.springframework.data.annotation.CreatedDate;
@@ -37,9 +38,10 @@ public class DynamicTemplate {
 	
 	@Column(name = "template_key")
 	private String templateKey;
-		
+	
+	@Lob	
 	@Column(name = "content")
-	private Blob content;
+	private String content;
 	
 	@Column(name = "active")
 	private Boolean active;
