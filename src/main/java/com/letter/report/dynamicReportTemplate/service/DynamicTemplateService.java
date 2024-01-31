@@ -151,14 +151,14 @@ public class DynamicTemplateService {
 	private String mailServerUrl;
 
 	public ResponseEntity<String> saveTemplate(DynamicTemplateModel dynamicTemplateModel) {
-		String decodedContent = "";
-		try {
-			decodedContent = URLDecoder.decode(dynamicTemplateModel.getContent(), "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			logger.error("failed to parse",e.getMessage());
-			e.printStackTrace();
-		}
-		String errorContent = validateEditorContent(decodedContent, returnVariablesList());
+		//String decodedContent = "";
+		//		try {
+		//			//decodedContent = URLDecoder.decode(dynamicTemplateModel.getContent(), "UTF-8");
+		//		} catch (UnsupportedEncodingException e) {
+		//			logger.error("failed to parse",e.getMessage());
+		//			e.printStackTrace();
+		//		}
+		String errorContent = validateEditorContent(dynamicTemplateModel.getContent(), returnVariablesList());
 		List<LetterProduct> productList = letterProductRepo.findByProductCode(dynamicTemplateModel.getProductCode());
 		Optional<LetterProduct> productData = productList.stream().filter(pr->(Objects.isNull(pr.getLetterName()) || pr.getLetterName().equals(dynamicTemplateModel.getTemplateName()))).findFirst();
 		LetterProduct product = new LetterProduct();
@@ -167,8 +167,8 @@ public class DynamicTemplateService {
 			DynamicTemplate dynamicTemplate = new DynamicTemplate();
 			Blob blob;
 			try {
-				//blob = (Blob) new SerialBlob(decodedContent.getBytes());
-				dynamicTemplate.setContent(decodedContent);
+				blob = (Blob) new SerialBlob(dynamicTemplateModel.getContent().getBytes());
+				dynamicTemplate.setContent(blob);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -266,12 +266,12 @@ public class DynamicTemplateService {
 		} else {
 			DynamicTemplate dynamicTemplate = optionalDynamicTemplate.get();
 
-			//			byte[] bdata;
-			//			Blob blob = dynamicTemplate.getContent();
+			byte[] bdata;
+			Blob blob = dynamicTemplate.getContent();
 			try {
-				//				bdata = blob.getBytes(1, (int) blob.length());
-				//				String s = new String(bdata);
-				dynamicTemplateModel.setContent(dynamicTemplate.getContent());
+				bdata = blob.getBytes(1, (int) blob.length());
+				String s = new String(bdata);
+				dynamicTemplateModel.setContent(s);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -354,6 +354,8 @@ public class DynamicTemplateService {
 		AtomicInteger processingFee = new AtomicInteger(0);
 		AtomicInteger documentationCharges = new AtomicInteger(0);
 		AtomicInteger lifeInsuranceChrages = new AtomicInteger(0);
+		AtomicInteger totalFee = new AtomicInteger(0);
+		int balancePayable=0;
 		try {
 			logger.info("processingfee loop starts");
 			memorandumSavedData.stream().forEach(action -> {
@@ -415,9 +417,32 @@ public class DynamicTemplateService {
 			e.printStackTrace();
 		}
 		logger.info("lifeInsuranceChrages loop completed"+String.valueOf(lifeInsuranceChrages.get()));
+
+		try {
+			logger.info("balance payable loop starts");
+			memorandumSavedData.stream().forEach(action -> {
+				if(Objects.nonNull(action)) {
+					if (Objects.nonNull(action.getTxnIndicator()) && action.getTxnIndicator().equals("accrual")) {
+						logger.info("processingFee loop "+action);
+						totalFee.set(totalFee.get() + (Objects.nonNull(action.getTxnAmt())?action.getTxnAmt():0));
+					} else {
+						logger.info("processingFee loop "+action);
+						totalFee.set(totalFee.get() - (Objects.nonNull(action.getTxnAmt())?action.getTxnAmt():0));
+					}
+				}
+			});
+			logger.info("totalFee completed"+totalFee);
+			balancePayable = totalFee.get()-processingFee.get();
+			logger.info("balancePayable completed"+balancePayable);
+		}catch (Exception e) {
+			logger.info("processingfee loop fails",e);
+			e.printStackTrace();
+		}
+
 		letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
 		letterModel.setProcessingFee(String.valueOf(processingFee.get()));
 		letterModel.setLifeInsurance(String.valueOf(lifeInsuranceChrages.get()));
+		letterModel.setBalancePayable(String.valueOf(balancePayable));
 		logger.info("process completed"+letterModel);
 
 	}
@@ -610,12 +635,12 @@ public class DynamicTemplateService {
 				.findByTemplateNameAndActive(dataMap.get("templateName"), true).get(0);
 		DynamicTemplateModel dynamicTemplateModel = new DynamicTemplateModel();
 		byte[] bdata;
-		//Blob blob = dynamicTemplate.getContent();
+		Blob blob = dynamicTemplate.getContent();
 		try {
-			//			bdata = blob.getBytes(1, (int) blob.length());
-			//			String s = new String(bdata);
-			String decodedContent = URLDecoder.decode(dynamicTemplate.getContent(), "UTF-8");
-			dynamicTemplateModel.setContent(decodedContent);
+			bdata = blob.getBytes(1, (int) blob.length());
+			String s = new String(bdata);
+			//String decodedContent = URLDecoder.decode(dynamicTemplate.getContent(), "UTF-8");
+			dynamicTemplateModel.setContent(s);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -683,10 +708,10 @@ public class DynamicTemplateService {
 		Date date = new Date();
 		Map<String, String> filesMap = new HashMap<>();
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
-		//		Blob blob = dynamicTemplate.getContent();
-		//		byte[] bdata;
-		//		bdata = blob.getBytes(1, (int) blob.length());
-		String htmlContent = dynamicTemplate.getContent();
+		Blob blob = dynamicTemplate.getContent();
+		byte[] bdata;
+		bdata = blob.getBytes(1, (int) blob.length());
+		String htmlContent = new String(bdata);
 		Map<String, Object> resultMap = new HashMap<>();
 		List<String> applicationList = new ArrayList<>();
 		try {
@@ -748,23 +773,24 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(sanctionModel.getAmountFinanced())));
 		variablesValueMap.put("~~Product~~", "STLAP");
 		variablesValueMap.put("~~Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
-		variablesValueMap.put("~~Term~~", String.valueOf(sanctionModel.getTerm()));
-		variablesValueMap.put("~~ROI~~", String.valueOf(sanctionModel.getNetRate()));
-		variablesValueMap.put("~~EMI~~", sanctionModel.getEmiAmount());
-		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee()); 
-		variablesValueMap.put("~~Balance_Payable~~", sanctionModel.getBalancePayable());
+		variablesValueMap.put("~~Term~~", nullCheckStringField(sanctionModel.getTerm()));
+		variablesValueMap.put("~~ROI~~", nullCheckStringField(sanctionModel.getNetRate()));
+		variablesValueMap.put("~~EMI~~", nullCheckStringField(sanctionModel.getEmiAmount()));
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee())); 
+		variablesValueMap.put("~~Balance_Payable~~", nullCheckStringField(sanctionModel.getBalancePayable()));
 		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
 		variablesValueMap.put("~~CERSAI_Charges~~", "100");
-		variablesValueMap.put("~~Appraisal_Charges~~", "Not Applicable"); //
-		variablesValueMap.put("~~Switch_Fee~~", "0");  //Not Applicable
-		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");
-		variablesValueMap.put("~~Conversion_Charges~~", "Not Applicable");
-		variablesValueMap.put("~~Cheque_Return_Charges~~", sanctionModel.getChequeReturnCharges());
+		variablesValueMap.put("~~Appraisal_Charges~~", "________"); //
+		variablesValueMap.put("~~Switch_Fee~~", "________");  //Not Applicable
+		variablesValueMap.put("~~Retrieval_Charges~~", "________");
+		variablesValueMap.put("~~Document_Retrieval_Charges~~", "________");
+		variablesValueMap.put("~~Conversion_Charges~~", "________");
+		variablesValueMap.put("~~Cheque_Return_Charges~~",nullCheckStringField(sanctionModel.getChequeReturnCharges()));
 		variablesValueMap.put("~~GST_Tamilnadu~~", "1200");  
 		variablesValueMap.put("~~GST_Andra~~", "1500"); 
 		variablesValueMap.put("~~GST_Karnataka~~","1550"); 
 		variablesValueMap.put("~~GST_Others~~", "2500"); 
-		variablesValueMap.put("~~Repricing_Fee~~",  "0"); //Not Applicable
+		variablesValueMap.put("~~Repricing_Fee~~",  "________"); //Not Applicable
 		variablesValueMap.put("~~CA_Certification_Fee~~", "10000"); //
 		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "4"); 
 		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","1000"); 
@@ -773,11 +799,11 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Travelling_Expense~~", "200"); 
 		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","49"); 
 		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","335"); 
-		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
-		variablesValueMap.put("~~Penal_Interest~~","0"); //Not Applicable
-		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "0"); //Not Applicable
-		variablesValueMap.put("~~Life_Insurance~~", nullCheckStringField(sanctionModel.getLifeInsurance())); 
-		variablesValueMap.put("~~Moratorium_Period~~", sanctionModel.getMoratoriumPeriod()); 
+		variablesValueMap.put("~~Prepayment_Charges~~", nullCheckStringField(sanctionModel.getPrePaymentCharges()));
+		variablesValueMap.put("~~Penal_Interest~~","________"); //Not Applicable
+		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "________"); //Not Applicable
+		variablesValueMap.put("~~Life_Insurance~~", Objects.nonNull(sanctionModel.getLifeInsurance())?sanctionModel.getLifeInsurance():"0"); 
+		variablesValueMap.put("~~Moratorium_Period~~", nullCheckStringField(sanctionModel.getMoratoriumPeriod())); 
 		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
 		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
 		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
@@ -798,7 +824,7 @@ public class DynamicTemplateService {
 				cashHandlingChargesTables.append("</td></tr>");
 			});
 			cashHandlingChargesTables.append("</tbody></table>");
-			variablesValueMap.put("~~Cash_Handling_Charges_Table~~", cashHandlingChargesTables.toString());
+			variablesValueMap.put("~~Cash_Handling_Charges_Table~~", nullCheckStringField(cashHandlingChargesTables.toString()));
 		}
 
 		return variablesValueMap;
@@ -984,18 +1010,19 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 		variablesValueMap.put("~~Product~~", nullCheckStringField(sanctionModel.getProduct()));
 		variablesValueMap.put("~~Balance_Payable~~", nullCheckStringField(sanctionModel.getBalancePayable()));
-		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
+		variablesValueMap.put("~~Documentation_Charges~~", nullCheckStringField(sanctionModel.getDocumentationCharges()));
 		variablesValueMap.put("~~CERSAI_Charges~~", "100");
 		variablesValueMap.put("~~Appraisal_Charges~~", nullCheckStringField(null)); //
-		variablesValueMap.put("~~Switch_Fee~~", "0");  //Not Applicable
-		variablesValueMap.put("~~Retrieval_Charges~~", "Nil");
-		variablesValueMap.put("~~Conversion_Charges~~", "Not Applicable");
-		variablesValueMap.put("~~Cheque_Return_Charges~~", sanctionModel.getChequeReturnCharges());
+		variablesValueMap.put("~~Switch_Fee~~", "________");  //Not Applicable
+		variablesValueMap.put("~~Retrieval_Charges~~", "________");
+		variablesValueMap.put("~~Conversion_Charges~~", "________");
+		variablesValueMap.put("~~Document_Retrieval_Charges~~", "________");
+		variablesValueMap.put("~~Cheque_Return_Charges~~", nullCheckStringField(sanctionModel.getChequeReturnCharges()));
 		variablesValueMap.put("~~GST_Tamilnadu~~", "1200");  
 		variablesValueMap.put("~~GST_Andra~~", "1500"); 
 		variablesValueMap.put("~~GST_Karnataka~~","1550"); 
 		variablesValueMap.put("~~GST_Others~~", "2500"); 
-		variablesValueMap.put("~~Repricing_Fee~~",  "0"); //Not Applicable
+		variablesValueMap.put("~~Repricing_Fee~~",  "________"); //Not Applicable
 		variablesValueMap.put("~~CA_Certification_Fee~~", "10000"); //
 		variablesValueMap.put("~~Outstation_Cheque_Charges~~", "4"); 
 		variablesValueMap.put("~~Outstation_Cheque_Charges_Total~~","1000"); 
@@ -1004,11 +1031,11 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Travelling_Expense~~", "200"); 
 		variablesValueMap.put("~~Bureau_Charges_Individual_Customer~~","49"); 
 		variablesValueMap.put("~~Bureau_Charges_Non_Individual_Customer~~","335"); 
-		variablesValueMap.put("~~Prepayment_Charges~~", sanctionModel.getPrePaymentCharges());
-		variablesValueMap.put("~~Penal_Interest~~","0"); //Not Applicable
-		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "0"); //Not Applicable
+		variablesValueMap.put("~~Prepayment_Charges~~", nullCheckStringField(sanctionModel.getPrePaymentCharges()));
+		variablesValueMap.put("~~Penal_Interest~~","________"); //Not Applicable
+		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "________"); //Not Applicable
 		variablesValueMap.put("~~Life_Insurance~~", nullCheckStringField(sanctionModel.getLifeInsurance())); 
-		variablesValueMap.put("~~Moratorium_Period~~", sanctionModel.getMoratoriumPeriod()); 
+		variablesValueMap.put("~~Moratorium_Period~~", nullCheckStringField(sanctionModel.getMoratoriumPeriod())); 
 		variablesValueMap.put("~~GST_Andra~~", "1500"); 
 		variablesValueMap.put("~~GST_Karnataka~~","1550"); 
 		variablesValueMap.put("~~GST_Tamilnadu~~", "1200");  
@@ -1045,10 +1072,10 @@ public class DynamicTemplateService {
 			scheduleBNo = 0;
 			if(Objects.nonNull(titleHolderDetailList)) {
 				titleHolderDetailList.stream().forEach(titleHolderDetail->{
-					if(Objects.isNull(titleHolderDetail) && Objects.isNull(titleHolderDetail.getPropertyNumber())&& Objects.isNull(titleHolderDetail.getCustomerShareCode())) {
-						return;
+					String combinationKey ="";
+					if(Objects.nonNull(titleHolderDetail) && Objects.nonNull(titleHolderDetail.getPropertyNumber())&& Objects.nonNull(titleHolderDetail.getCustomerShareCode())) {
+						combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 					}
-					String combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 					String titleHolderName = "";
 					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
 						titleHolderName = "___"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
@@ -1158,6 +1185,18 @@ public class DynamicTemplateService {
 							scheduleATable.append("</tbody></table>");
 							scheduleATable.append("<br>");
 							scheduleATableList.add(scheduleATable.toString());
+						}else {
+							StringBuilder scheduleATable = new StringBuilder();
+							scheduleATable.append("Document details for Schedule -A");
+							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
+									+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
+									+ "<td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td>"
+									+ "<td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td>"
+									+ "<td style=\\\"width: 150.0pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Date</td>"
+									+ "<td style=\\\"width: 150.0pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Title Holder</td></tr>");
+							scheduleATable.append("</tbody></table>");
+							scheduleATable.append("<br>");
+							scheduleATableList.add(scheduleATable.toString());
 						}
 					}
 
@@ -1197,7 +1236,6 @@ public class DynamicTemplateService {
 					if(Objects.nonNull(measurementMap)) {
 						Measurement measurerments = measurementMap.get(combinationKey);
 						if(Objects.nonNull(measurerments)) {
-
 							StringBuilder measurementBuilder = new StringBuilder("");
 							measurementBuilder.append("<b>");
 							measurementBuilder.append("<u>");
@@ -1325,6 +1363,7 @@ public class DynamicTemplateService {
 		if(!getString(scheduleB.getAddlSurveyNo()).isEmpty()) {
 			addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
 		}
+		long maxWidth = getMaxWidthOfContent(scheduleB,proeprtyAddress);
 		// Start HTML document
 		scheduleBBuilder.append("<b>");
 		scheduleBBuilder.append("<u>");
@@ -1336,45 +1375,87 @@ public class DynamicTemplateService {
 		scheduleBBuilder.append("</u>");
 		scheduleBBuilder.append("</b>");
 		scheduleBBuilder.append("<html>\n<body>\n");
+		//		scheduleBBuilder.append("<table style=\"border-collapse: collapse; width: 100%;\">");
+		//        scheduleBBuilder.append("<tbody>");
+		//
+		//            scheduleBBuilder.append("<tr>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("SRO District").append("</td>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 60%; \">").append(getStringFromModel(scheduleB,scheduleB.getSroDistrict())).append("</td>");
+		//            scheduleBBuilder.append("</tr>");
+		//            scheduleBBuilder.append("<tr>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("SRO").append("</td>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 60%;\">").append(getStringFromModel(scheduleB,scheduleB.getSro())).append("</td>");
+		//            scheduleBBuilder.append("</tr>");
+		//            scheduleBBuilder.append("<tr>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("Survey No And Addl Survey No").append("</td>");
+		//            scheduleBBuilder.append("<td style=\"display: inline;border-collapse: collapse; width: 60%;word-wrap:break-word;\">").append(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo)).append("</td>");
+		//            scheduleBBuilder.append("</tr>");
+		//            scheduleBBuilder.append("<tr>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("Plot No").append("</td>");
+		//            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 60%;\">").append(getStringFromModel(scheduleB,scheduleB.getPlotNo())).append("</td>");
+		//            scheduleBBuilder.append("</tr>");
+		//
+		//        scheduleBBuilder.append("</tbody></table>");
+		//table
+		//		scheduleBBuilder.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt;width:100%; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in;  cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
+		//				+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
+		//				+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">SRO District</td>"
+		//				+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">"
+		//				+getStringFromModel(scheduleB,scheduleB.getSroDistrict())
+		//				+ "</td></tr>");
+		//			scheduleBBuilder.append("<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
+		//					+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">SRO</td>"
+		//					+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">"
+		//					+getStringFromModel(scheduleB,scheduleB.getSro())
+		//					+ "</td></tr>");
+		//			scheduleBBuilder.append("<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
+		//					+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" >Survey No And Addl Survey No</td>"
+		//					+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" >"
+		//					+(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo))
+		//					+ "</td></tr>");
+		//		scheduleBBuilder.append("</tbody></table>");
 
-		// Left-aligned content
+		//		 Left-aligned content
 		scheduleBBuilder.append("<div style=\"float: left; width: 40%;\">");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">SRO District</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">SRO</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Survey No And Addl Survey No</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Plot No</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Door No</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">SRO District</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">SRO</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Survey No And Addl Survey No</p>");
+
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Plot No</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Door No</p>");
 		if(!getString(scheduleB.getProjectName()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Project Name</p>");
+			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Project Name</p>");
 		}
 		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Flat No</p>");
+			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Flat No</p>");
 		}
 		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Floor</p>");
+			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Floor</p>");
 		}
 		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Block No</p>");
+			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Block No</p>");
 		}
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Address 1</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Address 2</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Address 3</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Pin Code</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Land Extent</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">District</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">Taluk</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">Village</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Address 1</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Address 2</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Address 3</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Pin Code</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Land Extent</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">District</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Taluk</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;white-space:nowrap;\">Village</p>");
 		scheduleBBuilder.append("</div>");
 
-		// Right-aligned content
+		// Right-aligned content //white-space:nowrap;
 		scheduleBBuilder.append("<div style=\"float: right; width: 60%;\">");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getSroDistrict())+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getSro())+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getPlotNo())+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getStringFromModel(scheduleB,scheduleB.getDoorNo())+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getSroDistrict())+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getSro())+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo))+"</p>");
+		//		scheduleBBuilder.append("<p style=\"display: inline-block; margin: 0;;margin-bottom: 10px; padding: 0; white-space:nowrap; padding-left: ").append(maxWidth * 7).append("px;\">")
+		//        .append(getStringFromModel(scheduleB, scheduleB.getSurveyNo()).concat(addSurveyNo)+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getPlotNo())+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getDoorNo())+"</p>");
 		if(!getString(scheduleB.getProjectName()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;word-wrap: break-word;\">"+getString(scheduleB.getProjectName())+"</p>");
+			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getString(scheduleB.getProjectName())+"</p>");
 		}
 		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
 			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getFlatNo())+"</p>");
@@ -1385,14 +1466,14 @@ public class DynamicTemplateService {
 		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
 			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getBlock())+"</p>");
 		}
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getStreet()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress1()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress7()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getPinCode()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getLandExtent()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(proeprtyAddress,scheduleB.getDistrict()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(scheduleB,scheduleB.getTaluk()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">"+(getStringFromModel(scheduleB,scheduleB.getVillage()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getStreet()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress1()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress7()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getPinCode()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getLandExtent()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getDistrict()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getTaluk()))+"</p>");
+		scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getVillage()))+"</p>");
 		scheduleBBuilder.append("<br>");
 		scheduleBBuilder.append("</div>");
 
@@ -1403,6 +1484,41 @@ public class DynamicTemplateService {
 		String htmlContent = scheduleBBuilder.toString();
 		return htmlContent;
 
+	}
+
+	private long getMaxWidthOfContent(ScheduleB scheduleB, PropertyAddress proeprtyAddress) {
+		long maxValue =0;
+		if(Objects.nonNull(scheduleB)) {
+			maxValue = Math.max(getString(scheduleB.getSroDistrict()).length(),
+					Math.max(getString(scheduleB.getSro()).length(),
+							Math.max(getString(scheduleB.getDistrict()).length(),
+									Math.max(getString(scheduleB.getTaluk()).length(),
+											Math.max(getString(scheduleB.getTown()).length(),
+													Math.max(getString(scheduleB.getVillage()).length(),
+															Math.max(getString(scheduleB.getBuildingSocietyName()).length(),
+																	Math.max(getString(scheduleB.getStateName()).length(),
+																			Math.max((getString(scheduleB.getSurveyNo()).concat(getString(scheduleB.getAddlSurveyNo()))).length(),
+																					Math.max(getString(scheduleB.getDoorNo()).length(),
+																							Math.max(getString(scheduleB.getPlotNo()).length(),
+																									Math.max(getString(scheduleB.getFloorNo()).length(),
+																											Math.max(getString(scheduleB.getBlockNo()).length(),
+																													getString(scheduleB.getProjectName()).length())
+																											))))))))))));
+			if(Objects.nonNull(proeprtyAddress)) {
+				maxValue = Math.max(maxValue,
+						Math.max(getString(proeprtyAddress.getStreet()).length(),
+								Math.max(getString(proeprtyAddress.getAddress1()).length(),
+										Math.max(getString(proeprtyAddress.getAddress7()).length(),
+												Math.max(getString(proeprtyAddress.getPinCode()).length(),
+														Math.max(getString(proeprtyAddress.getLandExtent()).length(),
+																Math.max(getString(proeprtyAddress.getFlatNo()).length(),
+																		Math.max(getString(proeprtyAddress.getFloorNo()).length(),
+																				getString(proeprtyAddress.getBlock()).length()
+																				)))))))
+						);
+			}
+		}
+		return maxValue;
 	}
 
 	private long getSizeOfTitleMap(Set<TitleHolderDetail> titleHolderDetailList) {
@@ -1549,11 +1665,11 @@ public class DynamicTemplateService {
 		return -1;
 	}
 
-	public String nullCheckStringField(String fieldValue) {
+	public String nullCheckStringField(Object fieldValue) {
 		if(Objects.nonNull(fieldValue)) {
-			return fieldValue;
+			return String.valueOf(fieldValue);
 		}
-		return "Nil";
+		return "________";
 	}
 
 	public String replaceVariable(String htmlContent, Map<String, Object> valuesMap) {
@@ -1658,522 +1774,521 @@ public class DynamicTemplateService {
 		List<LetterReportModel> letterModelList = new ArrayList<>();
 		BranchAddress branchAddress = new BranchAddress();
 		dynamicDataSourceService.switchToOracleDataSource();
+
 		// Use the current datasource to fetch data
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
-		Connection connection=null;
-		try {
-			connection = currentDataSource.getConnection();
-			ResultSet resultSet = null;
-			PreparedStatement preparedStatement =null;
-			try {
+		List<String> contractNumberList = new ArrayList<>();
+		try(Connection connection = currentDataSource.getConnection()) {
+			String sql ="";
+			if(Objects.nonNull(model.getApplicationNumber())  && !(model.getApplicationNumber().isEmpty())) {
+				logger.info("applicationnumber fetch started");
+				sql = "SELECT DISTINCT(CONTRACT_NUMBER) from cc_contract_stage_details where application_number=? AND STATUS =1";
+			}else if(model.getSanctionDate()!=null) {
+				logger.info("sanctionDate fetch started");
+				sql = "SELECT DISTINCT(CONTRACT_NUMBER) from cc_contract_stage_details where START_DATE = "
+						+ "to_date(" + "'" + model.getSanctionDate()+  "', 'dd-MM-yy')"
+						+ "AND STATUS =1";
+			}else {
+				return letterModelList;
+			}
+
+			try(PreparedStatement preparedStatement = connection.prepareStatement(sql)){
 				if(Objects.nonNull(model.getApplicationNumber())  && !(model.getApplicationNumber().isEmpty())) {
-					logger.info("applicationnumber fetch started");
-					String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE,PREMIUM_AMT,MORATORIUM_PERIOD FROM cc_contract_master where application_number=?";
-					preparedStatement = connection.prepareStatement(query1);
 					preparedStatement.setString(1, model.getApplicationNumber());
-					resultSet = preparedStatement.executeQuery();
-				}else if(model.getSanctionDate()!=null) {
-					logger.info("sanctionDate fetch started");
-					String query2 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE,PREMIUM_AMT,MORATORIUM_PERIOD FROM cc_contract_master where application_date="
-							+ "to_date(" + "'" + model.getSanctionDate()
-							+  "', 'dd-MM-yy')";
-					preparedStatement = connection.prepareStatement(query2);
-					resultSet = preparedStatement.executeQuery();
-				}else {
-					return letterModelList;
 				}
-				try {
+				try(ResultSet resultSet = preparedStatement.executeQuery()){
 					if(!resultSet.isBeforeFirst()) {
 						logger.info("no data");
 						return letterModelList;
 					}
 					while (resultSet.next()) {
-						LetterReportModel letterModel = new LetterReportModel();
-						letterModel.setContractNumber(resultSet.getString(1));
-						letterModel.setBranchCode(resultSet.getString(2));
-						letterModel.setCustomerCode(resultSet.getString(3));
-						letterModel.setAmountFinanced(convertRoundedValue(resultSet.getString(4)));
-						letterModel.setPurposeOfLoanCode(String.valueOf(resultSet.getInt(5)));
-						letterModel.setApplicationNumber(resultSet.getString(6));
-						letterModel.setApplicationDate(resultSet.getString(7));
-						letterModel.setApplicationDate(resultSet.getString(7));
-						letterModel.setLifeInsurance(resultSet.getString(8));
-						String period = resultSet.getString(9);
-						if(Objects.nonNull(period)) {
-							letterModel.setMoratoriumPeriod(Integer.parseInt(period));
-						}else {
-							letterModel.setMoratoriumPeriod(0);
+						contractNumberList.add(resultSet.getString(1));
+					}
+				}catch (Exception e) {
+					e.printStackTrace();
+					logger.info("fail to fetch contract data");
+				}
+			}
+			contractNumberList.stream().forEach(contractNumber->{
+				String query1 = "SELECT CONTRACT_NUMBER,CONTRACT_BRANCH,CUSTOMER_CODE,AMOUNT_FINANCED,PURPOSE_OF_LOAN,APPLICATION_NUMBER,APPLICATION_DATE,PREMIUM_AMT,MORATORIUM_PERIOD FROM cc_contract_master where application_number=?";
+				try(PreparedStatement preparedStatement = connection.prepareStatement(query1)){
+					preparedStatement.setString(1, contractNumber);
+					try(ResultSet resultSet = preparedStatement.executeQuery()){
+						if(!resultSet.isBeforeFirst()) {
+							logger.info("no data");
+							return;
 						}
-
-						logger.info("contract_master data fetch completed",letterModel);
-						try {
-							logger.info("data in rate details started");
-							try(PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,PRINCIPAL_OS,RATE_TYPE FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");){
-								preparedStatement1.setString(1, letterModel.getContractNumber());
-								try(ResultSet resultSet1 = preparedStatement1.executeQuery();){
-									while (resultSet1.next()) {
-										letterModel.setNetRate(convertDecimalValue(resultSet1.getString(1)));
-										letterModel.setTerm((resultSet1.getInt(2)));
-										letterModel.setEmiAmount(convertRoundedValue(String.valueOf(resultSet1.getInt(3))));
-										letterModel.setPrincipalOutstanding(convertRoundedValue(String.valueOf(resultSet1.getInt(4))));
-										letterModel.setRateType(resultSet1.getString(5));
-										logger.info("data in rate details completed",letterModel);
-									}
-								}catch (Exception e) {
-									logger.info("data in rate details failed",e);
-									e.printStackTrace();
-								}
+						while (resultSet.next()) {
+							LetterReportModel letterModel = new LetterReportModel();
+							letterModel.setContractNumber(resultSet.getString(1));
+							letterModel.setBranchCode(resultSet.getString(2));
+							letterModel.setCustomerCode(resultSet.getString(3));
+							letterModel.setAmountFinanced(convertRoundedValue(resultSet.getString(4)));
+							letterModel.setPurposeOfLoanCode(String.valueOf(resultSet.getInt(5)));
+							letterModel.setApplicationNumber(resultSet.getString(6));
+							letterModel.setContractNumber(contractNumber);
+							letterModel.setApplicationDate(resultSet.getString(7));
+							letterModel.setApplicationDate(resultSet.getString(7));
+							letterModel.setLifeInsurance(Objects.nonNull(resultSet.getString(8))?resultSet.getString(8):"0");
+							String period = resultSet.getString(9);
+							if(Objects.nonNull(period)) {
+								letterModel.setMoratoriumPeriod(Integer.parseInt(period));
+							}else {
+								letterModel.setMoratoriumPeriod(0);
 							}
-						}catch (Exception e) {
-							logger.info("data in rate details failed",e);
-							e.printStackTrace();
-						}
 
-
-						try {
-							logger.info("purpose of loan value started");
-							try(PreparedStatement preparedStatement12 = connection.prepareStatement("SELECT HDLD_REF_CODE, HDLD_REF_VALUE, HDLD_REF_CODE_VALUE"
-									+ "  FROM HFS_DYNAMIC_LOV_DTLS "
-									+ "	WHERE HDLD_REF_CODE =220"
-									+ "   AND HDLD_STATUS = 'A' And HDLD_REF_CODE_VALUE=?");){
-								preparedStatement12.setString(1, letterModel.getPurposeOfLoanCode());
-								try(ResultSet resultSet12 = preparedStatement12.executeQuery();){
-									while (resultSet12.next()) {
-										letterModel.setPurposeOfLoan(resultSet12.getString(2));
-										logger.info("purpose of loan",letterModel);
+							logger.info("contract_master data fetch completed",letterModel);
+							try {
+								logger.info("data in rate details started");
+								try(PreparedStatement preparedStatement1 = connection.prepareStatement("SELECT NET_RATE, TERM, EMI_AMOUNT,PRINCIPAL_OS,RATE_TYPE FROM Cc_Contract_Rate_Details where contract_number=?  order by occurance_number desc fetch first 1 row only");){
+									preparedStatement1.setString(1, letterModel.getContractNumber());
+									try(ResultSet resultSet1 = preparedStatement1.executeQuery();){
+										while (resultSet1.next()) {
+											letterModel.setNetRate(convertDecimalValue(resultSet1.getString(1)));
+											letterModel.setTerm((resultSet1.getInt(2)));
+											letterModel.setEmiAmount(convertRoundedValue(String.valueOf(resultSet1.getInt(3))));
+											letterModel.setPrincipalOutstanding(convertRoundedValue(String.valueOf(resultSet1.getInt(4))));
+											letterModel.setRateType(resultSet1.getString(5));
+											logger.info("data in rate details completed",letterModel);
+										}
+									}catch (Exception e) {
+										logger.info("data in rate details failed",e);
+										e.printStackTrace();
 									}
-								}catch (Exception e) {
-									logger.info("data in Processing failed",e);
-									e.printStackTrace();
 								}
+							}catch (Exception e) {
+								logger.info("data in rate details failed",e);
+								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in Processing failed",e);
-							e.printStackTrace();
-						}
 
-						try {
-							logger.info("data in Processing fee started");
-							PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT PF_RECEIVABLE FROM Cc_Contract_Fee_Details where contract_number=?");
-							preparedStatement2.setString(1, letterModel.getContractNumber());
-							try(ResultSet resultSet2 = preparedStatement2.executeQuery();){
-								while (resultSet2.next()) {
-									letterModel.setProcessingFee(resultSet2.getString(1));
-									logger.info("data in Processing fee",letterModel);
+
+							try {
+								logger.info("purpose of loan value started");
+								try(PreparedStatement preparedStatement12 = connection.prepareStatement("SELECT HDLD_REF_CODE, HDLD_REF_VALUE, HDLD_REF_CODE_VALUE"
+										+ "  FROM HFS_DYNAMIC_LOV_DTLS "
+										+ "	WHERE HDLD_REF_CODE =220"
+										+ "   AND HDLD_STATUS = 'A' And HDLD_REF_CODE_VALUE=?");){
+									preparedStatement12.setString(1, letterModel.getPurposeOfLoanCode());
+									try(ResultSet resultSet12 = preparedStatement12.executeQuery();){
+										while (resultSet12.next()) {
+											letterModel.setPurposeOfLoan(resultSet12.getString(2));
+											logger.info("purpose of loan",letterModel);
+										}
+									}catch (Exception e) {
+										logger.info("data in Processing failed",e);
+										e.printStackTrace();
+									}
 								}
 							}catch (Exception e) {
 								logger.info("data in Processing failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in Processing failed",e);
-							e.printStackTrace();
-						}
-
-						try {
-							logger.info("data in basefile number started");
-							try(PreparedStatement preparedStatement40 = connection.prepareStatement("SELECT BASE_FILE_NUMBER FROM Hfs_File_Auto_Topup_Upload where customer_code=?");){
-								preparedStatement40.setString(1, letterModel.getCustomerCode());
-								try(ResultSet resultSet4 = preparedStatement40.executeQuery();){
-									while (resultSet4.next()) {
-										letterModel.setBaseFileNumber(resultSet4.getString(1));
-										logger.info("data in basefile number",letterModel);
+							String processingFee="0";
+							try {
+								logger.info("data in Processingfee started");
+								PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT PF_RECEIVABLE FROM Cc_Contract_Fee_Details where contract_number=?");
+								preparedStatement2.setString(1, letterModel.getContractNumber());
+								try(ResultSet resultSet2 = preparedStatement2.executeQuery();){
+									while (resultSet2.next()) {
+										processingFee = resultSet2.getString(1);
+										logger.info("data in Processing fee",processingFee);
 									}
+									letterModel.setProcessingFee(processingFee);
 								}catch (Exception e) {
-									logger.info("data in basefile number failed",e);
+									logger.info("data in Processing failed",e);
 									e.printStackTrace();
 								}
+							}catch (Exception e) {
+								logger.info("data in Processing failed",e);
+								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in basefile number failed",e);
-							e.printStackTrace();
-						}
 
-						try {
-							logger.info("data in purposeofloan started");
-							try(PreparedStatement preparedStatement23 = connection.prepareStatement("Select purpose_of_loan from hfs_file_auto_topup_details where base_file_number=?");){
-								preparedStatement23.setString(1, letterModel.getBaseFileNumber());
-								try(ResultSet resultSet23 = preparedStatement23.executeQuery();){
-									while (resultSet23.next()) {
-										letterModel.setPurposeOfLoan(resultSet23.getString(1));
-										logger.info("data in purposeofloan",letterModel);
+							try {
+								logger.info("data in basefile number started");
+								try(PreparedStatement preparedStatement40 = connection.prepareStatement("SELECT BASE_FILE_NUMBER FROM Hfs_File_Auto_Topup_Upload where customer_code=?");){
+									preparedStatement40.setString(1, letterModel.getCustomerCode());
+									try(ResultSet resultSet4 = preparedStatement40.executeQuery();){
+										while (resultSet4.next()) {
+											letterModel.setBaseFileNumber(resultSet4.getString(1));
+											logger.info("data in basefile number",letterModel);
+										}
+									}catch (Exception e) {
+										logger.info("data in basefile number failed",e);
+										e.printStackTrace();
 									}
-								}catch (Exception e) {
-									logger.info("data in purposeofloan failed",e);
-									e.printStackTrace();
 								}
+							}catch (Exception e) {
+								logger.info("data in basefile number failed",e);
+								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in purposeofloan failed",e);
-							e.printStackTrace();
-						}
-						try {
-							logger.info("data in accountno started");
-							try(PreparedStatement preparedStatement17 = connection.prepareStatement("SELECT NACH_BANK_ACC_NUM FROM Hfs_File_Auto_Topup_details where base_file_number=?");){
-								preparedStatement17.setString(1, letterModel.getBaseFileNumber());
-								try(ResultSet resultSet17 = preparedStatement17.executeQuery();){
-									while (resultSet17.next()) {
-										letterModel.setAccountNo(resultSet17.getString(1));
-										logger.info("data in accountno",letterModel);
+
+							try {
+								logger.info("data in purposeofloan started");
+								try(PreparedStatement preparedStatement23 = connection.prepareStatement("Select purpose_of_loan from hfs_file_auto_topup_details where base_file_number=?");){
+									preparedStatement23.setString(1, letterModel.getBaseFileNumber());
+									try(ResultSet resultSet23 = preparedStatement23.executeQuery();){
+										while (resultSet23.next()) {
+											letterModel.setPurposeOfLoan(resultSet23.getString(1));
+											logger.info("data in purposeofloan",letterModel);
+										}
+									}catch (Exception e) {
+										logger.info("data in purposeofloan failed",e);
+										e.printStackTrace();
 									}
-								}catch (Exception e) {
-									logger.info("data in accountno failed",e);
-									e.printStackTrace();
 								}
+							}catch (Exception e) {
+								logger.info("data in purposeofloan failed",e);
+								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in accountno failed",e);
-							e.printStackTrace();
-						}
-
-
-						try {
-							try(PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT ocm_company_name FROM sa_organization_company_master");
-									ResultSet resultSet6 = preparedStatement6.executeQuery();){
-								while (resultSet6.next()) {
-									letterModel.setCompanyName(resultSet6.getString(1));
-									logger.info("data in companyName",letterModel);
+							try {
+								logger.info("data in accountno started");
+								try(PreparedStatement preparedStatement17 = connection.prepareStatement("SELECT NACH_BANK_ACC_NUM FROM Hfs_File_Auto_Topup_details where base_file_number=?");){
+									preparedStatement17.setString(1, letterModel.getBaseFileNumber());
+									try(ResultSet resultSet17 = preparedStatement17.executeQuery();){
+										while (resultSet17.next()) {
+											letterModel.setAccountNo(resultSet17.getString(1));
+											logger.info("data in accountno",letterModel);
+										}
+									}catch (Exception e) {
+										logger.info("data in accountno failed",e);
+										e.printStackTrace();
+									}
 								}
+							}catch (Exception e) {
+								logger.info("data in accountno failed",e);
+								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in companyName failed",e);
-							e.printStackTrace();
-						}
 
-						try(PreparedStatement preparedStatement7 = connection.prepareStatement("SELECT a.obm_address_info.email"
-								+ "  FROM sa_organization_branch_master a"
-								+ "  WHERE obm_branch_code = ?");){
-							preparedStatement7.setString(1, letterModel.getBranchCode());
-							try(ResultSet resultSet7 = preparedStatement7.executeQuery();){
-								while (resultSet7.next()) {
-									letterModel.setBranchMailId(resultSet7.getString(1));
+
+							try {
+								try(PreparedStatement preparedStatement6 = connection.prepareStatement("SELECT ocm_company_name FROM sa_organization_company_master");
+										ResultSet resultSet6 = preparedStatement6.executeQuery();){
+									while (resultSet6.next()) {
+										letterModel.setCompanyName(resultSet6.getString(1));
+										logger.info("data in companyName",letterModel);
+									}
 								}
 							}catch (Exception e) {
 								logger.info("data in companyName failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in companyName failed",e);
-							e.printStackTrace();
-						}
+
+							try(PreparedStatement preparedStatement7 = connection.prepareStatement("SELECT a.obm_address_info.email"
+									+ "  FROM sa_organization_branch_master a"
+									+ "  WHERE obm_branch_code = ?");){
+								preparedStatement7.setString(1, letterModel.getBranchCode());
+								try(ResultSet resultSet7 = preparedStatement7.executeQuery();){
+									while (resultSet7.next()) {
+										letterModel.setBranchMailId(resultSet7.getString(1));
+									}
+								}catch (Exception e) {
+									logger.info("data in companyName failed",e);
+									e.printStackTrace();
+								}
+							}catch (Exception e) {
+								logger.info("data in companyName failed",e);
+								e.printStackTrace();
+							}
 
 
-						try(PreparedStatement preparedStatement8 = connection.prepareStatement("Select A.Obm_Address_Info.Street_L , A.Obm_Address_Info.Column1_L ,"
-								+ "                A.Obm_Address_Info.Column2_L, A.Obm_Address_Info.Column3_L,"
-								+ "                A.Obm_Address_Info.Column4_L, A.Obm_Address_Info.Column5_L,"
-								+ "                A.Obm_Address_Info.Column7_L,"
-								+ "                A.Obm_Address_Info.Pin_Zip_Code_L,"
-								+ "                Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
-								+ "                     Trim (A.Obm_Address_Info.Column6_L)"
-								+ "                    ),"
-								+ "                Trim (A.Obm_Address_Info.Office_Fax_No) From Sa_Organization_Branch_Master A  Where Upper (Obm_Branch_Code) = Upper (?) And Rownum < 2");){
-							preparedStatement8.setString(1, letterModel.getBranchCode());
-							try(ResultSet resultSet8 = preparedStatement8.executeQuery();){
+							try(PreparedStatement preparedStatement8 = connection.prepareStatement("Select A.Obm_Address_Info.Street_L , A.Obm_Address_Info.Column1_L ,"
+									+ "                A.Obm_Address_Info.Column2_L, A.Obm_Address_Info.Column3_L,"
+									+ "                A.Obm_Address_Info.Column4_L, A.Obm_Address_Info.Column5_L,"
+									+ "                A.Obm_Address_Info.Column7_L,"
+									+ "                A.Obm_Address_Info.Pin_Zip_Code_L,"
+									+ "                Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
+									+ "                     Trim (A.Obm_Address_Info.Column6_L)"
+									+ "                    ),"
+									+ "                Trim (A.Obm_Address_Info.Office_Fax_No) From Sa_Organization_Branch_Master A  Where Upper (Obm_Branch_Code) = Upper (?) And Rownum < 2");){
+								preparedStatement8.setString(1, letterModel.getBranchCode());
+								try(ResultSet resultSet8 = preparedStatement8.executeQuery();){
 
-								while (resultSet8.next()) {
-									branchAddress.setStreet(resultSet8.getString(1));
-									branchAddress.setAddress1(resultSet8.getString(2));
-									branchAddress.setAddress2(resultSet8.getString(3));
-									branchAddress.setAddress3(resultSet8.getString(4));
-									branchAddress.setAddress4(resultSet8.getString(5));
-									branchAddress.setAddress5(resultSet8.getString(6));
-									branchAddress.setAddress7(resultSet8.getString(7));
-									branchAddress.setPinCode(resultSet8.getString(8));
-									branchAddress.setTelePhoneNumber(resultSet8.getString(9));
-									branchAddress.setOfficeFaxNo(resultSet8.getString(10));
+									while (resultSet8.next()) {
+										branchAddress.setStreet(resultSet8.getString(1));
+										branchAddress.setAddress1(resultSet8.getString(2));
+										branchAddress.setAddress2(resultSet8.getString(3));
+										branchAddress.setAddress3(resultSet8.getString(4));
+										branchAddress.setAddress4(resultSet8.getString(5));
+										branchAddress.setAddress5(resultSet8.getString(6));
+										branchAddress.setAddress7(resultSet8.getString(7));
+										branchAddress.setPinCode(resultSet8.getString(8));
+										branchAddress.setTelePhoneNumber(resultSet8.getString(9));
+										branchAddress.setOfficeFaxNo(resultSet8.getString(10));
+									}
+								}catch (Exception e) {
+									logger.info("data in branchaddress failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in branchaddress failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in branchaddress failed",e);
-							e.printStackTrace();
-						}
 
-						try(PreparedStatement preparedStatement9 = connection.prepareStatement("Select City_Name"
-								+ "   From Hfs_Vw_City"
-								+ "   Where City_Code = ?"
-								+ "   And State_Record_Id ="
-								+ "   (Select Record_Id"
-								+ "   From Hfs_Vw_State"
-								+ "   Where State_Code = ?"
-								+ "   And Country_Code = ?)");){
-							preparedStatement9.setString(1, branchAddress.getAddress4());
-							preparedStatement9.setString(2, branchAddress.getAddress3());
-							preparedStatement9.setString(3, branchAddress.getAddress2());
-							try(ResultSet resultSet9 = preparedStatement9.executeQuery();){
-								while (resultSet9.next()) {
-									branchAddress.setDistrictName(resultSet9.getString(1));
+							try(PreparedStatement preparedStatement9 = connection.prepareStatement("Select City_Name"
+									+ "   From Hfs_Vw_City"
+									+ "   Where City_Code = ?"
+									+ "   And State_Record_Id ="
+									+ "   (Select Record_Id"
+									+ "   From Hfs_Vw_State"
+									+ "   Where State_Code = ?"
+									+ "   And Country_Code = ?)");){
+								preparedStatement9.setString(1, branchAddress.getAddress4());
+								preparedStatement9.setString(2, branchAddress.getAddress3());
+								preparedStatement9.setString(3, branchAddress.getAddress2());
+								try(ResultSet resultSet9 = preparedStatement9.executeQuery();){
+									while (resultSet9.next()) {
+										branchAddress.setDistrictName(resultSet9.getString(1));
+									}
+								}catch (Exception e) {
+									logger.info("data in district failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in district failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in district failed",e);
-							e.printStackTrace();
-						}
-						try(PreparedStatement preparedStatement10 = connection.prepareStatement("Select Location_Name"
-								+ "   From Hfs_Vw_Postal_Code"
-								+ "   Where Location_Code =?"
-								+ "   And City_Code = ?"
-								+ "   And State_Code = ?"
-								+ "   And Country_Code = ?");){
-							preparedStatement10.setString(1, branchAddress.getAddress5());
-							preparedStatement10.setString(2, branchAddress.getAddress4());
-							preparedStatement10.setString(3, branchAddress.getAddress3());
-							preparedStatement10.setString(4, branchAddress.getAddress2());
-							try(ResultSet resultSet10 = preparedStatement10.executeQuery();){
-								while (resultSet10.next()) {
-									branchAddress.setLocationName(resultSet10.getString(1));
+							try(PreparedStatement preparedStatement10 = connection.prepareStatement("Select Location_Name"
+									+ "   From Hfs_Vw_Postal_Code"
+									+ "   Where Location_Code =?"
+									+ "   And City_Code = ?"
+									+ "   And State_Code = ?"
+									+ "   And Country_Code = ?");){
+								preparedStatement10.setString(1, branchAddress.getAddress5());
+								preparedStatement10.setString(2, branchAddress.getAddress4());
+								preparedStatement10.setString(3, branchAddress.getAddress3());
+								preparedStatement10.setString(4, branchAddress.getAddress2());
+								try(ResultSet resultSet10 = preparedStatement10.executeQuery();){
+									while (resultSet10.next()) {
+										branchAddress.setLocationName(resultSet10.getString(1));
+									}
+								}catch (Exception e) {
+									logger.info("data in location failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in location failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in location failed",e);
-							e.printStackTrace();
-						}
 
 
-						try(PreparedStatement preparedStatement11 = connection.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L,A.CUM_NAME_INFO.NAME_2_L"
-								+ ",A.CUM_NAME_INFO.NAME_3_L,"
-								+ "A.CUM_NAME_INFO.NAME_4_L,A.CUM_NAME_INFO.NAME_5_L FROM Sa_Customer_Master A "
-								+ "Where CUM_Customer_Code = ?");){
-							preparedStatement11.setString(1, letterModel.getCustomerCode());
-							try(ResultSet resultSet11 = preparedStatement11.executeQuery();){
-								while (resultSet11.next()) {
-									letterModel.setApplicant(resultSet11.getString(3));
-									String custName = appendCustomerName(resultSet11);
-									letterModel.setCustomerName(custName);
-								}
-								List<String> customerCodeList = new ArrayList<>();
-								try(PreparedStatement preparedStatement15 = connection.prepareStatement("SELECT customer_code FROM cc_contract_addl_appl_dtls where contract_number=?"
-										+ " and customer_type='CO'"
-										+ "");){
-									preparedStatement15.setString(1, letterModel.getContractNumber());
-									try(ResultSet resultSet15 = preparedStatement15.executeQuery();){
-										while (resultSet15.next()) {
-											customerCodeList.add(resultSet15.getString(1));
+							try(PreparedStatement preparedStatement11 = connection.prepareStatement("SELECT A.CUM_NAME_INFO.NAME_1_L,A.CUM_NAME_INFO.NAME_2_L"
+									+ ",A.CUM_NAME_INFO.NAME_3_L,"
+									+ "A.CUM_NAME_INFO.NAME_4_L,A.CUM_NAME_INFO.NAME_5_L FROM Sa_Customer_Master A "
+									+ "Where CUM_Customer_Code = ?");){
+								preparedStatement11.setString(1, letterModel.getCustomerCode());
+								try(ResultSet resultSet11 = preparedStatement11.executeQuery();){
+									while (resultSet11.next()) {
+										letterModel.setApplicant(resultSet11.getString(3));
+										String custName = appendCustomerName(resultSet11);
+										letterModel.setCustomerName(custName);
+									}
+									List<String> customerCodeList = new ArrayList<>();
+									try(PreparedStatement preparedStatement15 = connection.prepareStatement("SELECT customer_code FROM cc_contract_addl_appl_dtls where contract_number=?"
+											+ " and customer_type='CO'"
+											+ "");){
+										preparedStatement15.setString(1, letterModel.getContractNumber());
+										try(ResultSet resultSet15 = preparedStatement15.executeQuery();){
+											while (resultSet15.next()) {
+												customerCodeList.add(resultSet15.getString(1));
+											}
+										}catch (Exception e) {
+											logger.info("data in  co-applicant failed",e);
+											e.printStackTrace();
 										}
 									}catch (Exception e) {
 										logger.info("data in  co-applicant failed",e);
 										e.printStackTrace();
 									}
-								}catch (Exception e) {
-									logger.info("data in  co-applicant failed",e);
-									e.printStackTrace();
-								}
-								List<String> applicantNameList = new ArrayList<>();
-								customerCodeList.stream().forEach(code->{
-									try {
-										preparedStatement11.setString(1, code);
-										try(ResultSet resultSet16 = preparedStatement11.executeQuery();){
-											while (resultSet16.next()) {
-												applicantNameList.add(resultSet16.getString(3));
+									List<String> applicantNameList = new ArrayList<>();
+									customerCodeList.stream().forEach(code->{
+										try {
+											preparedStatement11.setString(1, code);
+											try(ResultSet resultSet16 = preparedStatement11.executeQuery();){
+												while (resultSet16.next()) {
+													applicantNameList.add(resultSet16.getString(3));
+												}
+											}catch (Exception e) {
+												logger.info("data in co-applicant failed",e);
+												e.printStackTrace();
 											}
-										}catch (Exception e) {
-											logger.info("data in co-applicant failed",e);
+										} catch (SQLException e) {
 											e.printStackTrace();
 										}
-									} catch (SQLException e) {
-										e.printStackTrace();
+									});
+									if(!applicantNameList.isEmpty()) {
+										getCoApplicantNames(applicantNameList,letterModel);
 									}
-								});
-								if(!applicantNameList.isEmpty()) {
-									getCoApplicantNames(applicantNameList,letterModel);
+								}catch (Exception e) {
+									logger.info("data in location failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in location failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in location failed",e);
-							e.printStackTrace();
-						}
 
-						try(PreparedStatement preparedStatement12 = connection.prepareStatement("Select Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
-								+ "   Trim (A.Obm_Address_Info.Column6_L)"
-								+ "     ),"
-								+ "                Trim (A.Obm_Address_Info.Office_Fax_No)"
-								+ "           From Sa_Organization_Branch_Master A"
-								+ "          Where Upper (Obm_Branch_Code) = Upper (?)"
-								+ "                And Rownum < 2");){
-							preparedStatement12.setString(1, letterModel.getBranchCode());
-							try(ResultSet resultSet12 = preparedStatement12.executeQuery();){
-								while (resultSet12.next()) {
-									letterModel.setTelePhoneNumber(getConvertedPhoneNumber(resultSet12.getString(1),resultSet12.getString(2)));
+							try(PreparedStatement preparedStatement12 = connection.prepareStatement("Select Nvl (Trim (A.Obm_Address_Info.Office_Phone_No),"
+									+ "   Trim (A.Obm_Address_Info.Column6_L)"
+									+ "     ),"
+									+ "                Trim (A.Obm_Address_Info.Office_Fax_No)"
+									+ "           From Sa_Organization_Branch_Master A"
+									+ "          Where Upper (Obm_Branch_Code) = Upper (?)"
+									+ "                And Rownum < 2");){
+								preparedStatement12.setString(1, letterModel.getBranchCode());
+								try(ResultSet resultSet12 = preparedStatement12.executeQuery();){
+									while (resultSet12.next()) {
+										letterModel.setTelePhoneNumber(getConvertedPhoneNumber(resultSet12.getString(1),resultSet12.getString(2)));
+									}
+								}catch (Exception e) {
+									logger.info("data in address failed",e);
+									e.printStackTrace();
 								}
+
 							}catch (Exception e) {
 								logger.info("data in address failed",e);
 								e.printStackTrace();
 							}
 
-						}catch (Exception e) {
-							logger.info("data in address failed",e);
-							e.printStackTrace();
-						}
+							String branchAddressString = convertBranchAddress(branchAddress);
+							letterModel.setBranchAddress(branchAddressString);
 
-						String branchAddressString = convertBranchAddress(branchAddress);
-						letterModel.setBranchAddress(branchAddressString);
-
-						try(PreparedStatement preparedStatement5 = connection.prepareStatement("Select Listagg(Loan_Desc,', ') Within Group (Order By Loan_Desc)"
-								+ "      From ("
-								+ "      Select Upper(Usage_Of_Loan_Desc)||' - '||Listagg(End_Use_Desc,', ') Within Group (Order By Usage_Of_Loan_Code) Loan_Desc From"
-								+ "      Hfs_Tb_End_Of_Usage_Loan"
-								+ "      Where File_Number = ? Group By Usage_Of_Loan_Desc)");){
-							preparedStatement5.setString(1, letterModel.getContractNumber());
-							try(ResultSet resultSet5 = preparedStatement5.executeQuery();){
-								while (resultSet5.next()) {
-									letterModel.setEndUseOfLoan(resultSet5.getString(1));
+							try(PreparedStatement preparedStatement5 = connection.prepareStatement("Select Listagg(Loan_Desc,', ') Within Group (Order By Loan_Desc)"
+									+ "      From ("
+									+ "      Select Upper(Usage_Of_Loan_Desc)||' - '||Listagg(End_Use_Desc,', ') Within Group (Order By Usage_Of_Loan_Code) Loan_Desc From"
+									+ "      Hfs_Tb_End_Of_Usage_Loan"
+									+ "      Where File_Number = ? Group By Usage_Of_Loan_Desc)");){
+								preparedStatement5.setString(1, letterModel.getContractNumber());
+								try(ResultSet resultSet5 = preparedStatement5.executeQuery();){
+									while (resultSet5.next()) {
+										letterModel.setEndUseOfLoan(resultSet5.getString(1));
+									}
+								}catch (Exception e) {
+									logger.info("data in address failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in address failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in address failed",e);
-							e.printStackTrace();
-						}
-						CustomerAddress customerAddress = new CustomerAddress();
-						Map<String,String> prepareStatementList = new HashMap<>();
-						String sql18 = "select C.Caa_Address_Info.Street_L,C.Caa_Address_Info.Column1_L,C.Caa_Address_Info.Column2_L,C.Caa_Address_Info.Column3_L,"
-								+ "C.Caa_Address_Info.Column4_L,C.Caa_Address_Info.Column5_L,C.Caa_Address_Info.Column7_L, C.Caa_Address_Info.Pin_Zip_Code_L Zipcode FROM Sa_Customer_Addl_Address_Dtls C "
-								+ "where C.caa_customer_code=? And C.CAA_ADDRESS_TYPE_CODE = 1";
-						try(PreparedStatement preparedStatement18 = connection.prepareStatement(sql18);){
-							preparedStatement18.setString(1, letterModel.getCustomerCode());
-							try(ResultSet resultSet18 = preparedStatement18.executeQuery();){
-								prepareStatementList.put("preparedStatement18",sql18);
-								while (resultSet18.next()) {
-									customerAddress.setStreet(resultSet18.getString(1));
-									customerAddress.setAddress1(resultSet18.getString(2));
-									customerAddress.setAddress2(resultSet18.getString(3));
-									customerAddress.setAddress3(resultSet18.getString(4));
-									customerAddress.setAddress4(resultSet18.getString(5));
-									customerAddress.setAddress5(resultSet18.getString(6));
-									customerAddress.setAddress7(resultSet18.getString(7));
-									customerAddress.setZipCode(resultSet18.getString(8));
+							CustomerAddress customerAddress = new CustomerAddress();
+							Map<String,String> prepareStatementList = new HashMap<>();
+							String sql18 = "select C.Caa_Address_Info.Street_L,C.Caa_Address_Info.Column1_L,C.Caa_Address_Info.Column2_L,C.Caa_Address_Info.Column3_L,"
+									+ "C.Caa_Address_Info.Column4_L,C.Caa_Address_Info.Column5_L,C.Caa_Address_Info.Column7_L, C.Caa_Address_Info.Pin_Zip_Code_L Zipcode FROM Sa_Customer_Addl_Address_Dtls C "
+									+ "where C.caa_customer_code=? And C.CAA_ADDRESS_TYPE_CODE = 1";
+							try(PreparedStatement preparedStatement18 = connection.prepareStatement(sql18);){
+								preparedStatement18.setString(1, letterModel.getCustomerCode());
+								try(ResultSet resultSet18 = preparedStatement18.executeQuery();){
+									prepareStatementList.put("preparedStatement18",sql18);
+									while (resultSet18.next()) {
+										customerAddress.setStreet(resultSet18.getString(1));
+										customerAddress.setAddress1(resultSet18.getString(2));
+										customerAddress.setAddress2(resultSet18.getString(3));
+										customerAddress.setAddress3(resultSet18.getString(4));
+										customerAddress.setAddress4(resultSet18.getString(5));
+										customerAddress.setAddress5(resultSet18.getString(6));
+										customerAddress.setAddress7(resultSet18.getString(7));
+										customerAddress.setZipCode(resultSet18.getString(8));
+									}
+								}catch (Exception e) {
+									logger.info("data in address failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in address failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in address failed",e);
-							e.printStackTrace();
-						}
-						String sql19 = "Select Gld_Geo_Level_Desc"
-								+ "	From   SA_GEOGRAPHICAL_LEVEL_DETAILS"
-								+ "	Where  Gld_Geo_Level_Code   = ?"
-								+ "	And    GLD_GEO_LEVEL_STATUS = 'A'"
-								+ "	And    GLD_GEO_LEVEL_STRING = ?||':'||?||':'||?"
-								+ "	And    GLD_GEO_LEVEL_NUMBER = (Select GL_GEO_LEVEL_NUMBER"
-								+ "	From  SA_GEOGRAPHICAL_LEVELS"
-								+ "	Where  GL_GEO_LEVEL_NAME = 'LOCATION')";
-						try(PreparedStatement preparedStatement19 = connection.prepareStatement(sql19);){
-							prepareStatementList.put("preparedStatement19",sql19);
-							preparedStatement19.setString(1, customerAddress.getAddress5());
-							preparedStatement19.setString(2, customerAddress.getAddress2());
-							preparedStatement19.setString(3, customerAddress.getAddress3());
-							preparedStatement19.setString(4, customerAddress.getAddress4());
-							try(ResultSet resultSet19 = preparedStatement19.executeQuery();){
-								while (resultSet19.next()) {
-									customerAddress.setLocation(resultSet19.getString(1));
+							String sql19 = "Select Gld_Geo_Level_Desc"
+									+ "	From   SA_GEOGRAPHICAL_LEVEL_DETAILS"
+									+ "	Where  Gld_Geo_Level_Code   = ?"
+									+ "	And    GLD_GEO_LEVEL_STATUS = 'A'"
+									+ "	And    GLD_GEO_LEVEL_STRING = ?||':'||?||':'||?"
+									+ "	And    GLD_GEO_LEVEL_NUMBER = (Select GL_GEO_LEVEL_NUMBER"
+									+ "	From  SA_GEOGRAPHICAL_LEVELS"
+									+ "	Where  GL_GEO_LEVEL_NAME = 'LOCATION')";
+							try(PreparedStatement preparedStatement19 = connection.prepareStatement(sql19);){
+								prepareStatementList.put("preparedStatement19",sql19);
+								preparedStatement19.setString(1, customerAddress.getAddress5());
+								preparedStatement19.setString(2, customerAddress.getAddress2());
+								preparedStatement19.setString(3, customerAddress.getAddress3());
+								preparedStatement19.setString(4, customerAddress.getAddress4());
+								try(ResultSet resultSet19 = preparedStatement19.executeQuery();){
+									while (resultSet19.next()) {
+										customerAddress.setLocation(resultSet19.getString(1));
+									}
+								}catch (Exception e) {
+									logger.info("data in address failed",e);
+									e.printStackTrace();
 								}
 							}catch (Exception e) {
 								logger.info("data in address failed",e);
 								e.printStackTrace();
 							}
-						}catch (Exception e) {
-							logger.info("data in address failed",e);
-							e.printStackTrace();
-						}
-						String sql20="SELECT CITY_NAME FROM HFS_VW_CITY"
-								+ " WHERE CITY_CODE = ? AND STATE_RECORD_ID ="
-								+ " (SELECT RECORD_ID FROM HFS_VW_STATE WHERE STATE_CODE = ? AND COUNTRY_CODE = ?)";
-						try(PreparedStatement preparedStatement20 = connection.prepareStatement(sql20);){
-							prepareStatementList.put("preparedStatement20",sql20);
-							preparedStatement20.setString(1, customerAddress.getAddress4());
-							preparedStatement20.setString(2, customerAddress.getAddress3());
-							preparedStatement20.setString(3, customerAddress.getAddress2());
-							try(ResultSet resultSet20 = preparedStatement20.executeQuery();){
-								while (resultSet20.next()) {
-									customerAddress.setCity(resultSet20.getString(1));
+							String sql20="SELECT CITY_NAME FROM HFS_VW_CITY"
+									+ " WHERE CITY_CODE = ? AND STATE_RECORD_ID ="
+									+ " (SELECT RECORD_ID FROM HFS_VW_STATE WHERE STATE_CODE = ? AND COUNTRY_CODE = ?)";
+							try(PreparedStatement preparedStatement20 = connection.prepareStatement(sql20);){
+								prepareStatementList.put("preparedStatement20",sql20);
+								preparedStatement20.setString(1, customerAddress.getAddress4());
+								preparedStatement20.setString(2, customerAddress.getAddress3());
+								preparedStatement20.setString(3, customerAddress.getAddress2());
+								try(ResultSet resultSet20 = preparedStatement20.executeQuery();){
+									while (resultSet20.next()) {
+										customerAddress.setCity(resultSet20.getString(1));
+									}
 								}
 							}
-						}
-						String sql21 = "Select Gld_Geo_Level_Desc From SA_GEOGRAPHICAL_LEVEL_DETAILS Where Gld_Geo_Level_Code   = ?"
-								+ "	 And GLD_GEO_LEVEL_STATUS = 'A' And GLD_GEO_LEVEL_STRING = To_Char(Nvl(?,1)) And GLD_GEO_LEVEL_NUMBER = "
-								+ "  (Select GL_GEO_LEVEL_NUMBER From SA_GEOGRAPHICAL_LEVELS Where GL_GEO_LEVEL_NAME = 'STATE')";
-						try(PreparedStatement preparedStatement21 = connection.prepareStatement(sql21);){
-							prepareStatementList.put("preparedStatement21",sql21);
-							preparedStatement21.setString(1, customerAddress.getAddress3());
-							preparedStatement21.setString(2, customerAddress.getAddress2());
-							try(ResultSet resultSet21 = preparedStatement21.executeQuery();){
-								while (resultSet21.next()) {
-									customerAddress.setState(resultSet21.getString(1));
+							String sql21 = "Select Gld_Geo_Level_Desc From SA_GEOGRAPHICAL_LEVEL_DETAILS Where Gld_Geo_Level_Code   = ?"
+									+ "	 And GLD_GEO_LEVEL_STATUS = 'A' And GLD_GEO_LEVEL_STRING = To_Char(Nvl(?,1)) And GLD_GEO_LEVEL_NUMBER = "
+									+ "  (Select GL_GEO_LEVEL_NUMBER From SA_GEOGRAPHICAL_LEVELS Where GL_GEO_LEVEL_NAME = 'STATE')";
+							try(PreparedStatement preparedStatement21 = connection.prepareStatement(sql21);){
+								prepareStatementList.put("preparedStatement21",sql21);
+								preparedStatement21.setString(1, customerAddress.getAddress3());
+								preparedStatement21.setString(2, customerAddress.getAddress2());
+								try(ResultSet resultSet21 = preparedStatement21.executeQuery();){
+									while (resultSet21.next()) {
+										customerAddress.setState(resultSet21.getString(1));
+									}
 								}
 							}
-						}
-						String sql22 = "select Gld_Geo_Level_Desc from SA_GEOGRAPHICAL_LEVEL_DETAILS Where Gld_Geo_Level_Code  = ? And GLD_GEO_LEVEL_STATUS = 'A'"
-								+ " And GLD_GEO_LEVEL_NUMBER = (Select GL_GEO_LEVEL_NUMBER From SA_GEOGRAPHICAL_LEVELS Where GL_GEO_LEVEL_NAME = 'COUNTRY')";
-						try(PreparedStatement preparedStatement22 = connection.prepareStatement(sql22);){
-							preparedStatement22.setString(1, customerAddress.getAddress2());
-							prepareStatementList.put("preparedStatement22",sql22);
-							try(ResultSet resultSet22 = preparedStatement22.executeQuery();){
-								while (resultSet22.next()) {
-									customerAddress.setCountry(resultSet22.getString(1));
+							String sql22 = "select Gld_Geo_Level_Desc from SA_GEOGRAPHICAL_LEVEL_DETAILS Where Gld_Geo_Level_Code  = ? And GLD_GEO_LEVEL_STATUS = 'A'"
+									+ " And GLD_GEO_LEVEL_NUMBER = (Select GL_GEO_LEVEL_NUMBER From SA_GEOGRAPHICAL_LEVELS Where GL_GEO_LEVEL_NAME = 'COUNTRY')";
+							try(PreparedStatement preparedStatement22 = connection.prepareStatement(sql22);){
+								preparedStatement22.setString(1, customerAddress.getAddress2());
+								prepareStatementList.put("preparedStatement22",sql22);
+								try(ResultSet resultSet22 = preparedStatement22.executeQuery();){
+									while (resultSet22.next()) {
+										customerAddress.setCountry(resultSet22.getString(1));
+									}
 								}
 							}
-						}
 
-						String customerAddressString = appendCustomerAddress(customerAddress,letterModel.getCustomerAddress());
-						letterModel.setCustomerAddress(customerAddressString);
+							String customerAddressString = appendCustomerAddress(customerAddress,letterModel.getCustomerAddress());
+							letterModel.setCustomerAddress(customerAddressString);
 
-						fetchOracleDataForMITC(letterModel);
-						fetchOracleDataForMOTD(letterModel,prepareStatementList);
+							fetchOracleDataForMITC(letterModel);
+							fetchOracleDataForMOTD(letterModel,prepareStatementList);
 
-						Date date = new Date();
-						SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-						letterModel.setCurrentDate(formatter.format(date));
-						letterModelList.add(letterModel);
-					}
-				}catch (Exception e) {
-					// TODO: handle exception
-				}finally {
-					try {
-						if(preparedStatement!=null) {
-							preparedStatement.close();
+							Date date = new Date();
+							SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+							letterModel.setCurrentDate(formatter.format(date));
+							letterModelList.add(letterModel);
 						}
-						if(resultSet!=null) {
-							resultSet.close();
-						}
-					} catch (SQLException e) {
-						// TODO Auto-generated catch block
+					}catch (Exception e) {
+						logger.info("Faile to fetch the main data");
 						e.printStackTrace();
 					}
+				}catch (Exception e) {
+					logger.info("Faile to fetch the main data");
+					e.printStackTrace();
 				}
+			});
 
 
-			}catch (Exception e) {
-				logger.error(e.getMessage());
-				e.printStackTrace();
-			}
+
 
 		} catch (Exception e) {
 			// Handle SQL exception
 			e.printStackTrace();
-		}finally {
-			try {
-				if(connection!=null) {
-					connection.close();
-				}
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
 		return letterModelList;
 	}
@@ -2286,6 +2401,7 @@ public class DynamicTemplateService {
 				logger.info("getproductName fails");
 				exception.printStackTrace();
 			}
+			String upFrontfee = "0";
 			try {
 				logger.info("balancePayable starts");
 				PreparedStatement preparedStatement31 = connection.prepareStatement("SELECT Upfront_Fee FROM Hfs_Upfront_Fee_Dtls"
@@ -2295,9 +2411,10 @@ public class DynamicTemplateService {
 				preparedStatement31.setString(2,letterModel.getSchemeCode());
 				ResultSet resultSet31 = preparedStatement31.executeQuery();
 				while (resultSet31.next()) {
-					getBalancePayableValue(resultSet31.getString(1),letterModel);
-					logger.info("balancePayable",letterModel);
+					upFrontfee = resultSet31.getString(1);
+					logger.info("balancePayable",upFrontfee);
 				}
+				getBalancePayableValue(upFrontfee,letterModel);
 			}catch (Exception exception) {
 				logger.info("processingfee fails");
 				exception.printStackTrace();
@@ -2457,7 +2574,7 @@ public class DynamicTemplateService {
 		// Use the current datasource to fetch data
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
-		LinkedHashSet<PropertyNumberModel> propertyNumberModelList = new LinkedHashSet<>();
+		LinkedHashSet<PropertyNumberModel> propertyNumberModelList = new LinkedHashSet<PropertyNumberModel>();
 		LinkedHashSet<TitleHolderDetail> titleHolderList = new LinkedHashSet<>();
 		LinkedHashMap<String,LinkedHashSet<ScheduleA>> scheduleListMap = new LinkedHashMap<>();
 		LinkedHashMap<String,ScheduleB> scheduleBListMap= new LinkedHashMap<>();
@@ -2517,52 +2634,109 @@ public class DynamicTemplateService {
 				e.printStackTrace();
 			}
 		}
-		propertyNumberModelList.stream().forEach(propertyNumberModel->{
-			try (Connection connection1 = currentDataSource.getConnection()){
-				try(PreparedStatement preparedStatement3 = connection1.prepareStatement("Select share_customer_code ,Title_Holder_Name, Customer_Code,property_number"
-						+ " From Sa_Customer_Property_Share where customer_code=? and property_number =? order by property_number");){
-					preparedStatement3.setString(1, propertyNumberModel.getPropertyCustomerCode());
-					preparedStatement3.setInt(2, propertyNumberModel.getPropertyNumber());
-					try(ResultSet resultSet3 = preparedStatement3.executeQuery();){
-						while (resultSet3.next()) {
-							TitleHolderDetail titleHolderDetail = new TitleHolderDetail();
-							titleHolderDetail.setCustomerShareCode(resultSet3.getString(1));
-							titleHolderDetail.setTitleHolderName(resultSet3.getString(2));
-							titleHolderDetail.setCustomerCode(resultSet3.getString(3));
-							titleHolderDetail.setPropertyNumber(resultSet3.getInt(4));
-							if(Objects.nonNull(titleHolderDetail.getCustomerShareCode())) {
-								//title
-								getTitleInfo(titleHolderDetail);
-
-								//aadhar
-								getAadharForTitle(titleHolderDetail);
-								//age
-								getAgeForTitle(titleHolderDetail);
-
-								//otdNumber
-								getOtdNumber(titleHolderDetail,letterModel);
-
-								//address
-								getAddressForTitle(titleHolderDetail,prepareStatementList);
-
-								//getScheduleA
-								getScheduleADetail(letterModel,propertyDetailModel,titleHolderDetail,scheduleListMap);
-
-								//schedule B &boundries&measurement
-								getschedulBAndBoundriyMeasurment(letterModel,titleHolderDetail,boundriesListMap,measurementListMap,scheduleBListMap,sroList);
+		if(propertyNumberModelList.isEmpty()) {
+			getEmptyDataList(letterModel);
+		}else {
+			propertyNumberModelList.stream().forEach(propertyNumberModel->{
+				try (Connection connection1 = currentDataSource.getConnection()){
+					try(PreparedStatement preparedStatement3 = connection1.prepareStatement("Select share_customer_code ,Title_Holder_Name, Customer_Code,property_number"
+							+ " From Sa_Customer_Property_Share where customer_code=? and property_number =? order by property_number");){
+						preparedStatement3.setString(1, propertyNumberModel.getPropertyCustomerCode());
+						preparedStatement3.setInt(2, propertyNumberModel.getPropertyNumber());
+						try(ResultSet resultSet3 = preparedStatement3.executeQuery();){
+							if(!resultSet3.isBeforeFirst()) {
+								getEmptyDataList(letterModel);
+								return;
 							}
-							titleHolderList.add(titleHolderDetail);
+							while (resultSet3.next()) {
+								TitleHolderDetail titleHolderDetail = new TitleHolderDetail();
+								titleHolderDetail.setCustomerShareCode(resultSet3.getString(1));
+								titleHolderDetail.setTitleHolderName(resultSet3.getString(2));
+								titleHolderDetail.setCustomerCode(resultSet3.getString(3));
+								titleHolderDetail.setPropertyNumber(resultSet3.getInt(4));
+								if(Objects.nonNull(titleHolderDetail.getCustomerShareCode())) {
+									//title
+									getTitleInfo(titleHolderDetail);
+
+									//aadhar
+									getAadharForTitle(titleHolderDetail);
+									//age
+									getAgeForTitle(titleHolderDetail);
+
+									//otdNumber
+									getOtdNumber(titleHolderDetail,letterModel);
+
+									//address
+									getAddressForTitle(titleHolderDetail,prepareStatementList);
+
+									//getScheduleA
+									getScheduleADetail(letterModel,propertyDetailModel,titleHolderDetail,scheduleListMap);
+
+									//schedule B &boundries&measurement
+									getschedulBAndBoundriyMeasurment(letterModel,titleHolderDetail,boundriesListMap,measurementListMap,scheduleBListMap,sroList);
+								}
+								titleHolderList.add(titleHolderDetail);
+							}
 						}
 					}
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			});
+			String titleHolderCustomerCode = null;
+			Optional<TitleHolderDetail> titleHodlerOptional = titleHolderList.stream().findAny();
+			if(titleHodlerOptional.isPresent()) {
+				titleHolderCustomerCode = titleHodlerOptional.get().getCustomerCode();
 			}
-		});
-		//linkdate and SRO
-		getSroDetails(letterModel,linkedSroDetails);
+			if(Objects.nonNull(titleHolderCustomerCode)) {
+				//linkdate and SRO
+				getSroDetails(letterModel,linkedSroDetails);
+				propertyDetailModel.setTitleHolderDetailList(titleHolderList);
+				propertyDetailModel.setScheduleListMap(scheduleListMap);
+				propertyDetailModel.setScheduleBListMap(scheduleBListMap);
+				propertyDetailModel.setMeasurementListMap(measurementListMap);
+				propertyDetailModel.setBoundriesListMap(boundriesListMap);
+				letterModel.setPropertyDetailModel(propertyDetailModel);
+				letterModel.setSroList(sroList);
+				letterModel.setLinkedSroDetails(linkedSroDetails);
+			}else {
+				getEmptyDataList(letterModel);
+			}
+		}
 
+	}
+
+	private void getEmptyDataList(LetterReportModel letterModel) {
+		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
+		//titleholder
+		LinkedHashSet<TitleHolderDetail> titleHolderList = new LinkedHashSet<TitleHolderDetail>();
+		titleHolderList.add(new TitleHolderDetail()); 
+
+
+		LinkedHashMap<String,LinkedHashSet<ScheduleA>> scheduleListMap = new LinkedHashMap<String,LinkedHashSet<ScheduleA>>();
+		ScheduleA scheduleA = new ScheduleA();
+		LinkedHashSet<ScheduleA> scheduleASet = new LinkedHashSet<>();
+		scheduleASet.add(scheduleA);
+		scheduleListMap.put("", scheduleASet);
+
+		LinkedHashMap<String,ScheduleB> scheduleBListMap= new LinkedHashMap<String,ScheduleB>();
+		ScheduleB scheduleB = new ScheduleB();
+		PropertyAddress propertyAddress = new PropertyAddress();
+		scheduleB.setPropertyAddress(propertyAddress);
+		scheduleBListMap.put("", scheduleB);
+
+		LinkedHashMap<String,Boundries> boundriesListMap= new LinkedHashMap<String,Boundries>();
+		Boundries boundries = new Boundries();
+		boundriesListMap.put("", boundries);
+
+		LinkedHashMap<String,Measurement> measurementListMap= new LinkedHashMap<String,Measurement>();
+		Measurement measurement = new Measurement();
+		measurementListMap.put("", measurement);
+
+
+		LinkedSroDetails linkedSroDetails= new LinkedSroDetails();
+		LinkedHashSet<String> sroList = new LinkedHashSet<>();
 		propertyDetailModel.setTitleHolderDetailList(titleHolderList);
 		propertyDetailModel.setScheduleListMap(scheduleListMap);
 		propertyDetailModel.setScheduleBListMap(scheduleBListMap);
@@ -2571,7 +2745,6 @@ public class DynamicTemplateService {
 		letterModel.setPropertyDetailModel(propertyDetailModel);
 		letterModel.setSroList(sroList);
 		letterModel.setLinkedSroDetails(linkedSroDetails);
-
 	}
 
 	private void getOtdNumber(TitleHolderDetail titleHolderDetail, LetterReportModel letterModel) {
@@ -2688,7 +2861,7 @@ public class DynamicTemplateService {
 					preparedStatement.setString(1, letterModel.getContractNumber());
 					try(ResultSet resultSet = preparedStatement.executeQuery();){
 						if(!resultSet.isBeforeFirst()) {
-							linkedSroDetails = null;
+							//linkedSroDetails = null;
 						}else {
 							while (resultSet.next()) {
 								linkedSroDetails.setLinkedDocumentNumber(resultSet.getString(1));
@@ -2726,16 +2899,16 @@ public class DynamicTemplateService {
 						"WHERE C.contract_Number = ? AND C.property_Number = ? AND C.customer_Code = ?)";
 				try(PreparedStatement preparedStatement1 = connection.prepareStatement(sql);){
 					preparedStatement1.setString(1, letterModel.getContractNumber());
-					preparedStatement1.setInt(2, linkedSroDetails.getLinkedPropertyNumber());
+					preparedStatement1.setInt(2, Objects.nonNull(linkedSroDetails)?(linkedSroDetails.getLinkedPropertyNumber()):0);
 					preparedStatement1.setString(3, linkedSroDetails.getLinkedCustomerCode());
 					preparedStatement1.setString(4, letterModel.getContractNumber());
-					preparedStatement1.setInt(5, linkedSroDetails.getLinkedPropertyNumber());
+					preparedStatement1.setInt(5, Objects.nonNull(linkedSroDetails)?(linkedSroDetails.getLinkedPropertyNumber()):0);
 					preparedStatement1.setString(6, linkedSroDetails.getLinkedCustomerCode());
 					preparedStatement1.setString(7, letterModel.getContractNumber());
-					preparedStatement1.setInt(8, linkedSroDetails.getLinkedPropertyNumber());
+					preparedStatement1.setInt(8, Objects.nonNull(linkedSroDetails)?(linkedSroDetails.getLinkedPropertyNumber()):0);
 					preparedStatement1.setString(9, linkedSroDetails.getLinkedCustomerCode());
 					preparedStatement1.setString(10, letterModel.getContractNumber());
-					preparedStatement1.setInt(11, linkedSroDetails.getLinkedPropertyNumber());
+					preparedStatement1.setInt(11, Objects.nonNull(linkedSroDetails)?(linkedSroDetails.getLinkedPropertyNumber()):0);
 					preparedStatement1.setString(12, linkedSroDetails.getLinkedCustomerCode());
 					try(ResultSet resultSet1 = preparedStatement1.executeQuery();){
 						while (resultSet1.next()) {
@@ -2801,7 +2974,7 @@ public class DynamicTemplateService {
 				preparedStatement10.setInt(3,titleHolderDetail.getPropertyNumber());
 				try(ResultSet resultSet10 = preparedStatement10.executeQuery();){
 					if(!resultSet10.isBeforeFirst()) {
-						scheduleB = null;
+						//scheduleB = null;
 					}else {
 						while (resultSet10.next()) {
 							//
@@ -2949,7 +3122,7 @@ public class DynamicTemplateService {
 											}catch (Exception e) {
 												e.printStackTrace();
 											}
-											scheduleB.setPropertyAddress(propertyAddress);
+
 										}catch (Exception e) {
 											e.printStackTrace();
 										}
@@ -2963,6 +3136,7 @@ public class DynamicTemplateService {
 
 						}
 					}
+					scheduleB.setPropertyAddress(propertyAddress);
 				}catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -2980,7 +3154,7 @@ public class DynamicTemplateService {
 				preparedStatement12.setInt(3, titleHolderDetail.getPropertyNumber());
 				try(ResultSet resultSet12 = preparedStatement12.executeQuery();){
 					if(!resultSet12.isBeforeFirst()) {
-						boundries = null;
+						//boundries = null;
 					}else {
 						while (resultSet12.next()) {
 							boundries.setNorthBoundry(resultSet12.getString(2));
@@ -3021,7 +3195,7 @@ public class DynamicTemplateService {
 				preparedStatement14.setString(3, titleHolderDetail.getCustomerShareCode());
 				try(ResultSet resultSet14 = preparedStatement14.executeQuery();){
 					if(!resultSet14.isBeforeFirst()) {
-						measurement = null;
+						//measurement = null;
 					}else {
 						while (resultSet14.next()) {
 							measurement.setNorthMeasurement(resultSet14.getString(5));
@@ -3247,7 +3421,7 @@ public class DynamicTemplateService {
 	}
 
 	private void setOtherAddress(CustomerAddress customerAddress,  Map<String, String> prepareStatementList, TitleHolderDetail titleHolderDetail) {
-		
+
 		String sql19 = prepareStatementList.get("preparedStatement19");
 		String sql20 = prepareStatementList.get("preparedStatement20");
 		String sql21 = prepareStatementList.get("preparedStatement21");
@@ -3338,16 +3512,18 @@ public class DynamicTemplateService {
 	}
 
 	private void setDocumentChargesValue(LetterReportModel letterModel) {
+		String documentationCharges = "0";
 		if(Objects.nonNull(letterModel.getFlatFee())&&
 				Integer.parseInt(letterModel.getFlatFee())>0) {
-			letterModel.setDocumentationCharges(letterModel.getFlatFee());
+			documentationCharges = letterModel.getFlatFee();
 			logger.info("Documentation charges flatfee",letterModel);
 		}else if(Objects.nonNull(letterModel.getFlatRate())&&
 				Integer.parseInt(letterModel.getFlatRate())>0) {
 			int processingFee =  Integer.parseInt(letterModel.getFlatRate())*(letterModel.getAmountFinanced());
-			letterModel.setDocumentationCharges(String.valueOf(processingFee));
+			documentationCharges = String.valueOf(processingFee);
 			logger.info("Documentation charges flatrate",letterModel);
 		}
+		letterModel.setDocumentationCharges(documentationCharges);
 
 	}
 
@@ -3465,7 +3641,8 @@ public class DynamicTemplateService {
 		// Your condition to switch to Oracle database
 		List<String> applicationNumberList = new ArrayList<>();
 		dynamicDataSourceService.switchToOracleDataSource();
-		String query1="SELECT CONTRACT_NUMBER FROM CC_CONTRACT_MASTER WHERE CONTRACT_STATUS=1 AND CONTRACT_NUMBER IS NOT NULL ";
+		//String query1="SELECT CONTRACT_NUMBER FROM CC_CONTRACT_MASTER WHERE CONTRACT_STATUS=1 AND CONTRACT_NUMBER IS NOT NULL ";
+		String query1="SELECT CONTRACT_NUMBER from cc_contract_stage_details where CONTRACT_NUMBER is not null AND STATUS =1";
 		//		query1 = "SELECT GENERATED_TRN FROM Hfs_File_Auto_Topup_Upload where GENERATED_TRN is not null";
 		// Use the current datasource to fetch data
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
@@ -3577,43 +3754,28 @@ public class DynamicTemplateService {
 				dataMap.put("applicationNum",letterModel.getApplicationNumber());
 				dataMap.put("type", "accrual");
 				getAccountNo(letterModel);
-				//get processingfee & documentation charges
+				//get processingfee & documentation charges&life_insurance
 				getFeeDataForLetterGeneration(dataMap,letterModel);
 
-				try {
-					logger.info("balancePayable method started");
-					// Amort Calculation for Balance Payable
-					Calendar calendar = Calendar.getInstance();
-					Date currentDate = getDate(calendar.getTime());
-					calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
-					DateFormat dateFormatforReqDate = new SimpleDateFormat("MM/dd/yyyy");
-					Date dates = new Date();
-					String dateValue = dateFormatforReqDate.format(dates);
-					Double balancePayable = 0.0;
-					Date dueStartDate = getDate(calendar.getTime());
-					dataMap.put("requestedDate", dateValue);
-					try {
-						ResponseEntity<List<Amort>> amortDataResponse = webClient.post()
-								.uri(stlapServerUrl + "/repayment/getAmortListResponse").bodyValue(dataMap)
-								.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve().toEntityList(Amort.class)
-								.block();
-						logger.info("amortData method fetched");
-						if(Objects.nonNull(amortDataResponse)) {
-							logger.info("amortData method started",amortDataResponse);
-							List<Amort> amortData = amortDataResponse.getBody();
-							if(Objects.nonNull(amortData) && !amortData.isEmpty()) {
-								balancePayable = amortData.stream().filter(as->Objects.nonNull(as.getEmiDue())).mapToDouble(Amort::getEmiDue).sum();
-								letterModel.setBalancePayable(String.valueOf(balancePayable));
-							}
-						}
-					}catch (Exception e) {
-						logger.info("balancePayable method failed",e);
-						e.printStackTrace();
-					}
-				}catch (Exception e) {
-					logger.info("balancePayable method faile",e);
-					e.printStackTrace();
-				}
+				//				try {
+				//					logger.info("balancePayable method started");
+				//					// Amort Calculation for Balance Payable
+				//					Calendar calendar = Calendar.getInstance();
+				//					Date currentDate = getDate(calendar.getTime());
+				//					calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
+				//					DateFormat dateFormatforReqDate = new SimpleDateFormat("YYYY/MM/DD");
+				//					Date dates = new Date();
+				//					String dateValue = dateFormatforReqDate.format(dates);
+				//					
+				//					Date dueStartDate = getDate(calendar.getTime());
+				//					dataMap.put("requestedDate", dateValue);
+				//					//getbalancePayable(dataMap,letterModel);
+				//					 int balancePayable = letterModel.getAmountFinanced()-Integer.parseInt(letterModel.getProcessingFee());
+				//					 letterModel.setProcessingFee(String.valueOf(balancePayable));
+				//				}catch (Exception e) {
+				//					logger.info("balancePayable method faile",e);
+				//					e.printStackTrace();
+				//				}
 
 				//Cash Handling Charges Calculation
 				try {
@@ -3666,11 +3828,38 @@ public class DynamicTemplateService {
 
 
 
+	private void getbalancePayable(Map<String, Object> dataMap, LetterReportModel letterModel) {
+		Double balancePayable = 0.0;
+		String query = "SELECT CLOSING_BALANCE FROM ST_TB_LMS_DISB_REPAY_SCHEDULE WHERE APPLICATION_NUM =?"
+				+ "	AND CONVERT(DATE, due_start_date) <= CONVERT(DATE, ?)"
+				+ "	AND CONVERT(DATE, due_end_date) >= CONVERT(DATE, ?)"
+				+"Order by due_start_date asc ";
+		try(Connection connection = dataSource.getConnection();){
+			logger.info("getbalancePayable method started");
+			try (PreparedStatement statement = connection.prepareStatement(query)) {
+				statement.setString(1, letterModel.getApplicationNumber());
+				statement.setString(2, String.valueOf(dataMap.get("requestedDate")));
+				statement.setString(3, String.valueOf(dataMap.get("requestedDate")));
+				try (ResultSet resultSet = statement.executeQuery()) {
+					while (resultSet.next()) {
+						balancePayable = resultSet.getDouble(1);
+					}
+					letterModel.setBalancePayable(balancePayable.toString());
+					logger.info("getbalancePayable method completed");
+				}catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}catch (SQLException e) {
+				e.printStackTrace();
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}		
+	}
+
 	private void getAccountNo(LetterReportModel letterModel) {
 		String query = "select bank_account_num from st_tb_los_bank_dtl where application_number=? and internal_customer_id=?";
-		Connection connection = null;
-		try{
-			connection = dataSource.getConnection();
+		try(Connection connection = dataSource.getConnection();){
 			logger.info("getAccountNo method started");
 			try (PreparedStatement statement = connection.prepareStatement(query)) {
 				statement.setString(1, letterModel.getApplicationNumber());
@@ -3688,15 +3877,6 @@ public class DynamicTemplateService {
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
-		}finally {
-			try {
-				if(connection!=null) {
-					connection.close();
-				}
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
 	}
 
@@ -3744,6 +3924,14 @@ public class DynamicTemplateService {
 			try {
 				if(connection!=null) {
 					connection.close();
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try {
+				if(resultSet!=null) {
+					resultSet.close();
 				}
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block

@@ -39,9 +39,8 @@ public class DynamicTemplate {
 	@Column(name = "template_key")
 	private String templateKey;
 	
-	@Lob	
 	@Column(name = "content")
-	private String content;
+	private Blob content;
 	
 	@Column(name = "active")
 	private Boolean active;
