@@ -354,6 +354,7 @@ public class DynamicTemplateService {
 		AtomicInteger processingFee = new AtomicInteger(0);
 		AtomicInteger documentationCharges = new AtomicInteger(0);
 		AtomicInteger lifeInsuranceChrages = new AtomicInteger(0);
+		AtomicInteger adminFee = new AtomicInteger(0);
 		AtomicInteger totalFee = new AtomicInteger(0);
 		int balancePayable=0;
 		try {
@@ -417,7 +418,24 @@ public class DynamicTemplateService {
 			e.printStackTrace();
 		}
 		logger.info("lifeInsuranceChrages loop completed"+String.valueOf(lifeInsuranceChrages.get()));
-
+		try {
+			logger.info("adminfee loop starts");
+			memorandumSavedData.stream().forEach(action -> {
+				if(Objects.nonNull(action)) {
+					if (Objects.nonNull(action.getMemoCode()) && action.getMemoCode().equalsIgnoreCase("ADMINISTRATION CHARGES")
+							|| action.getMemoCode().equalsIgnoreCase("ADMINISTRATION FEE")|| action.getMemoCode().equalsIgnoreCase("ADMINISTRATION FEES GST")) {
+						if (Objects.nonNull(action.getTxnIndicator()) && action.getTxnIndicator().equals("accrual")) {
+							adminFee.set(documentationCharges.get() + (Objects.nonNull(action.getTxnAmt())?action.getTxnAmt():0));
+						} else {
+							adminFee.set(documentationCharges.get() - (Objects.nonNull(action.getTxnAmt())?action.getTxnAmt():0));
+						}
+					}
+				}
+			});
+		}catch (Exception e) {
+			logger.info("documentationCharges loop fails",e);
+			e.printStackTrace();
+		}
 		try {
 			logger.info("balance payable loop starts");
 			memorandumSavedData.stream().forEach(action -> {
@@ -442,6 +460,7 @@ public class DynamicTemplateService {
 		letterModel.setDocumentationCharges(String.valueOf(documentationCharges.get()));
 		letterModel.setProcessingFee(String.valueOf(processingFee.get()));
 		letterModel.setLifeInsurance(String.valueOf(lifeInsuranceChrages.get()));
+		letterModel.setAdminFee(String.valueOf(adminFee.get()));
 		letterModel.setBalancePayable(String.valueOf(balancePayable));
 		logger.info("process completed"+letterModel);
 
@@ -805,7 +824,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Life_Insurance~~", Objects.nonNull(sanctionModel.getLifeInsurance())?sanctionModel.getLifeInsurance():"0"); 
 		variablesValueMap.put("~~Moratorium_Period~~", nullCheckStringField(sanctionModel.getMoratoriumPeriod())); 
 		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
-		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(sanctionModel.getAdminFee()));
 		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
 		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 
@@ -1005,7 +1024,7 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Purpose_of_Loan~~", nullCheckStringField(sanctionModel.getPurposeOfLoan()));
 		variablesValueMap.put("~~End_Use_of_Loan~~", nullCheckStringField(sanctionModel.getEndUseOfLoan()));
 		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
-		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(null));
+		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(sanctionModel.getAdminFee()));
 		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
 		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 		variablesValueMap.put("~~Product~~", nullCheckStringField(sanctionModel.getProduct()));

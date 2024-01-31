@@ -22,6 +22,7 @@ public class LetterReportModel {
 	private int term;
 	private int emiAmount;
 	private String processingFee;
+	private String adminFee;
 	private String baseFileNumber;
 	private String endUse;
 	private String endUseOfLoan;
