@@ -97,5 +97,10 @@ public class DynamicTemplateController {
 		return dynamicTemplateService.fetchDataBasedOnDB(model);
 
 	}
+	@PostMapping("/getAPIKey")
+	public ResponseEntity<String> getAPIKey(){
+		return dynamicTemplateService.getAPIKey();
+		
+	}
 
 }

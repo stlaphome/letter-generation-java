@@ -3,9 +3,7 @@ package com.letter.report.dynamicReportTemplate.service;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.net.URLDecoder;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.Blob;
@@ -13,7 +11,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -51,7 +48,6 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import javax.sql.rowset.serial.SerialBlob;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +68,6 @@ import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.events.PdfDocumentEvent;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Document;
 import com.letter.report.dynamicDataSource.service.DynamicDataSourceService;
@@ -94,9 +89,11 @@ import com.letter.report.dynamicReportTemplate.letterModel.ScheduleB;
 import com.letter.report.dynamicReportTemplate.letterModel.TitleHolderDetail;
 import com.letter.report.dynamicReportTemplate.model.DynamicReportContainer;
 import com.letter.report.dynamicReportTemplate.model.DynamicTemplate;
+import com.letter.report.dynamicReportTemplate.model.DynamicTinyEditor;
 import com.letter.report.dynamicReportTemplate.model.LetterProduct;
 import com.letter.report.dynamicReportTemplate.repo.DynamicReportContainerRepo;
 import com.letter.report.dynamicReportTemplate.repo.DynamicTemplateRepo;
+import com.letter.report.dynamicReportTemplate.repo.DynamicTinyEditorRepo;
 import com.letter.report.dynamicReportTemplate.repo.LetterProductRepo;
 
 import freemarker.template.Configuration;
@@ -115,6 +112,8 @@ public class DynamicTemplateService {
 
 	@Autowired
 	LetterProductRepo letterProductRepo;
+	@Autowired
+	DynamicTinyEditorRepo dynamicTinyEditorRepo;
 
 	@Autowired
 	JavaMailSender javaMailSender;
@@ -158,7 +157,10 @@ public class DynamicTemplateService {
 		//			logger.error("failed to parse",e.getMessage());
 		//			e.printStackTrace();
 		//		}
-		String errorContent = validateEditorContent(dynamicTemplateModel.getContent(), returnVariablesList());
+		String validateContent = dynamicTemplateModel.getContent();
+		String originalContent = validateContent.replace("[", "(");
+		//String originalContent =validateContent;
+		String errorContent = validateEditorContent(originalContent, returnVariablesList());
 		List<LetterProduct> productList = letterProductRepo.findByProductCode(dynamicTemplateModel.getProductCode());
 		Optional<LetterProduct> productData = productList.stream().filter(pr->(Objects.isNull(pr.getLetterName()) || pr.getLetterName().equals(dynamicTemplateModel.getTemplateName()))).findFirst();
 		LetterProduct product = new LetterProduct();
@@ -167,7 +169,7 @@ public class DynamicTemplateService {
 			DynamicTemplate dynamicTemplate = new DynamicTemplate();
 			Blob blob;
 			try {
-				blob = (Blob) new SerialBlob(dynamicTemplateModel.getContent().getBytes());
+				blob = (Blob) new SerialBlob(originalContent.getBytes());
 				dynamicTemplate.setContent(blob);
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -469,7 +471,7 @@ public class DynamicTemplateService {
 		if(value!=0) {
 			return String.valueOf(value);
 		}else {
-			return "NIL";
+			return "Nil";
 		}
 	}
 
@@ -681,7 +683,7 @@ public class DynamicTemplateService {
 		byte[] arr = null;
 		try {
 			os = new FileOutputStream(output);
-			PdfDocument pdf = new PdfDocument((new PdfWriter(os)));
+			PdfDocument pdf = new PdfDocument((new com.itextpdf.kernel.pdf.PdfWriter(os)));
 			Document document = new Document(pdf, PageSize.A4);
 			pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
 				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
@@ -792,6 +794,7 @@ public class DynamicTemplateService {
 		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
 		String toNewAddress =   getExpandedAddress(sanctionModel.getCustomerAddress().split(","),sanctionModel.getCustomerName());
 		variablesValueMap.put("~~Branch_Address~~", sanctionModel.getBranchAddress());
+		variablesValueMap.put("~~Header_Mail~~", nullCheckStringField(sanctionModel.getBranchMailId()));
 		variablesValueMap.put("~~Date~~", formatter.format(date));
 		variablesValueMap.put("~~To_Address~~", toNewAddress);
 		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
@@ -802,9 +805,11 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Term~~", nullCheckStringField(sanctionModel.getTerm()));
 		variablesValueMap.put("~~ROI~~", nullCheckStringField(sanctionModel.getNetRate()));
 		variablesValueMap.put("~~EMI~~", nullCheckStringField(sanctionModel.getEmiAmount()));
-		variablesValueMap.put("~~Upfront_Processing_Fee~~", nullCheckStringField(sanctionModel.getProcessingFee())); 
-		variablesValueMap.put("~~Balance_Payable~~", nullCheckStringField(sanctionModel.getBalancePayable()));
-		variablesValueMap.put("~~Documentation_Charges~~", String.valueOf(sanctionModel.getDocumentationCharges()));
+		variablesValueMap.put("~~Upfront_Processing_Fee~~", sanctionModel.getProcessingFee().equals("Nil")?sanctionModel.getProcessingFee():"Rs."+
+				nullCheckStringField(sanctionModel.getProcessingFee())+"/-");
+		variablesValueMap.put("~~Balance_Payable~~", sanctionModel.getBalancePayable().equals("Nil")?sanctionModel.getBalancePayable():"Rs."+nullCheckStringField(sanctionModel.getBalancePayable())+"/-");
+		variablesValueMap.put("~~Documentation_Charges~~",sanctionModel.getDocumentationCharges().equals("Nil")?sanctionModel.getDocumentationCharges()
+				:"Rs."+String.valueOf(sanctionModel.getDocumentationCharges())+"/-");
 		variablesValueMap.put("~~CERSAI_Charges~~", "100");
 		variablesValueMap.put("~~Appraisal_Charges~~", "________"); //
 		variablesValueMap.put("~~Switch_Fee~~", "________");  //Not Applicable
@@ -828,10 +833,12 @@ public class DynamicTemplateService {
 		variablesValueMap.put("~~Prepayment_Charges~~", nullCheckStringField(sanctionModel.getPrePaymentCharges()));
 		variablesValueMap.put("~~Penal_Interest~~","________"); //Not Applicable
 		variablesValueMap.put("~~Cheque_Dishonour_Charges~~", "________"); //Not Applicable
-		variablesValueMap.put("~~Life_Insurance~~", Objects.nonNull(sanctionModel.getLifeInsurance())?sanctionModel.getLifeInsurance():"0"); 
+		variablesValueMap.put("~~Life_Insurance~~",sanctionModel.getLifeInsurance().equals("Nil")?sanctionModel.getLifeInsurance():"Rs "+
+						nullCheckStringField(sanctionModel.getLifeInsurance())+"/-"); 
 		variablesValueMap.put("~~Moratorium_Period~~", nullCheckStringField(sanctionModel.getMoratoriumPeriod())); 
 		variablesValueMap.put("~~Applicant~~", nullCheckStringField(sanctionModel.getApplicant()));
-		variablesValueMap.put("~~Admin_Fee~~", nullCheckStringField(sanctionModel.getAdminFee()));
+		variablesValueMap.put("~~Admin_Fee~~", sanctionModel.getAdminFee().equals("Nil")?sanctionModel.getAdminFee():"Rs "+
+				nullCheckStringField(sanctionModel.getAdminFee())+"/-");
 		variablesValueMap.put("~~Co-Applicant 1~~", nullCheckStringField(sanctionModel.getCoApplicant1()));
 		variablesValueMap.put("~~Co-Applicant 2~~", nullCheckStringField(sanctionModel.getCoApplicant2()));
 
@@ -891,7 +898,7 @@ public class DynamicTemplateService {
 			String s = new String(bdata);
 			File file = new File(filePath);
 			FileOutputStream fos = new FileOutputStream(file);
-			PdfDocument pdf = new PdfDocument((new PdfWriter(fos)));
+			PdfDocument pdf = new PdfDocument((new com.itextpdf.kernel.pdf.PdfWriter(fos)));
 			Document document = new Document(pdf, PageSize.A4);
 			pdf.addEventHandler(PdfDocumentEvent.END_PAGE, event -> {
 				PdfCanvas canvas = new PdfCanvas(((PdfDocumentEvent) event).getPage());
@@ -1080,11 +1087,6 @@ public class DynamicTemplateService {
 		Set<String> scheduleBList = new LinkedHashSet<>();
 		List<String> boundriesList = new LinkedList<>();
 		List<String> measurementList = new LinkedList<>();
-		String space5 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space10 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space20 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space25 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		String space30 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 		DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 		if(Objects.nonNull(propertyDetailModel)) {
@@ -1103,7 +1105,7 @@ public class DynamicTemplateService {
 						combinationKey = titleHolderDetail.getPropertyNumber()+"-"+titleHolderDetail.getCustomerShareCode();
 					}
 					String titleHolderName = "";
-					if(StringUtils.isEmpty(getString(titleHolderDetail.getTitle()))) {
+					if(getString(titleHolderDetail.getTitle()).isEmpty()) {
 						titleHolderName = "___"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
 					}else {						
 						titleHolderName = "<b>"+"<u>"+titleHolderDetail.getTitle()+"."+"</u>"+"</b>"+getUnknownValueFromObject(titleHolderDetail.getTitleHolderName());
@@ -1170,22 +1172,27 @@ public class DynamicTemplateService {
 							scheduleANo++;
 							int scheduleAIndex = getIndexValue(scheduleAListMap,combinationKey);
 							StringBuilder scheduleATable = new StringBuilder();
-							scheduleATable.append("<b>");
-							scheduleATable.append("<u>");
+							String scheduleTitle = "";
 							if(size>1) {
-								scheduleATable.append("Document details for item No."+scheduleANo+ " of Schedule -A");
+								scheduleTitle = "Document details for item No."+scheduleANo+ " of Schedule -A";
 							}else {
-								scheduleATable.append("Document details for Schedule -A");
+								scheduleTitle = "Document details for Schedule -A";
 							}
-							scheduleATable.append("</u>");
-							scheduleATable.append("</b>");
-							scheduleATable.append("<br>");
-							scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"table-layout:fixed; margin-left: 20.25pt; border-collapse: collapse; mso-table-layout-alt: fixed; table-layout:fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
-									+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
-									+ "<td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td>"
-									+ "<td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td>"
-									+ "<td style=\\\"width: 150.0pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Date</td>"
-									+ "<td style=\\\"width: 150.0pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Title Holder</td></tr>");
+							
+							
+							scheduleATable.append("<table style=\\\" width:100%;page-break-inside: avoid;  border: none;  mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;><tbody>"
+									+ "<tr style=\\\" height: 12.5pt;width:100%;\\\">"
+									+"<td style=\"border:none;valign=top;width:400px;\">"
+									+"<b>"+"<u>"+scheduleTitle+"</u>"+"</b>"
+									+"<td style=\\\"border:none;valign=top;width:100px;\\\"></td>"
+									+"<td style=\\\"border:none;valign=top;width:100px;\\\"></td>"
+									+"<td style=\\\"border:none;valign=top;width:100px;\\\"></td>"
+									+"</tr>"
+									+ "<tr style=\\\"height: 12.5pt;width:100%;\\\">"
+									+ "<td style=\\\" width:300px;word-wrap:break-word;border: 1pt solid black;  height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Document Name</td>"
+									+ "<td style=\\\"width:100px;word-wrap:break-word;border: 1pt solid black;   height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Document No</td>"
+									+ "<td style=\\\" width:100px;word-wrap:break-word;border: 1pt solid black;   height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Document Date</td>"
+									+ "<td style=\\\"width:200px;word-wrap:break-word;border: 1pt solid black;  height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Title Holder</td></td>");
 							scheduleAList.stream().forEach(scheduleA -> {
 								String value = getStringFromObject(scheduleA.getDocumentDate());
 								String outputVlaue = "";
@@ -1194,17 +1201,17 @@ public class DynamicTemplateService {
 									outputVlaue = ds.format(outputFormatter);
 								}
 								scheduleATable.append(
-										"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 250.0pt; border: 1pt solid black;  padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"250\\\"> ");
+										"<tr style=\\\"height: 12.5pt;\\\"><td style=\\\" width:100px;word-wrap:break-word;border: 1pt solid black;  height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" > ");
 								scheduleATable
 								.append(getStringFromObject(scheduleA.getDocumentName()));
 								scheduleATable.append(
-										"</td><td style=\\\"width: 100.0pt;border: 1pt solid black;  padding:0in; height: 12.5pt;text-align: center;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
+										"</td><td style=\\\"width:100px;word-wrap:break-word;border: 1pt solid black;  height: 12.5pt;text-align: center;\\\" valign=\\\"top\\\" > ");
 								scheduleATable.append(getStringFromObject(scheduleA.getDocuemntNumber()));
 								scheduleATable.append(
-										"</td><td style=\\\"width: 100.0pt;border: 1pt solid black;  padding:0in; height: 12.5pt;text-align: center;\\\" valign=\\\"top\\\" width=\\\"100\\\"> ");
+										"</td><td style=\\\"width:100px;word-wrap:break-word;border: 1pt solid black; height: 12.5pt;text-align: center;\\\" valign=\\\"top\\\" > ");
 								scheduleATable.append(outputVlaue);
 								scheduleATable.append(
-										"</td><td style=\\\"width: 150.0pt; border: 1pt solid black;  padding:0in; height: 12.5pt;text-align: center;\\\" valign=\\\"top\\\" width=\\\"150\\\"> ");
+										"</td><td style=\\\"width:100px;word-wrap:break-word;border: 1pt solid black;   height: 12.5pt;text-align: center;\\\" valign=\\\"top\\\"> ");
 								scheduleATable.append(getStringFromObject(scheduleA.getTitleHolderName()));
 								scheduleATable.append("</td></tr>");
 							});
@@ -1215,7 +1222,7 @@ public class DynamicTemplateService {
 							if(size==0) {
 								StringBuilder scheduleATable = new StringBuilder();
 								scheduleATable.append("Document details for Schedule -A");
-								scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt; border-collapse: collapse; mso-table-layout-alt: fixed;table-layout:fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
+								scheduleATable.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt; page-break-inside: avoid; border-collapse: collapse; mso-table-layout-alt: fixed;table-layout:fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
 										+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
 										+ "<td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document Name</td>"
 										+ "<td style=\\\"width: 150pt; border: 1pt solid black;  padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Document No</td>"
@@ -1258,11 +1265,6 @@ public class DynamicTemplateService {
 						long size = getSizeOfBoundriesMap(boundriesMap);
 						Boundries boundries = boundriesMap.get(combinationKey);
 						StringBuilder boundroesBuilder = new StringBuilder("");
-						boundroesBuilder.append("<b>");
-						boundroesBuilder.append("<u>");
-						boundroesBuilder.append("Boundaries");
-						boundroesBuilder.append("</u>");
-						boundroesBuilder.append("</b>");
 						if(Objects.nonNull(boundries)) {
 							String boundryString = getBoundriesBuilder(boundroesBuilder,boundries);
 							boundriesList.add(boundryString);
@@ -1280,11 +1282,6 @@ public class DynamicTemplateService {
 						Measurement measurerments = measurementMap.get(combinationKey);
 						long size = getSizeOfMeasurementMap(measurementMap);
 						StringBuilder measurementBuilder = new StringBuilder("");
-						measurementBuilder.append("<b>");
-						measurementBuilder.append("<u>");
-						measurementBuilder.append("Measurement");
-						measurementBuilder.append("</u>");
-						measurementBuilder.append("</b>");
 						if(Objects.nonNull(measurerments)) {
 							String measurementString = getMeasurermentBuilder(measurementBuilder,measurerments);
 							measurementList.add(measurementString);
@@ -1330,28 +1327,28 @@ public class DynamicTemplateService {
 		splitDayFromDate(sanctionModel,variablesValueMap);
 
 		StringBuilder loanDetailsTable = new StringBuilder(
-				"<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 55.25pt; border-collapse: collapse; mso-table-layout-alt: fixed;table-layout:fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
-						+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt; text-align: center;\\\">"
-						+ "<td style=\\\"width: 150pt; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">File Number</td>"
-						+ "<td style=\\\"width: 150pt; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Loan Amount (in Rs.)</td>"
-						+ "<td style=\\\"width: 150pt; border:1pt solid black; padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Rate (in %)</td>"
-						+ "<td style=\\\"width: 150pt; border:1pt solid black; padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Type</td>"
-						+ "<td style=\\\"width: 150pt; border:1pt solid black; padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\">Tenor</td></tr>");
+				"<table class=\\\"MsoNormalTable\\\" style=\\\"  width:100%; page-break-inside: avoid;border-collapse: collapse; mso-table-layout-alt: fixed;table-layout:fixed; border: none; mso-border-alt: solid black .5pt; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in; mso-border-insideh: .5pt solid black; mso-border-insidev: .5pt solid black;\\\" border=\\\"1\\\" cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
+						+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt; width:100%; text-align: center;\\\">"
+						+ "<td style=\\\"width: 20%; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >File Number</td>"
+						+ "<td style=\\\"width: 20%; border: 1pt solid black; padding: 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Loan Amount (in Rs.)</td>"
+						+ "<td style=\\\"width: 15%; border:1pt solid black; padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Rate (in %)</td>"
+						+ "<td style=\\\"width: 35%; border:1pt solid black; padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Type</td>"
+						+ "<td style=\\\"width: 15%; border:1pt solid black; padding:0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" >Tenor</td></tr>");
 		loanDetailsTable.append(
-				"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+				"<tr style=\\\"mso-yfti-irow: 2; height: 12.5pt;\\\"><td style=\\\"width: 150.0pt; border: solid black 1.0pt; border-top: none; mso-border-top-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" > ");
 		loanDetailsTable
 		.append(sanctionModel.getContractNumber());
 		loanDetailsTable.append(
-				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+				"</td><td style=\\\border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\"> ");
 		loanDetailsTable.append(sanctionModel.getAmountFinanced());
 		loanDetailsTable.append(
-				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+				"</td><td style=\\\"border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\"> ");
 		loanDetailsTable.append(sanctionModel.getNetRate());
 		loanDetailsTable.append(
-				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+				"</td><td style=\\\"border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\"> ");
 		loanDetailsTable.append(sanctionModel.getRateTypeString());
 		loanDetailsTable.append(
-				"</td><td style=\\\"width: 150.0pt; border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" width=\\\"200\\\"> ");
+				"</td><td style=\\\" border-top: none; border-left: none; border-bottom: solid black 1.0pt; border-right: solid black 1.0pt; mso-border-top-alt: solid black .5pt; mso-border-left-alt: solid black .5pt; mso-border-alt: solid black .5pt; padding: 0in 0in 0in 0in; height: 12.5pt; text-align: center;\\\" valign=\\\"top\\\" > ");
 		loanDetailsTable.append(sanctionModel.getTerm());
 		loanDetailsTable.append("</td></tr>");
 		loanDetailsTable.append("</tbody></table>");
@@ -1375,51 +1372,122 @@ public class DynamicTemplateService {
 	}
 
 	private String getBoundriesBuilder(StringBuilder boundroesBuilder, Boundries boundries) {
-		boundroesBuilder.append("<html>\n<body>\n");
-
-		// Left-aligned content
-		boundroesBuilder.append("<div style=\"float: left; width: 40%;\">");
-		boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">North By</p>");
-		boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">South By</p>");
-		boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">East By</p>");
-		boundroesBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px;padding: 0;\">West By</p>");
-		boundroesBuilder.append("</div>");
-
-		//right alinged content
-		boundroesBuilder.append("<div style=\"float: right; width: 60%;\">");
-		boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(boundries,boundries.getNorthBoundry()))+"</p>");
-		boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(boundries,boundries.getSouthBoundry()))+"</p>");
-		boundroesBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(boundries,boundries.getEastBoundry()))+"</p>");
-		boundroesBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">"+(getStringFromModel(boundries,boundries.getWestBoundry()))+"</p>");
-		boundroesBuilder.append("</div>");
-
-		boundroesBuilder.append("</body>\n</html>\n");
+		String tableString = "  <html lang=\"en\">"
+				+ "<head>"
+				+ "    <meta charset=\"UTF-8\">"
+				+ "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+				+ "    <style>"
+				+ "        table {"
+				+ "            width: 100%;"
+				+ "            border-collapse: collapse;"
+				+ "            margin-bottom: 20px;"
+				+ "            page-break-inside: avoid;"
+				+ "        }"
+				+ "        td {"
+				+ "            width: 50%;"
+				+ "            padding: 2px;"
+				+ "            text-align: left;"
+				+ "            vertical-align: top; /* Align content to the top */"
+				+ "        }"
+				+ "        .static-column {"
+				+ "           white-space:nowrap;"
+				+ "        }"
+				+ "        .dynamic-column {"
+				+ "             width: 550px;"
+				+ "            word-wrap: break-word;"
+				+ "        }"
+				+ "    </style>"
+				+ "</head>"
+				+ "<body>"
+				+ "    <table>"
+				+ "        <tr>"
+				+ "            <td class=\"dynamic-column\">"
+				+"<b><u>"
+				+"Boundaries"+"</b></u>"+"</td>"
+				+ "            <td class=\"static-column\"></td>"
+				+"</tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">North By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(boundries,boundries.getNorthBoundry())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">South By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(boundries,boundries.getSouthBoundry())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">East By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(boundries,boundries.getEastBoundry())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">West By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(boundries,boundries.getWestBoundry())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+		+ "    </table>"
+		+ "</body>"
+		+ "</html>";
+		
+		boundroesBuilder.append(tableString);
 
 
 		return boundroesBuilder.toString();
 	}
 	private String getMeasurermentBuilder(StringBuilder measuremrentBuilder, Measurement measurement) {
-		measuremrentBuilder.append("<html>\n<body>\n");
-
-		// Left-aligned content
-		measuremrentBuilder.append("<div style=\"float: left; width: 40%;\">");
-		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">North By</p>");
-		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">South By</p>");
-		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">East By</p>");
-		measuremrentBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px;padding: 0;\">West By</p>");
-		measuremrentBuilder.append("</div>");
-
-		//right alinged content
-		measuremrentBuilder.append("<div style=\"float: right; width: 60%;\">");
-		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(measurement,measurement.getNorthMeasurement()))+"</p>");
-		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(measurement,measurement.getSouthMeasurement()))+"</p>");
-		measuremrentBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+(getStringFromModel(measurement,measurement.getEastMeasurement()))+"</p>");
-		measuremrentBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;\">"+(getStringFromModel(measurement,measurement.getWestMeasurement()))+"</p>");
-		measuremrentBuilder.append("</div>");
-
-		measuremrentBuilder.append("</body>\n</html>\n");
-
-
+		String tableString = "  <html lang=\"en\">"
+				+ "<head>"
+				+ "    <meta charset=\"UTF-8\">"
+				+ "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+				+ "    <style>"
+				+ "        table {"
+				+ "            width: 100%;"
+				+ "            border-collapse: collapse;"
+				+ "            margin-bottom: 20px;"
+				+ "            page-break-inside: avoid;"
+				+ "        }"
+				+ "        td {"
+				+ "            width: 50%;"
+				+ "            padding: 2px;"
+				+ "            text-align: left;"
+				+ "            vertical-align: top; /* Align content to the top */"
+				+ "        }"
+				+ "        .static-column {"
+				+ "           white-space:nowrap;"
+				+ "        }"
+				+ "        .dynamic-column {"
+				+ "             width: 550px;"
+				+ "            word-wrap: break-word;"
+				+ "        }"
+				+ "    </style>"
+				+ "</head>"
+				+ "<body>"
+				+ "    <table>"
+				+ "        <tr>"
+				+ "            <td class=\"dynamic-column\">"
+				+"<b><u>"
+				+"Measurement"+"</b></u>"+"</td>"
+				+ "            <td class=\"static-column\"></td>"
+				+"</tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">North By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(measurement,measurement.getNorthMeasurement())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">South By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(measurement,measurement.getNorthMeasurement())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">East By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(measurement,measurement.getNorthMeasurement())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">West By</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(measurement,measurement.getNorthMeasurement())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+		+ "    </table>"
+		+ "</body>"
+		+ "</html>";
+		measuremrentBuilder.append(tableString);
 		return measuremrentBuilder.toString();
 	}
 
@@ -1429,121 +1497,161 @@ public class DynamicTemplateService {
 			addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
 		}
 		long maxWidth = getMaxWidthOfContent(scheduleB,proeprtyAddress);
+		String itemValue = "";
 		// Start HTML document
-		scheduleBBuilder.append("<b>");
-		scheduleBBuilder.append("<u>");
 		if(size>1) {
-			scheduleBBuilder.append("Item "+scheduleBNo+"<br>");
-		}else {
-			scheduleBBuilder.append("<br>");
+			itemValue = "Item "+scheduleBNo;
 		}
-		scheduleBBuilder.append("</u>");
-		scheduleBBuilder.append("</b>");
-scheduleBBuilder.append("<html>\n<body>\n");
-//				scheduleBBuilder.append("<table style=\"border-collapse: collapse; width: 100%;\">");
-//		        scheduleBBuilder.append("<tbody>");
-//		
-//		            scheduleBBuilder.append("<tr>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("SRO District").append("</td>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 60%; \">").append(getStringFromModel(scheduleB,scheduleB.getSroDistrict())).append("</td>");
-//		            scheduleBBuilder.append("</tr>");
-//		            scheduleBBuilder.append("<tr>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("SRO").append("</td>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 60%;\">").append(getStringFromModel(scheduleB,scheduleB.getSro())).append("</td>");
-//		            scheduleBBuilder.append("</tr>");
-//		            scheduleBBuilder.append("<tr>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("Survey No And Addl Survey No").append("</td>");
-//		            scheduleBBuilder.append("<td style=\"display: inline;border-collapse: collapse; width: 60%;word-wrap:break-word;\">").append(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo)).append("</td>");
-//		            scheduleBBuilder.append("</tr>");
-//		            scheduleBBuilder.append("<tr>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 40%;\">").append("Plot No").append("</td>");
-//		            scheduleBBuilder.append("<td style=\"border-collapse: collapse; width: 60%;\">").append(getStringFromModel(scheduleB,scheduleB.getPlotNo())).append("</td>");
-//		            scheduleBBuilder.append("</tr>");
-//		
-//		        scheduleBBuilder.append("</tbody></table>");
-		//table
-//				scheduleBBuilder.append("<table class=\\\"MsoNormalTable\\\" style=\\\"margin-left: 20.25pt;width:100%; border-collapse: collapse; mso-table-layout-alt: fixed; border: none; mso-yfti-tbllook: 480; mso-padding-alt: 0in 0in 0in 0in;  cellspacing=\\\"0\\\" cellpadding=\\\"0\\\"><tbody>"
-//						+ "<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
-//						+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">SRO District</td>"
-//						+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">"
-//						+getStringFromModel(scheduleB,scheduleB.getSroDistrict())
-//						+ "</td></tr>");
-//					scheduleBBuilder.append("<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
-//							+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">SRO</td>"
-//							+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" width=\\\"200\\\">"
-//							+getStringFromModel(scheduleB,scheduleB.getSro())
-//							+ "</td></tr>");
-//					scheduleBBuilder.append("<tr style=\\\"mso-yfti-irow: 0; mso-yfti-firstrow: yes; height: 12.5pt;\\\">"
-//							+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" >Survey No And Addl Survey No</td>"
-//							+ "<td style=\\\"padding: 0in; height: 12.5pt; text-align: left;\\\" valign=\\\"top\\\" >"
-//							+(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo))
-//							+ "</td></tr>");
-//				scheduleBBuilder.append("</tbody></table>");
-
-				// Left-aligned content
-		scheduleBBuilder.append("<div style=\"float: left; width: 40%;\">");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">SRO District</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">SRO</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Survey No And Addl Survey No</p>");
-
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Plot No</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Door No</p>");
-		if(!getString(scheduleB.getProjectName()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Project Name</p>");
-		}
-		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Flat No</p>");
-		}
-		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Floor</p>");
-		}
-		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Block No</p>");
-		}
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Address 1</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Address 2</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Address 3</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Pin Code</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Land Extent</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">District</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">Taluk</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;white-space:nowrap;\">Village</p>");
-		scheduleBBuilder.append("</div>");
-
-		// Right-aligned content //white-space:nowrap;
-		scheduleBBuilder.append("<div style=\"float: right; width: 60%;\">");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getSroDistrict())+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getSro())+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo))+"</p>");
-		//		scheduleBBuilder.append("<p style=\"display: inline-block; margin: 0;;margin-bottom: 10px; padding: 0; white-space:nowrap; padding-left: ").append(maxWidth * 7).append("px;\">")
-		//        .append(getStringFromModel(scheduleB, scheduleB.getSurveyNo()).concat(addSurveyNo)+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getPlotNo())+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getStringFromModel(scheduleB,scheduleB.getDoorNo())+"</p>");
-		if(!getString(scheduleB.getProjectName()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+getString(scheduleB.getProjectName())+"</p>");
-		}
-		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getFlatNo())+"</p>");
-		}
-		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getFloorNo())+"</p>");
-		}
-		if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
-			scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;\">"+getString(proeprtyAddress.getBlock())+"</p>");
-		}
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getStreet()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress1()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress7()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getPinCode()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(proeprtyAddress,proeprtyAddress.getLandExtent()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getDistrict()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin: 0; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getTaluk()))+"</p>");
-		scheduleBBuilder.append("<p style=\"display: inline; margin-top:0;margin-left:0;margin-right:0;margin-bottom: 10px; padding: 0;white-space:nowrap;\">"+(getStringFromModel(scheduleB,scheduleB.getVillage()))+"</p>");
-		scheduleBBuilder.append("<br>");
-		scheduleBBuilder.append("</div>");
-
-		// End HTML document
-		scheduleBBuilder.append("</body>\n</html>\n");
+		String surveyNumber = getStringFromModel(scheduleB,scheduleB.getSurveyNo()).concat(addSurveyNo);
+		String tableString = "  <html lang=\"en\">"
+				+ "<head>"
+				+ "    <meta charset=\"UTF-8\">"
+				+ "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+				+ "    <style>"
+				+ "        table {"
+				+ "            width: 100%;"
+				+ "            border-collapse: collapse;"
+				+ "            margin-bottom: 20px;"
+				+ "            page-break-inside: avoid;"
+				+ "        }"
+				+ ""
+				+ "        td {"
+				+ "            width: 50%;"
+				+ "            padding: 2px;"
+				+ "            text-align: left;"
+				+ "            vertical-align: top; /* Align content to the top */"
+				+ "        }"
+				+ ""
+				+ "        .static-column {"
+				+ "           white-space:nowrap;"
+				+ "        }"
+				
+				+ "        .header-column {"
+				+ "            width: 50%;"
+				+ "            padding-left: 200px;"
+				+ "            text-align: left;"
+				+ "            vertical-align: right; /* Align content to the top */"
+				+ "        }"
+				+ "        .header1-column {"
+				+ "            width: 50%;"
+				+ "            padding-left: 200px;"
+				+ "            text-align: left;"
+				+ "            vertical-align: right; /* Align content to the top */"
+				+ "        }"
+				
+				+ ""
+				+ "        .dynamic-column {"
+				+ "             width: 550px;"
+				+ "            word-wrap: break-word;"
+				+ "        }"
+				+ "    </style>"
+				+ "</head>"
+				+ "<body>"
+				+ ""
+				+ "    <table>";
+//				if(scheduleBNo<=1) {
+//					tableString = tableString
+//							+ "        <tr>"
+//							+ "            <td class=\"header-column\"><b><u>SCHEDULE “ B “</u></b></td>"
+//							+ "            <td class=\"dynamic-column\"></td>"
+//							+ "        </tr>"
+//							+ "        <tr>"
+//							+ "            <td class=\"header1-column\">(Schedule of Property)</td>"
+//							+ "            <td class=\"dynamic-column\"></td>"
+//							+ "        </tr>";
+//				}
+				tableString = tableString
+				+ "        <tr>"
+				+ "            <td class=\"dynamic-column\">"
+				+"<b><u>"
+				+itemValue+"</b></u>"+"</td>"
+				+ "            <td class=\"static-column\"></td>"
+				+"</tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">SRO District</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getSroDistrict())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">SRO</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getSro())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">District</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getDistrict())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Taluk</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getTaluk())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Village</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getVillage())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Survey No And Addl Survey No</td>"
+				+ "            <td class=\"dynamic-column\">"+surveyNumber+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Plot No</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getPlotNo())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Door No</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getDoorNo())+"</td>"
+				+ "        </tr>";
+				if(!getString(scheduleB.getProjectName()).isEmpty()) {
+				tableString = tableString 
+						+ "        <tr>"
+						+ "            <td class=\"static-column\">Project Name</td>"
+						+ "            <td class=\"dynamic-column\">"+getStringFromModel(scheduleB,scheduleB.getProjectName())+"</td>"
+						+ "        </tr>";
+				}
+				if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFlatNo()).isEmpty()) {
+					tableString = tableString 
+							+ "        <tr>"
+							+ "            <td class=\"static-column\">Flat No</td>"
+							+ "            <td class=\"dynamic-column\">"+getString(proeprtyAddress.getFlatNo())+"</td>"
+							+ "        </tr>";
+				}
+				if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getFloorNo()).isEmpty()) {
+					tableString = tableString 
+							+ "        <tr>"
+							+ "            <td class=\"static-column\">Floor No</td>"
+							+ "            <td class=\"dynamic-column\">"+getString(proeprtyAddress.getFloorNo())+"</td>"
+							+ "        </tr>";
+				}
+				if(Objects.nonNull(proeprtyAddress)&&!getString(proeprtyAddress.getBlock()).isEmpty()) {
+					tableString = tableString 
+							+ "        <tr>"
+							+ "            <td class=\"static-column\">Block No</td>"
+							+ "            <td class=\"dynamic-column\">"+getString(proeprtyAddress.getBlock())+"</td>"
+							+ "        </tr>";
+				}
+				tableString = tableString 
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Address 1</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(proeprtyAddress,proeprtyAddress.getStreet())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Address 2</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress1())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Address 3</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(proeprtyAddress,proeprtyAddress.getAddress7())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Pin Code</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(proeprtyAddress,proeprtyAddress.getPinCode())+"</td>"
+				+ "        </tr>"
+				+ "        <tr>"
+				+ "            <td class=\"static-column\">Land Extent</td>"
+				+ "            <td class=\"dynamic-column\">"+getStringFromModel(proeprtyAddress,proeprtyAddress.getLandExtent())+"</td>"
+				+ "        </tr>"
+				+ "    </table>"
+				+ "</body>"
+				+ "</html>";
+		scheduleBBuilder.append(tableString);
 
 		// Print or use the HTML content
 		String htmlContent = scheduleBBuilder.toString();
@@ -3234,8 +3342,8 @@ scheduleBBuilder.append("<html>\n<body>\n");
 							}
 
 						}
+						scheduleB.setPropertyAddress(propertyAddress);
 					}
-					scheduleB.setPropertyAddress(propertyAddress);
 				}catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -3305,11 +3413,11 @@ scheduleBBuilder.append("<html>\n<body>\n");
 					}
 				}
 			}
+			scheduleBListMap.put(combinationKey,scheduleB);
 			if(Objects.nonNull(scheduleB)) {
 				boundriesListMap.put(combinationKey,boundries);
-				measurementListMap.put(combinationKey,measurement);
+				measurementListMap.put(combinationKey,Objects.nonNull(measurement)?measurement:new Measurement());
 			}
-			scheduleBListMap.put(combinationKey,scheduleB);
 		}catch (Exception e) {
 			e.printStackTrace();
 		}finally {
@@ -3841,6 +3949,8 @@ scheduleBBuilder.append("<html>\n<body>\n");
 				String branchAddressString = convertBranchAddress(branchAddress);
 				letterModel.setBranchAddress(branchAddressString);
 				logger.info("convertBranchAddress method completed"+letterModel);
+				//branchMail
+getBranchMail(letterModel);
 				//customer address
 				String customerAddress = getCustomerAddress(Integer.parseInt(letterModel.getCustomerCode()), String.valueOf(letterModel.getCustomerName()));
 				letterModel.setCustomerAddress(customerAddress);
@@ -3875,21 +3985,21 @@ scheduleBBuilder.append("<html>\n<body>\n");
 				//				}
 
 				//Cash Handling Charges Calculation
-				try {
-					logger.info("cashHandlingResponse loop started");
-					ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
-							.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
-							.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-							.toEntityList(CashHandlingChargesModel.class).block();
-					logger.info("CashHandlingChargesModel loop fetched"+cashHandlingResponse);
-					List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
-					logger.info("cashHandlingChargesList loop fetched"+cashHandlingChargesList);
-					letterModel.setCashHandlingCharges(cashHandlingChargesList);
-					logger.info("cashHandlingResponse"+letterModel);
-				}catch (Exception e) {
-					logger.info("cashHandlingResponse loop failed",e);
-					e.printStackTrace();
-				}
+//				try {
+//					logger.info("cashHandlingResponse loop started");
+//					ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
+//							.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
+//							.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
+//							.toEntityList(CashHandlingChargesModel.class).block();
+//					logger.info("CashHandlingChargesModel loop fetched"+cashHandlingResponse);
+//					List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
+//					logger.info("cashHandlingChargesList loop fetched"+cashHandlingChargesList);
+//					letterModel.setCashHandlingCharges(cashHandlingChargesList);
+//					logger.info("cashHandlingResponse"+letterModel);
+//				}catch (Exception e) {
+//					logger.info("cashHandlingResponse loop failed",e);
+//					e.printStackTrace();
+//				}
 
 				// Prepayment Charges Calculation
 				//				dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
@@ -3924,6 +4034,34 @@ scheduleBBuilder.append("<html>\n<body>\n");
 
 
 
+
+	private void getBranchMail(LetterReportModel letterModel) {
+		dynamicDataSourceService.switchToOracleDataSource();
+		// Use the current datasource to fetch data
+		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
+		try(Connection connection = currentDataSource.getConnection()){
+			try(PreparedStatement preparedStatement7 = connection.prepareStatement("SELECT a.obm_address_info.email"
+					+ "  FROM sa_organization_branch_master a"
+					+ "  WHERE obm_branch_code = ?");){
+				preparedStatement7.setString(1, letterModel.getBranchCode());
+				try(ResultSet resultSet7 = preparedStatement7.executeQuery();){
+					while (resultSet7.next()) {
+						letterModel.setBranchMailId(resultSet7.getString(1));
+					}
+				}catch (Exception e) {
+					logger.info("data in companyMail failed",e);
+					e.printStackTrace();
+				}
+			}catch (Exception e) {
+				logger.info("data in companyMail failed",e);
+				e.printStackTrace();
+			}
+		}catch (Exception e) {
+			logger.info("data in companyMail failed",e);
+			e.printStackTrace();
+		}
+		
+	}
 
 	private void getbalancePayable(Map<String, Object> dataMap, LetterReportModel letterModel) {
 		Double balancePayable = 0.0;
@@ -4101,6 +4239,7 @@ scheduleBBuilder.append("<html>\n<body>\n");
 		}
 		return 0;
 	}
+	
 	public static String convertToIndianCurrency(String num) {
 		BigDecimal bd = new BigDecimal(num);
 		long number = bd.longValue();
@@ -4166,6 +4305,19 @@ scheduleBBuilder.append("<html>\n<body>\n");
 		return " " + Rupees + paise;
 	}
 
+	
+	public ResponseEntity<String> getAPIKey() {
+		String apiKey = "";
+		List<DynamicTinyEditor> allList = dynamicTinyEditorRepo.findAll();
+		if(!allList.isEmpty()) {
+			Optional<DynamicTinyEditor> apiList = allList.stream().findFirst();
+			if(apiList.isPresent()) {
+				apiKey =  apiList.get().getApiKey();
+			}
+		}
+		return ResponseEntity.ok(apiKey);
+	}
+	
 	public void insertProductData() {
 		List<String> productList = new ArrayList<>();
 		productList.add("HOMEFIN");
@@ -4310,12 +4462,6 @@ scheduleBBuilder.append("<html>\n<body>\n");
 		private String branch;
 
 	}
-
-
-
-
-
-
 
 
 }
