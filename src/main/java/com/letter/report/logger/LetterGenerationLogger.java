@@ -36,10 +36,18 @@ public class LetterGenerationLogger {
 		logger.info("Class Name : " + signature.getDeclaringTypeName() + "    Method Name : " + signature.getName()
 				+ "Method Started");
 
+		Object[] args = joinPoint.getArgs();
+		if (args != null && args.length > 0) {
+			logger.info("Method Parameters:");
+			for (int i = 0; i < args.length; i++) {
+				logger.info("Parameter " + (i + 1) + ": " + args[i]);
+			}
+		}
+
 	}
 
 	@AfterReturning(pointcut = "pointcut()", returning = "entity")
-	public void logMethodAfter(JoinPoint joinPoint, ResponseEntity<?> entity) {
+	public void logMethodAfter(JoinPoint joinPoint, Object entity) {
 		MethodSignature signature = (MethodSignature) joinPoint.getSignature();
 		logger.info("Class Name : " + signature.getDeclaringTypeName() + "    Method Name : " + signature.getName()
 				+ "Method Completed");

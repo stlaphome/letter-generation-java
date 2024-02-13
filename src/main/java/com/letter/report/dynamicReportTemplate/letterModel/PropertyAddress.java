@@ -26,5 +26,9 @@ public class PropertyAddress {
 	private String cityName;
 	private String locationName;
 	private String landExtent;
+	private String flatNo;
+	private String floorNo;
+	private String Block;
+	private String projectCode;
 
 }

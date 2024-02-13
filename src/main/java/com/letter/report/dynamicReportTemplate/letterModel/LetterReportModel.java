@@ -1,8 +1,7 @@
 package com.letter.report.dynamicReportTemplate.letterModel;
 
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-
 
 import lombok.Data;
 
@@ -17,11 +16,13 @@ public class LetterReportModel {
 	private String customerCode;
 	private List<String> customerShareCode;
 	private int amountFinanced;
+	private String purposeOfLoanCode;
 	private String purposeOfLoan;
 	private String netRate;
 	private int term;
 	private int emiAmount;
 	private String processingFee;
+	private String adminFee;
 	private String baseFileNumber;
 	private String endUse;
 	private String endUseOfLoan;
@@ -57,39 +58,13 @@ public class LetterReportModel {
 	private String lifeInsurance;
 	private int moratoriumPeriod;
 	//motd
-	private String SRO; 
+	private LinkedHashSet<String> SroList; 
 	private String rateType;
 	private String rateTypeString;
 	private int principalOutstanding;
 	
-//	private String title; 
-//	private String aadharNo;
-//	private String titleHolderName; 
-//	private String titleHolderGuardianName; 
-//	private String dateOfBirth; 
-//	private Integer age; 
-//	private String title1; 
-//	private String aadharNo1;
-//	private String titleHolderName1; 
-//	private String titleHolderGuardianName1; 
-//	private String dateOfBirth1; 
-//	private Integer age1; 
 	
-//	private List<ScheduleA> scheduleA;
-//	private ScheduleB schedleB;
-//	private ScheduleB schedleB1;
-//	private Measurement measurement;
-//	private Measurement measurement1;
-//	private Boundries boundries;
-//	private Boundries boundries1;
-//	private PropertyAddress propertyAddress;
-//	private PropertyAddress propertyAddress1;
-//	private String titleHolderAddress;
-//	private String titleHolderAddress1;
-	
-//	private int propertyNumber;
-//	private String otdNumber;
-	
+	private LinkedSroDetails linkedSroDetails;
 	private PropertyDetailModel propertyDetailModel;
 	
 	

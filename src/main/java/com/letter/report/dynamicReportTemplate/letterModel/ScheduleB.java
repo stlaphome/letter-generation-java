@@ -20,6 +20,7 @@ public class ScheduleB {
 	private String plotNo;
 	private String floorNo;
 	private String blockNo;
+	private String projectName;
 	private  PropertyAddress propertyAddress;
 
 }
