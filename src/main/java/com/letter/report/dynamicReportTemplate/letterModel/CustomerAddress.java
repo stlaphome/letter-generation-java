@@ -1,6 +1,5 @@
 package com.letter.report.dynamicReportTemplate.letterModel;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data

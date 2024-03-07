@@ -3,10 +3,7 @@ package com.letter.report.dynamicReportTemplate.controller;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,7 +24,6 @@ public class DynamicTemplateController {
 	@Autowired
 	private DynamicTemplateService dynamicTemplateService;
 	
-	private static Logger logger = LoggerFactory.getLogger(DynamicTemplateService.class);
 
 
 	@PostMapping("/saveTemplate")
@@ -43,7 +39,7 @@ public class DynamicTemplateController {
 	}
 
 	@PostMapping("/getTemplateKey")
-	public ResponseEntity<List<Map>> getTemplateKey(
+	public ResponseEntity<List<Map<String, String>>> getTemplateKey(
 			@RequestBody Map<String,String> dataMap) {
 		return dynamicTemplateService.getTemplateKey(dataMap);
 	}
