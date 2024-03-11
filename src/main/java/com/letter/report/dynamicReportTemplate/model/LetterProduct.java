@@ -1,7 +1,5 @@
 package com.letter.report.dynamicReportTemplate.model;
 
-import java.sql.Blob;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;

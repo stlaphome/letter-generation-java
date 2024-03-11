@@ -142,24 +142,12 @@ public class DynamicTemplateService {
 	private int scheduleANo = 0;
 	private int scheduleBNo = 0;
 
-
-	@Value("${stlap.server.url}")
-	private String stlapServerUrl;
-
 	@Value("${mail.server.url}")
 	private String mailServerUrl;
 
 	public ResponseEntity<String> saveTemplate(DynamicTemplateModel dynamicTemplateModel) {
-		//String decodedContent = "";
-		//		try {
-		//			//decodedContent = URLDecoder.decode(dynamicTemplateModel.getContent(), "UTF-8");
-		//		} catch (UnsupportedEncodingException e) {
-		//			logger.error("failed to parse",e.getMessage());
-		//			e.printStackTrace();
-		//		}
 		String validateContent = dynamicTemplateModel.getContent();
 		String originalContent = validateContent.replace("[", "(");
-		//String originalContent =validateContent;
 		String errorContent = validateEditorContent(originalContent, returnVariablesList());
 		List<LetterProduct> productList = letterProductRepo.findByProductCode(dynamicTemplateModel.getProductCode());
 		Optional<LetterProduct> productData = productList.stream().filter(pr->(Objects.isNull(pr.getLetterName()) || pr.getLetterName().equals(dynamicTemplateModel.getTemplateName()))).findFirst();
@@ -286,8 +274,8 @@ public class DynamicTemplateService {
 
 	}
 
-	public ResponseEntity<List<Map>> getTemplateKey(Map<String, String> dataMap) {
-		List<Map> templateKeyList = new ArrayList<>();
+	public ResponseEntity<List<Map<String, String>>> getTemplateKey(Map<String, String> dataMap) {
+		List<Map<String, String>> templateKeyList = new ArrayList<>();
 		Sort sort = Sort.by("templateKey");
 		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateName(dataMap.get("productCode"), dataMap.get("templateName"),sort);
 		dynamicTemplateList.stream().forEach(item -> {
@@ -475,43 +463,6 @@ public class DynamicTemplateService {
 		}
 	}
 
-	private PrepaymentChargesModel getDataFromPrepaymentCharges(Map<String, Object> dataMap) {
-		PrepaymentChargesModel chargesResponse = new PrepaymentChargesModel();
-		AtomicInteger rowId = new AtomicInteger(0);
-		Connection connection = null;
-		try {
-			connection = dataSource.getConnection();
-			String query = "SELECT product,rate_type,rate,customer_type,prepayment_reason FROM ST_TB_LMS_PREPAYMENT_CHARGE_MSTR where prepayment_reason=? AND effective_date=(SELECT MAX(effective_date) FROM ST_TB_LMS_PREPAYMENT_CHARGE_MSTR where prepayment_reason=?)";
-
-			try (PreparedStatement statement = connection.prepareStatement(query)) {
-				statement.setString(1, String.valueOf(dataMap.get("prepayment_reason")));
-				statement.setString(2, String.valueOf(dataMap.get("prepayment_reason")));
-				try (ResultSet resultSet = statement.executeQuery()) {
-					while (resultSet.next()) {
-						chargesResponse.setId(rowId.get());
-						chargesResponse.setProduct(resultSet.getString(1));
-						chargesResponse.setRateType(resultSet.getString(2));
-						chargesResponse.setRate(resultSet.getBigDecimal(3));
-						chargesResponse.setCustomerType(resultSet.getString(4));
-						chargesResponse.setPrepaymentReason(resultSet.getString(5));
-					}
-				}
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}finally {
-			try {
-				if(connection!=null) {
-					connection.close();
-				}
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		return chargesResponse;
-	}
-
 	private String getString(String name) {
 		return Objects.nonNull(name) ? name : "";
 	}
@@ -607,30 +558,9 @@ public class DynamicTemplateService {
 				"//~~Travelling_Expense~~//", "//~~Bureau_Charges_Individual_Customer~~//",
 				"//~~Bureau_Charges_Non_Individual_Customer~~//", "//~~Prepayment_Charges~~//",
 				"//~~Penal_Interest~~//", "//~~Cheque_Dishonour_Charges~~//", "//~~Cash_Handling_Charges_Table~~//",
-				"//~~MOTD_Title_Execution~~//", "//~~MOTD_Run_Day~~//", "//~~MOTD_Run_Month_Year~~//","//~~MOTD_Title~~//",
-
-				"//~~MOTD_Title~~//","//~~MOTD_Title_Holder_Name~~//", "//~~MOTD_Title_Holder_Aadhaar~~//", "//~~MOTD_Title_Holder_Age~~//",
-				"//~~MOTD_Title_Holder_Guardian~~//", "//~~MOTD_Title_Holder_Address~~//","//~~MOTD_OTD_Number~~//",
-				"//~~MOTD_Title_1~~//","//~~MOTD_Title_Holder_Name_1~~//", "//~~MOTD_Title_Holder_Aadhaar_1~~//", "//~~MOTD_Title_Holder_Age_1~~//",
-				"//~~MOTD_Title_Holder_Guardian_1~~//", "//~~MOTD_Title_Holder_Address_1~~//","//~~MOTD_OTD_Number_1~~//","//~~MOTD_Loan_details_table~~//",
-				"//~~Schedule_A_Table~~//","//~~MOTD_Registered_Date~~//", "//~~MOTD_Registered_Doc_no~~//", "//~~MOTD_Registered_Office~~//",
-				"//~~MOTD_Registered_Sub_Office~~//", "//~~MOTD_Clearance_Date~~//", "//~~MOTD_Favour_Of~~//",
-				"//~~MOTD_Sanction_Amount~~//", "//~~MOTD_Sanction_Amount_Words~~//", "//~~MOTD_Mortgage_Type~~//","//~~Schedule_Detail_Table~~//",
-				"//~~MOTD_SRO_District~~//","//~~MOTD_SRO~~//", "//~~MOTD_SRO_Place~~//", "//~~MOTD_District~~//", "//~~MOTD_Taluk~~//",
-				"//~~MOTD_Village~~//", "//~~MOTD_Survey_Additional_Survey~~//", "//~~MOTD_Plot_No~~//",
-				"//~~MOTD_Door_No~~//", "//~~MOTD_Project_Name~~//", "//~~MOTD_Flat_No~~//", "//~~MOTD_Floor~~//",
-				"//~~MOTD_Block_No~~//", "//~~MOTD_Address_1~~//", "//~~MOTD_Address_2~~//", "//~~MOTD_Address_3~~//",
-				"//~~MOTD_Pin_Code~~//", "//~~MOTD_Land_Extent~~//", "//~~MOTD_North_Boundary~~//",
-				"//~~MOTD_South_Boundary~~//", "//~~MOTD_East_Boundary~~//", "//~~MOTD_West_Boundary~~//",
-				"//~~MOTD_North_Measurement~~//", "//~~MOTD_South_Measurement~~//", "//~~MOTD_East_Measurement~~//",
-				"//~~MOTD_West_Measurement~~//", "//~~Property_Under_Mortgaged~~//",
-				"//~~Property_Boundary_Details~~//","//~~Type_Of_Loan~~//","//~~Repayment_Mode~~//","//~~Account_No~~//","//~~End_Use_of_Loan~~//",
-				"//~~Cersai Fee~~//","//~~kerala_Document_Charges~~//","//~~Rajasthan_Document_Charges~~//","//~~Maha_Gujarat_Document_Charges~~//","//~~Other_Document_Charges~~//",
-				"//~~MOTD Fee~~//","//~~Statement_Charges~~//","//~~Settlement_Figure_Charges~~//","//~~Document_Retrieval_Charges~~//","//~~Cheque_Return_Charges~~//",
-				"//~~TamilNadu_Document_Handling_Charges~~//","//~~Andra_Document_Handling_Charges~~//","//~~Karnataka_Document_Handling_Charges~~//","//~~Madhya_Document_Handling_Charges~~//",
-				"//~~Photocopy_Charges~~//","//~~Custodial_Charges~~//","//~~Annexures_Tables~~//",
-				"//~~Loan_Amount~~//","//~~Processing_Fee~~//","//~~Term~~//",
-				"//~~Net_Rate~~//","//~~EMI~~//","//~~Account_No~~//","//~~End_Use_of_Loan~~//","//~~Purpose_of_Loan~~//",
+				"//~~MOTD_Loan_details_table~~//","//~~Schedule_A_Table~~//", "//~~MOTD_SRO~~//",
+				"//~~Document_Retrieval_Charges~~//","//~~Cheque_Return_Charges~~//",
+				"//~~Net_Rate~~//","//~~Account_No~~//","//~~End_Use_of_Loan~~//","//~~Purpose_of_Loan~~//",
 				"//~~Header_Company_Name~~//","//~~Current_Date~~//","//~~Branch_Address~~//","//~~To_Address~~//",
 				"//~~TelePhone_No~~//","//~~Header_Mail~~//",
 				"//~~Header_Branch_Address~~//","//~~Life_Insurance~~//","//~~Admin_Fee~~//","//~~Applicant~~//","//~~Co-Applicant 1~~//","//~~Co-Applicant 2~~//","//~~Moratorium_Period~~//",
@@ -641,7 +571,6 @@ public class DynamicTemplateService {
 	}
 
 	public ResponseEntity<List<String>> getAllApplicationNumbers(String productCode) {
-		String dataBase = "MSSQL";
 		List<LetterProduct> letterproductDataList = letterProductRepo.findByProductCode(productCode);
 		return fetchApplicationNumber(letterproductDataList);
 
@@ -667,7 +596,6 @@ public class DynamicTemplateService {
 		try {
 			bdata = blob.getBytes(1, (int) blob.length());
 			String s = new String(bdata);
-			//String decodedContent = URLDecoder.decode(dynamicTemplate.getContent(), "UTF-8");
 			dynamicTemplateModel.setContent(s);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -695,11 +623,11 @@ public class DynamicTemplateService {
 			});
 			HtmlConverter.convertToPdf(htmlContent, pdf, new ConverterProperties());
 
-			//HtmlConverter.convertToPdf(htmlContent, os);
 			arr = new byte[(int) output.length()];
 			fl = new FileInputStream(output);
 			fl.read(arr);
 			fl.close();
+			document.close();
 			return arr;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -709,14 +637,12 @@ public class DynamicTemplateService {
 	}
 
 	public ResponseEntity<Map<String, Object>> generateLetter(GenerateTemplateModel model) throws SQLException {
-		String dataBase = "MSSQL";
 		LetterProduct letterProduct = letterProductRepo.findByProductCodeAndLetterName(model.getProductCode(),model.getTemplateName());
 		List<DynamicTemplate> dynamicTemplateList = dynamicTemplateRepo.findByProductCodeAndTemplateNameAndActive(model.getProductCode(),model.getTemplateName(), true);
 		DynamicTemplate dynamicTemplate;
 		if(!dynamicTemplateList.isEmpty()) {
 			dynamicTemplate = dynamicTemplateList.get(0);
 			if(Objects.nonNull(letterProduct)) {
-				dataBase = letterProduct.getDataBase();
 				return ResponseEntity.ok(generateLetterForApplicationNumber(model,letterProduct,dynamicTemplate));
 			}
 
@@ -754,8 +680,6 @@ public class DynamicTemplateService {
 				Map<String, Object> variableMap = new HashMap<>();
 				String fileName = (dynamicTemplate.getTemplateName()).concat("_").concat(sanctionModel.getApplicationNumber())
 						.concat("_").concat(dateFormat.format(date)).concat(".pdf");
-				//			File file = new File("./downloads/letter_generation/" + fileName);
-				//filesMap.put("applicationNum", model.getApplicationNumber());
 				filesMap.put(sanctionModel.getApplicationNumber(), fileName);
 				applicationList.add(sanctionModel.getApplicationNumber());
 				switch (letterProduct.getDataBase()) {
@@ -790,13 +714,12 @@ public class DynamicTemplateService {
 		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
 		Date date = new Date();
 		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-		YearMonth yearMonth = YearMonth.now();
-		String formattedDate = yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH));
+		String branchAddress = sanctionModel.getBranchAddress();
 		String toNewAddress =   getExpandedAddress(sanctionModel.getCustomerAddress().split(","),sanctionModel.getCustomerName());
-		variablesValueMap.put("~~Branch_Address~~", sanctionModel.getBranchAddress());
+		variablesValueMap.put("~~Branch_Address~~", branchAddress.toUpperCase());
 		variablesValueMap.put("~~Header_Mail~~", nullCheckStringField(sanctionModel.getBranchMailId()));
 		variablesValueMap.put("~~Date~~", formatter.format(date));
-		variablesValueMap.put("~~To_Address~~", toNewAddress);
+		variablesValueMap.put("~~To_Address~~", toNewAddress.toUpperCase());
 		variablesValueMap.put("~~Application_Number~~", sanctionModel.getApplicationNumber());
 		variablesValueMap.put("~~Loan_Amount~~", sanctionModel.getAmountFinanced());
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(sanctionModel.getAmountFinanced())));
@@ -909,10 +832,10 @@ public class DynamicTemplateService {
 				.endText();
 			});
 			HtmlConverter.convertToPdf(s, pdf, new ConverterProperties());
-			//HtmlConverter.convertToPdf(s, fos);
 			FileInputStream fis = new FileInputStream(file);
 			byte[] bytes = new byte[(int) file.length()];
 			fis.read(bytes);
+			document.close();
 			return ResponseEntity.ok(bytes);
 
 		} catch (Exception e1) {
@@ -1018,13 +941,13 @@ public class DynamicTemplateService {
 		formatter.format(date);
 		Map<String, Object> variablesValueMap = new HashMap<String, Object>();
 		variablesValueMap.put("~~Application_Number~~", nullCheckStringField(sanctionModel.getApplicationNumber()));
-		variablesValueMap.put("~~Header_Company_Name~~", nullCheckStringField(sanctionModel.getCompanyName()));
-		variablesValueMap.put("~~Header_Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
+		variablesValueMap.put("~~Header_Company_Name~~", nullCheckStringField(sanctionModel.getCompanyName().toUpperCase()));
+		variablesValueMap.put("~~Header_Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString().toUpperCase()));
 		variablesValueMap.put("~~TelePhone_No~~", nullCheckStringField(sanctionModel.getTelePhoneNumber()));
 		variablesValueMap.put("~~Header_Mail~~", nullCheckStringField(sanctionModel.getBranchMailId()));
 		variablesValueMap.put("~~Current_Date~~", nullCheckStringField(sanctionModel.getCurrentDate()));
 		variablesValueMap.put("~~Date~~", nullCheckStringField(sanctionModel.getCurrentDate()));
-		variablesValueMap.put("~~Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString()));
+		variablesValueMap.put("~~Branch_Address~~", nullCheckStringField(sanctionModel.getBranchAddress().toString().toUpperCase()));
 		variablesValueMap.put("~~To_Address~~", nullCheckStringField(sanctionModel.getCustomerAddress()));
 		variablesValueMap.put("~~Loan_Amount~~", (sanctionModel.getAmountFinanced()));
 		variablesValueMap.put("~~Loan_Amount_In_Words~~", convertToIndianCurrency(String.valueOf(sanctionModel.getAmountFinanced())));
@@ -1170,7 +1093,6 @@ public class DynamicTemplateService {
 						long size = getSizeOfScheduleAMap(scheduleAListMap);
 						if(Objects.nonNull(scheduleAList)&&!scheduleAList.isEmpty()) {
 							scheduleANo++;
-							int scheduleAIndex = getIndexValue(scheduleAListMap,combinationKey);
 							StringBuilder scheduleATable = new StringBuilder();
 							String scheduleTitle = "";
 							if(size>1) {
@@ -1243,10 +1165,6 @@ public class DynamicTemplateService {
 						if(Objects.nonNull(scheduleB)) {
 							scheduleBNo++;
 							PropertyAddress proeprtyAddress = scheduleB.getPropertyAddress();
-							String addSurveyNo ="";
-							if(!getString(scheduleB.getAddlSurveyNo()).isEmpty()) {
-								addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
-							}
 							String scheduleString =getScheduleBBuilder(scheduleB,proeprtyAddress,size,scheduleBBuilder);
 							scheduleBList.add(scheduleString);
 						}else {
@@ -1496,7 +1414,6 @@ public class DynamicTemplateService {
 		if(!getString(scheduleB.getAddlSurveyNo()).isEmpty()) {
 			addSurveyNo = " And "+getString(scheduleB.getAddlSurveyNo());
 		}
-		long maxWidth = getMaxWidthOfContent(scheduleB,proeprtyAddress);
 		String itemValue = "";
 		// Start HTML document
 		if(size>1) {
@@ -1549,17 +1466,6 @@ public class DynamicTemplateService {
 				+ "<body>"
 				+ ""
 				+ "    <table>";
-//				if(scheduleBNo<=1) {
-//					tableString = tableString
-//							+ "        <tr>"
-//							+ "            <td class=\"header-column\"><b><u>SCHEDULE “ B “</u></b></td>"
-//							+ "            <td class=\"dynamic-column\"></td>"
-//							+ "        </tr>"
-//							+ "        <tr>"
-//							+ "            <td class=\"header1-column\">(Schedule of Property)</td>"
-//							+ "            <td class=\"dynamic-column\"></td>"
-//							+ "        </tr>";
-//				}
 				tableString = tableString
 				+ "        <tr>"
 				+ "            <td class=\"dynamic-column\">"
@@ -1714,7 +1620,6 @@ public class DynamicTemplateService {
 		return outputVlaue;		
 	}
 	private String getDateWithChangeFormat(Object valueString) {
-		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 		DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 		String value = getStringFromObject(valueString);
 		String outputVlaue = null;
@@ -1853,7 +1758,6 @@ public class DynamicTemplateService {
 			returnValue.append(temp.replaceAll(String.valueOf("//" + value.getKey() + "//"),
 					Objects.isNull(value.getValue()) ? "" : String.valueOf(value.getValue())));
 		});
-		//System.out.println(returnValue.toString());
 		return returnValue.toString();
 	}
 
@@ -2058,8 +1962,6 @@ public class DynamicTemplateService {
 								logger.info("data in Processing failed",e);
 								e.printStackTrace();
 							}
-							String processingFee="0";
-						
 
 							try {
 								logger.info("data in basefile number started");
@@ -2464,7 +2366,6 @@ public class DynamicTemplateService {
 				Date date = new Date();
 				SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 				String effectiveDate = formatter.format(date);
-				//String effectiveDate = convertDateFormat((letterModel.getApplicationDate()));
 				try(PreparedStatement preparedStatement24 = connection.prepareStatement("select flat_fee,MITC_CHG From Hfs_Doc_Fee_Master_Header A ,"
 						+ "   Hfs_Doc_Fee_Master_Dtls B"
 						+ "   Where A.Bucket_Key=B.Bucket_Key"
@@ -2486,15 +2387,12 @@ public class DynamicTemplateService {
 					int documentCharges = 0;
 					try(ResultSet resultSet24 = preparedStatement24.executeQuery();){
 						while (resultSet24.next()) {
-//							letterModel.setFlatFee(resultSet24.getString(1));
-//							letterModel.setFlatRate(resultSet24.getString(2));
 							if(Objects.nonNull(resultSet24.getString(2))) {
 								documentCharges = resultSet24.getInt(2);
 							}
 							logger.info("Documentation charges",documentCharges);
 						}
 						letterModel.setDocumentationCharges(getNilValues(documentCharges));
-						//setDocumentChargesValue(letterModel);
 					}catch (Exception e) {
 						logger.info("Documentation charges faile",e);
 						e.printStackTrace();
@@ -2628,74 +2526,6 @@ public class DynamicTemplateService {
 			}
 
 
-			//			PreparedStatement preparedStatement30 = connection.prepareStatement("Select Prepayment_Percentage"
-			//					+ "  From Hfs_Prepayment_Charge_Master A"
-			//					+ "  Where A.Borrower_Type         = ?"
-			//					+ "  And A.Business_Type           = ?"
-			//					+ "  And A.Rate_Type               = ?"
-			//					+ "  And A.Usage_Of_Loan           = ?"
-			//					+ "  And A.Prepayment_Chrge_Reason = ?"
-			//					+ "  And Effective_Date="
-			//					+ " (Select Max(Effective_Date)"
-			//					+ "  From Hfs_Prepayment_Charge_Master B"
-			//					+ "  Where A.Borrower_Type         = B.Borrower_Type"
-			//					+ "  And A.Business_Type           = B.Business_Type"
-			//					+ "  And A.Rate_Type               = B.Rate_Type"
-			//					+ "  And A.Usage_Of_Loan           = B.Usage_Of_Loan"
-			//					+ "  And A.Prepayment_Chrge_Reason = B.Prepayment_Chrge_Reason)");
-			//			preparedStatement30.setString(1,letterModel.getBorrower());
-			//			preparedStatement30.setString(2, letterModel.getProductCode());
-			//			preparedStatement30.setString(3, letterModel.getRateType());
-			//			preparedStatement30.setString(4, letterModel.getEndUseOfLoanCode());
-			//			preparedStatement30.setString(5, "");
-			//			ResultSet resultSet30 = preparedStatement30.executeQuery();
-			//			while (resultSet30.next()) {
-			//				letterModel.setPrePaymentCharges(resultSet30.getString(1));
-			//			}
-			//			letterModel.setPrePaymentCharges("0");
-			//			PreparedStatement preparedStatement31 = connection.prepareStatement("SELECT A.CHEQUE_BOUNCE_CHARGES FROM Sa_Product_Scheme_Dtls A ,Sa_Product_Scheme_Master_Hdr B"
-			//					+ " WHERE A.Scheme_Code  =? AND A.Division_Code=?"
-			//					+ "	AND A.Header_Key=B.Header_Key AND A.Effective_Date<=?"
-			//					+ " AND A.Effective_Date ="
-			//					+ "(SELECT MAX(Effective_Date) FROM Sa_Product_Scheme_Dtls"
-			//					+ "  WHERE A.Header_Key =Header_Key AND Effective_Date<=?"
-			//					+ "  AND ? BETWEEN Minimum_Term AND Maximum_Term"
-			//					+ "  AND ? BETWEEN Minimum_Loan_Amount AND Maximum_Loan_Amount)"
-			//					+ "  AND ? BETWEEN A.Minimum_Term AND A.Maximum_Term"
-			//					+ "  AND ? BETWEEN A.Minimum_Loan_Amount AND A.Maximum_Loan_Amount");
-			//			preparedStatement31.setString(1,letterModel.getSchemeCode() );
-			//			preparedStatement31.setString(2, letterModel.getDivisionCode());
-			//			preparedStatement31.setString(3, effectiveDate);
-			//			preparedStatement31.setString(4, effectiveDate);
-			//			preparedStatement31.setInt(5, letterModel.getTerm());
-			//			preparedStatement31.setInt(6, letterModel.getAmountFinanced());
-			//			preparedStatement31.setInt(7, letterModel.getTerm());
-			//			preparedStatement31.setInt(8, letterModel.getAmountFinanced());
-			//			ResultSet resultSet31 = preparedStatement31.executeQuery();
-			//			while (resultSet31.next()) {
-			//				letterModel.setChequeReturnCharges(resultSet31.getString(1));
-			//			}
-			//			PreparedStatement	preparedStatement32 = connection.prepareStatement("SELECT Cash_Hand_Charges,"
-			//					+ "        Denomination"
-			//					+ "      FROM Sa_Cash_Hand_Charges A"
-			//					+ "      WHERE ? BETWEEN From_Receipt_Amount AND To_Receipt_Amount"
-			//					+ "      AND A.Effective_Date ="
-			//					+ "        (SELECT MAX (Effective_Date) FROM Sa_Cash_Hand_Charges B"
-			//					+ "        )");
-			//			preparedStatement32.setInt(1,letterModel.getAmountFinanced());
-			//			ResultSet resultSet32 = preparedStatement32.executeQuery();
-			//			List<CashHandlingChargesModel> cashHandlingList = new ArrayList<>();
-			//			while (resultSet32.next()) { 
-			//				CashHandlingChargesModel cashHandlingChargesModel = new CashHandlingChargesModel();
-			//				String denomination = resultSet32.getString(2);
-			//				if(denomination.equals("L")) {
-			//					cashHandlingChargesModel.setCashHandlingCharges(0);
-			//				}else if(denomination.equals("R")) {
-			//					cashHandlingChargesModel.setCashHandlingCharges(resultSet32.getInt(1));
-			//				}
-			//				cashHandlingList.add(cashHandlingChargesModel);
-			//			}
-			//			letterModel.setCashHandlingCharges(cashHandlingList);
 
 		}catch (Exception e) {
 			logger.info("fetchOracleDataForMITC failed",e);
@@ -2765,11 +2595,7 @@ public class DynamicTemplateService {
 			
 			balancePyable = processingFromFee-processingFromUpfront;
 			letterModel.setBalancePayable(getNilValues(balancePyable));
-//		if(processingFee==0) {
-//			letterModel.setProcessingFee("NIL");
-//		}else {
 			letterModel.setProcessingFee(getNilValues(processingFee));
-//		}
 		}catch (Exception e) {
 			logger.info("data in Processing failed",e);
 			e.printStackTrace();
@@ -2787,7 +2613,6 @@ public class DynamicTemplateService {
 		LinkedHashMap<String,ScheduleB> scheduleBListMap= new LinkedHashMap<>();
 		LinkedHashMap<String,Boundries> boundriesListMap= new LinkedHashMap<>();
 		LinkedHashMap<String,Measurement> measurementListMap= new LinkedHashMap<>();
-		LinkedHashSet<LinkedSroDetails> linkedSroDetailsMap= new LinkedHashSet<>();
 		LinkedSroDetails linkedSroDetails= new LinkedSroDetails();
 		LinkedHashSet<String> sroList = new LinkedHashSet<>();
 		PropertyDetailModel propertyDetailModel = new PropertyDetailModel();
@@ -2810,7 +2635,6 @@ public class DynamicTemplateService {
 			try(PreparedStatement preparedStatement2 = connection.prepareStatement("SELECT property_customer_code,property_number FROM cc_property_details"
 					+ " where contract_number=? order by property_number");){
 				preparedStatement2.setString(1, letterModel.getContractNumber());
-				//preparedStatement2.setString(2, letterModel.getCustomerCode());
 				try(ResultSet resultSet2 = preparedStatement2.executeQuery();){
 					while (resultSet2.next()) {
 						PropertyNumberModel propertyNumberModel = new PropertyNumberModel();
@@ -3705,34 +3529,6 @@ public class DynamicTemplateService {
 	}
 
 
-	private String convertDateFormat(String dateValue) {
-		SimpleDateFormat inputFormater = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss",Locale.ENGLISH);
-		SimpleDateFormat outputFormater = new SimpleDateFormat("dd-MM-yy");
-		String outputDateStr ="";
-		try {
-			Date dates = inputFormater.parse(dateValue);
-			outputDateStr = outputFormater.format(dates);		
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		return outputDateStr;
-	}
-
-	private void setDocumentChargesValue(LetterReportModel letterModel) {
-		String documentationCharges = "0";
-		if(Objects.nonNull(letterModel.getFlatFee())&&
-				Integer.parseInt(letterModel.getFlatFee())>0) {
-			documentationCharges = letterModel.getFlatFee();
-			logger.info("Documentation charges flatfee",letterModel);
-		}else if(Objects.nonNull(letterModel.getFlatRate())&&
-				Integer.parseInt(letterModel.getFlatRate())>0) {
-			int processingFee =  Integer.parseInt(letterModel.getFlatRate())*(letterModel.getAmountFinanced());
-			documentationCharges = String.valueOf(processingFee);
-			logger.info("Documentation charges flatrate",letterModel);
-		}
-		letterModel.setDocumentationCharges(documentationCharges);
-
-	}
 
 	private void getCoApplicantNames(List<String> applicantNameList, LetterReportModel letterModel) {
 		int size = applicantNameList.size();
@@ -3786,27 +3582,6 @@ public class DynamicTemplateService {
 		if(Objects.nonNull(resultSet.getString(3))) {
 			customerName = customerName + "."+resultSet.getString(3);
 		}
-		//		if(Objects.nonNull(resultSet.getString(3))) {
-		//			if(Objects.isNull(resultSet.getString(2))) {
-		//				customerName = customerName + "."+resultSet.getString(3);
-		//			}else {
-		//				customerName = customerName + " "+resultSet.getString(3);
-		//			}
-		//		}
-		//		if(Objects.nonNull(resultSet.getString(4))) {
-		//			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))) {
-		//				customerName = customerName + "."+resultSet.getString(4);
-		//			}else {
-		//				customerName = customerName + " "+resultSet.getString(4);
-		//			}
-		//		}
-		//		if(Objects.nonNull(resultSet.getString(5))) {
-		//			if(Objects.isNull(resultSet.getString(2)) && Objects.isNull(resultSet.getString(3))&& Objects.isNull(resultSet.getString(4))) {
-		//				customerName = customerName + "."+resultSet.getString(5);
-		//			}else {
-		//				customerName = customerName + " "+resultSet.getString(5);
-		//			}
-		//		}
 		return customerName;
 	}
 
@@ -3848,7 +3623,6 @@ public class DynamicTemplateService {
 		// Your condition to switch to Oracle database
 		List<String> applicationNumberList = new ArrayList<>();
 		dynamicDataSourceService.switchToOracleDataSource();
-		//String query1="SELECT CONTRACT_NUMBER FROM CC_CONTRACT_MASTER WHERE CONTRACT_STATUS=1 AND CONTRACT_NUMBER IS NOT NULL ";
 		String query1="SELECT DISTINCT(A.CONTRACT_NUMBER) from cc_contract_stage_details A,CC_CONTRACT_MASTER B  where A.CONTRACT_NUMBER is not null AND A.STATUS =1 AND A.CONTRACT_NUMBER = B.CONTRACT_NUMBER and B.CONTRACT_STATUS=1";
 		DataSource currentDataSource = dynamicDataSourceService.getCurrentDataSource();
 		Connection connection = null;
@@ -3901,7 +3675,6 @@ public class DynamicTemplateService {
 			}else {
 				returnMap.put("status", "Fetched Realted Data Successfully");
 			}
-			Blob blob;
 			try{
 				String jsonValue = objectMapper.writeValueAsString(letterModelList);
 				logger.info("data converted"+jsonValue);
@@ -3964,64 +3737,6 @@ getBranchMail(letterModel);
 				//get processingfee & documentation charges&life_insurance
 				getFeeDataForLetterGeneration(dataMap,letterModel);
 
-				//				try {
-				//					logger.info("balancePayable method started");
-				//					// Amort Calculation for Balance Payable
-				//					Calendar calendar = Calendar.getInstance();
-				//					Date currentDate = getDate(calendar.getTime());
-				//					calendar.set(Calendar.DATE, calendar.getActualMinimum(Calendar.DAY_OF_MONTH));
-				//					DateFormat dateFormatforReqDate = new SimpleDateFormat("YYYY/MM/DD");
-				//					Date dates = new Date();
-				//					String dateValue = dateFormatforReqDate.format(dates);
-				//					
-				//					Date dueStartDate = getDate(calendar.getTime());
-				//					dataMap.put("requestedDate", dateValue);
-				//					//getbalancePayable(dataMap,letterModel);
-				//					 int balancePayable = letterModel.getAmountFinanced()-Integer.parseInt(letterModel.getProcessingFee());
-				//					 letterModel.setProcessingFee(String.valueOf(balancePayable));
-				//				}catch (Exception e) {
-				//					logger.info("balancePayable method faile",e);
-				//					e.printStackTrace();
-				//				}
-
-				//Cash Handling Charges Calculation
-//				try {
-//					logger.info("cashHandlingResponse loop started");
-//					ResponseEntity<List<CashHandlingChargesModel>> cashHandlingResponse = webClient.get()
-//							.uri(stlapServerUrl + "/cashHandlingCharges/findByMaxEffectiveDate")
-//							.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).retrieve()
-//							.toEntityList(CashHandlingChargesModel.class).block();
-//					logger.info("CashHandlingChargesModel loop fetched"+cashHandlingResponse);
-//					List<CashHandlingChargesModel> cashHandlingChargesList = cashHandlingResponse.getBody();
-//					logger.info("cashHandlingChargesList loop fetched"+cashHandlingChargesList);
-//					letterModel.setCashHandlingCharges(cashHandlingChargesList);
-//					logger.info("cashHandlingResponse"+letterModel);
-//				}catch (Exception e) {
-//					logger.info("cashHandlingResponse loop failed",e);
-//					e.printStackTrace();
-//				}
-
-				// Prepayment Charges Calculation
-				//				dataMap.put("prepayment_reason", "PRE - OWN FUNDS");
-				//				PrepaymentChargesModel prepaymentModel =  getDataFromPrepaymentCharges(dataMap);
-				//				String prepaymentCharge = "";
-				//				if(prepaymentModel!=null ) {
-				//					prepaymentCharge = String.valueOf(Objects.nonNull(prepaymentModel.getRate())?prepaymentModel.getRate().intValue():0);
-				//					letterModel.setProduct(prepaymentModel.getProduct());
-				//				}
-				//				letterModel.setPrePaymentCharges(prepaymentCharge);
-
-				// ChequeReturnCharges Calculation
-				//				dataMap.put("parameterName", "ChequeReturnCharges");
-				//				Map<String, Object> parameterResponse = webClient.post().uri(stlapServerUrl + "/parameter/getParameterByName")
-				//						.accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML).bodyValue(dataMap).retrieve()
-				//						.bodyToMono(Map.class).block();
-				//				String todayDate = formatter.format(currentDate);
-				//				String chequeReturnCharges = (todayDate.compareTo(parameterResponse.get("paramEffStartDate").toString()) >= 0
-				//						&& todayDate.compareTo(parameterResponse.get("paramEffEndDate").toString()) <= 0)
-				//						? parameterResponse.get("paramValue").toString()
-				//								: "0";
-				//				letterModel.setChequeReturnCharges(chequeReturnCharges);
 				letterModelList.add(letterModel);
 				logger.info("all data"+letterModelList);
 			});
@@ -4063,34 +3778,6 @@ getBranchMail(letterModel);
 		
 	}
 
-	private void getbalancePayable(Map<String, Object> dataMap, LetterReportModel letterModel) {
-		Double balancePayable = 0.0;
-		String query = "SELECT CLOSING_BALANCE FROM ST_TB_LMS_DISB_REPAY_SCHEDULE WHERE APPLICATION_NUM =?"
-				+ "	AND CONVERT(DATE, due_start_date) <= CONVERT(DATE, ?)"
-				+ "	AND CONVERT(DATE, due_end_date) >= CONVERT(DATE, ?)"
-				+"Order by due_start_date asc ";
-		try(Connection connection = dataSource.getConnection();){
-			logger.info("getbalancePayable method started");
-			try (PreparedStatement statement = connection.prepareStatement(query)) {
-				statement.setString(1, letterModel.getApplicationNumber());
-				statement.setString(2, String.valueOf(dataMap.get("requestedDate")));
-				statement.setString(3, String.valueOf(dataMap.get("requestedDate")));
-				try (ResultSet resultSet = statement.executeQuery()) {
-					while (resultSet.next()) {
-						balancePayable = resultSet.getDouble(1);
-					}
-					letterModel.setBalancePayable(balancePayable.toString());
-					logger.info("getbalancePayable method completed");
-				}catch (SQLException e) {
-					e.printStackTrace();
-				}
-			}catch (SQLException e) {
-				e.printStackTrace();
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}		
-	}
 
 	private void getAccountNo(LetterReportModel letterModel) {
 		String query = "select bank_account_num from st_tb_los_bank_dtl where application_number=? and internal_customer_id=?";
@@ -4353,23 +4040,6 @@ getBranchMail(letterModel);
 
 	}
 
-	private Date getDate(Date date) {
-
-		Calendar calendar = Calendar.getInstance();
-
-		calendar.setTime(date);
-
-		calendar.set(Calendar.HOUR_OF_DAY, 0);
-
-		calendar.set(Calendar.SECOND, 0);
-
-		calendar.set(Calendar.MINUTE, 0);
-
-		calendar.set(Calendar.MILLISECOND, 0);
-
-		return calendar.getTime();
-
-	}
 
 	@Data
 	@NoArgsConstructor
